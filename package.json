@@ -1,0 +1,11 @@
+{
+  "name": "co36-service",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "postgres": "^3.4.5"
+  }
+}

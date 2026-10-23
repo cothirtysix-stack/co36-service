@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CO36 Service</title>
+<link rel="icon" href="/apps/service.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apps/service.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--dis:#B5B5BE;--line:#ECECF0;--line2:#E2E2E8;--line3:#F1F1F4;--page:#F7F7F9;--surface:#fff;
+--ind:#5B5BF6;--ind2:#4343D9;--indt:#EEEEFE;--good:#16A34A;--good2:#15803D;--goodt:#E8F6EE;--bad:#EF4444;--bad2:#B91C1C;--badt:#FEECEC;--amb:#F59E0B;--amb2:#B45309;--ambt:#FEF3E2;
+--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--dis:#5C5C66;--line:#26262E;--line2:#30303A;--line3:#1E1E25;--page:#0E0E12;--surface:#16161C;
+--indt:#23234A;--goodt:#12301F;--badt:#3A1616;--ambt:#3A2A10;--ind2:#9B9BFF;--good2:#4ADE80;--bad2:#F87171;--amb2:#FBBF24;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+a{color:inherit}
+.wrap{display:flex;min-height:100vh}
+.side{width:232px;flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;padding:18px 14px;display:flex;flex-direction:column;gap:4px;overflow:auto}
+.logo{display:flex;align-items:center;gap:10px;padding:2px 6px 14px}
+.tile{width:38px;height:38px;border-radius:10px;background:#0B0B0F;color:#fff;display:grid;place-items:center;font-weight:800;font-size:11px;letter-spacing:-.02em;flex:none}
+.logo b{display:block;font-size:15px}.logo span{font-size:12px;color:var(--muted)}
+.grp{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:14px 10px 6px}
+.nav{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;color:var(--ink);text-decoration:none;font-weight:500;font-size:13.5px;white-space:nowrap;border:0;background:none;width:100%;text-align:left}
+.nav:hover{background:var(--line3)}.nav.soon{color:var(--dis);cursor:default}.nav.soon:hover{background:none}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.cnt{margin-left:auto;font-size:11.5px;font-weight:600;min-width:22px;height:20px;padding:0 6px;border-radius:999px;background:var(--line3);color:var(--muted);display:grid;place-items:center}
+.cnt.red{background:var(--bad);color:#fff}
+.soonp{margin-left:auto;font-size:10.5px;color:var(--dis)}
+.conn{margin-top:auto;background:var(--page);border-radius:12px;padding:12px;font-size:12.5px}
+.conn .grp{padding:0 0 8px}
+.ci{display:flex;align-items:center;gap:8px;padding:3px 0}.ci small{margin-left:auto;color:var(--muted);font-size:11px}
+.back{display:block;font-size:12.5px;color:var(--muted);text-decoration:none;padding:10px 10px 0}
+main{flex:1;min-width:0;padding:20px 24px 56px;display:flex;flex-direction:column;gap:20px;max-width:1280px}
+.head{display:flex;align-items:center;gap:12px}
+.head h1{font-size:24px;margin:0;letter-spacing:-.02em}.head .date{font-size:13px;color:var(--muted)}
+.sync{margin-left:auto;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--good)}.sync.err i{background:var(--bad)}.sync.run i{background:var(--amb)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.ch{display:flex;align-items:center;gap:12px;padding:18px 20px;border-bottom:1px solid var(--line3);flex-wrap:wrap}
+.ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:800;flex:none}
+.ch h2{font-size:16px;margin:0;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ch p{margin:2px 0 0;font-size:12px;color:var(--muted);font-weight:500}
+.ch .r{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hero{padding:26px 28px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr);gap:24px;align-items:center}
+.hero h2{font-size:32px;line-height:1.1;letter-spacing:-.03em;margin:0 0 8px;font-weight:800}.hero p{margin:0;color:var(--muted);font-size:15px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.st small{display:block;font-size:12px;color:var(--muted);font-weight:500}.st b{display:block;font-size:28px;letter-spacing:-.02em;font-weight:800}.st span{font-size:12px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:7px;white-space:nowrap}
+.p-red{background:var(--badt);color:var(--bad2)}.p-amb{background:var(--ambt);color:var(--amb2)}.p-ind{background:var(--indt);color:var(--ind2)}.p-good{background:var(--goodt);color:var(--good2)}.p-grey{background:var(--line3);color:var(--muted)}
+.chip{border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:500;color:var(--body);white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.row{display:flex;gap:16px;padding:16px 20px;border-top:1px solid var(--line3);align-items:center}
+.row:first-child{border-top:0}
+.row .main{flex:1;min-width:0}
+.l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.l1 b{font-size:14px}.l1 .meta{font-size:12.5px;color:var(--muted)}
+.l2{font-size:13px;color:var(--body);margin-top:4px}.l2 .ago{color:var(--muted)}
+.tell{font-size:13px;color:var(--muted);margin-top:4px}.tell b{color:var(--ink);font-weight:600}
+.acts{display:flex;gap:8px;flex:none;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.btn{height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);font-weight:600;font-size:13px;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center}
+.btn:hover{border-color:var(--dis)}
+.btn.pri{background:var(--ind);border-color:var(--ind);color:#fff}.btn.pri:hover{background:var(--ind2)}
+.btn.ink{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn.red{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{height:30px;font-size:12px;padding:0 10px;border-radius:8px}
+.btn[disabled]{opacity:.55;cursor:progress}
+.lnk{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:0}
+.empty{padding:22px 20px;color:var(--muted);font-size:13.5px}
+.ns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:20px;padding:18px 20px;border-top:1px solid var(--line3);background:var(--page)}
+.ns h3{margin:0 0 4px;font-size:15px}.ns .big{font-size:30px;font-weight:800;letter-spacing:-.02em}
+.bar{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:3px 0}.bar span{width:150px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar i{display:block;height:8px;border-radius:4px;background:var(--amb)}.bar em{font-style:normal;color:var(--muted);margin-left:auto}
+.seg{display:inline-flex;background:var(--line3);border-radius:9px;padding:3px}
+.seg button{border:0;background:none;padding:4px 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.08)}
+.tog{border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--muted)}
+.tog.on{background:var(--indt);border-color:var(--indt);color:var(--ind2)}
+select.type{border:0;background:var(--line3);border-radius:7px;font:600 11.5px Inter,sans-serif;color:var(--body);padding:3px 6px}
+.quote{font-size:14px;margin:6px 0 8px;color:var(--ink)}
+.ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:11px 12px;border-bottom:1px solid var(--line3);vertical-align:top}
+td .dot{display:inline-block;margin-right:6px;vertical-align:1px}
+.tbl{overflow-x:auto}
+.modal{position:fixed;inset:0;background:rgba(11,11,15,.45);display:grid;place-items:center;z-index:100;padding:16px}
+.mbox{background:var(--surface);border-radius:18px;width:min(620px,100%);max-height:90vh;overflow:auto;padding:22px;display:grid;gap:12px}
+.mbox h3{margin:0;font-size:18px}.mbox p{margin:0;color:var(--muted);font-size:13px}
+.mbox textarea{width:100%;min-height:220px;border:1px solid var(--line2);border-radius:12px;padding:12px;font:14px/1.5 Inter,sans-serif;background:var(--page);color:var(--ink);resize:vertical}
+.mbox .ft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.err{color:var(--bad2);font-size:13px;min-height:0}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-weight:600;font-size:13px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;font-size:13px}.kv span{color:var(--muted)}
+@media (max-width:980px){.wrap{display:block}.side{position:static;width:auto;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.grp,.conn,.back,.nav.soon{display:none}.nav{width:auto}
+.hero{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ns{grid-template-columns:1fr}main{padding:16px}.row{flex-direction:column;align-items:stretch}.acts{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside class="side">
+    <div class="logo"><div class="tile">CO36</div><div><b>Service Hub</b><span>Manager</span></div></div>
+    <div class="grp">Today</div>
+    <button class="nav" data-go="sec-fix"><i class="dot" style="background:var(--ind)"></i>Fix before they know<span class="cnt" id="n-fix">–</span></button>
+    <button class="nav" data-go="sec-right"><i class="dot" style="background:var(--bad)"></i>Make it right<span class="cnt" id="n-right">–</span></button>
+    <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>Say thank you<span class="soonp">Soon</span></div>
+    <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>Check back<span class="soonp">Soon</span></div>
+    <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>Delight<span class="soonp">Soon</span></div>
+    <div class="grp">Learn</div>
+    <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>What went wrong<span class="soonp">Soon</span></div>
+    <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>Sarah's training<span class="soonp">Soon</span></div>
+    <button class="nav" data-go="sec-log"><i class="dot" style="background:var(--muted)"></i>Case log<span class="cnt" id="n-log">–</span></button>
+    <div class="grp">Grow</div>
+    <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>Retention<span class="soonp">Soon</span></div>
+    <div class="conn">
+      <div class="grp">Connected</div>
+      <div class="ci"><i class="dot" id="c-shop" style="background:var(--dis)"></i>Shopify<small id="c-shop-t"></small></div>
+      <div class="ci"><i class="dot" id="c-rp" style="background:var(--dis)"></i>Richpanel<small id="c-rp-t"></small></div>
+      <div class="ci"><i class="dot" style="background:var(--dis)"></i>ShipHero<small>Soon</small></div>
+      <div class="ci"><i class="dot" style="background:var(--dis)"></i>Klaviyo<small>Soon</small></div>
+      <div class="ci"><i class="dot" style="background:var(--dis)"></i>Trustpilot<small>Soon</small></div>
+    </div>
+    <a class="back" href="https://calandar-co36-pl7x4m.vercel.app/">← CO36 HQ</a>
+  </aside>
+
+  <main>
+    <div class="head"><div class="tile">CO36</div><div><h1>Make it right</h1><div class="date" id="today"></div></div>
+      <div class="sync" id="sync"><i></i><span>Loading…</span></div></div>
+
+    <section class="card hero">
+      <div><h2 id="headline">Loading today…</h2><p>Win back everyone we let down, and catch shipping problems before the customer has to ask.</p></div>
+      <div class="stats">
+        <div class="st"><small>Fixed before they knew</small><b id="s-fixed" style="color:var(--good)">–</b><span>today</span></div>
+        <div class="st"><small>Made right today</small><b id="s-right">–</b><span id="s-right-gc">$0 in gift cards</span></div>
+        <div class="st"><small>Over 1 hour</small><b id="s-over" style="color:var(--bad)">–</b><span>upset, waiting on us</span></div>
+        <div class="st"><small>Cases · 30 days</small><b id="s-cases" style="color:var(--ind)">–</b><span>saved in CO36's database</span></div>
+      </div>
+    </section>
+
+    <section class="card" id="sec-fix">
+      <div class="ch"><div class="ic" style="background:var(--indt);color:var(--ind2)">⚑</div>
+        <div><h2>Fix it before they know <span class="pill p-ind" id="fix-n">…</span></h2><p>Shipping problems found in Shopify tracking. The customer hasn't written in yet.</p></div>
+        <div class="r" id="fix-chips"></div></div>
+      <div id="fix-rows"><div class="empty">Scanning the last 30 days of orders in Shopify…</div></div>
+      <div id="fix-ns"></div>
+    </section>
+
+    <section class="card" id="sec-right">
+      <div class="ch"><div class="ic" style="background:var(--badt);color:var(--bad2)">!</div>
+        <div><h2>Make it right <span class="pill p-red" id="over-n" hidden></span></h2><p>Upset customers from Richpanel · reply within 1 hour · Claude picks the gift card and drafts the email, you approve</p></div></div>
+      <div id="right-rows"><div class="empty">Loading…</div></div>
+    </section>
+
+    <section class="card" id="sec-log">
+      <div class="ch"><div><h2>Case log</h2><p id="log-sub">Customer, order, product, what went wrong, what we did, cost</p></div>
+        <div class="r"><button class="btn" id="csv">Download CSV</button></div></div>
+      <div class="tbl"><table><thead><tr><th>When</th><th>Customer</th><th>Order</th><th>Product</th><th>What went wrong</th><th>What we did</th><th>Cost</th><th>By</th></tr></thead><tbody id="log-rows"></tbody></table></div>
+    </section>
+  </main>
+</div>
+
+<script src="/shim.js"></script>
+<script>
+(async () => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ago = t => { const m = Math.max(0, Math.round((Date.now() - (typeof t === "number" ? t : Date.parse(t))) / 6e4)); return m < 60 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)} days ago`; };
+const first = n => String(n || "").trim().split(/\s+/)[0] || "there";
+const toast = t => { const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const isToday = t => new Date(t).toDateString() === new Date().toDateString();
+$("today").textContent = new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => $(b.dataset.go).scrollIntoView({ behavior: "smooth", block: "start" }));
+
+const db = await window.claude.use("db"), api = await window.claude.use("api"), sample = await window.claude.use("sample");
+let fix = null, scan = null, inbox = [], cases = [], filter = "all", me = "";
+try { me = await (await window.claude.use("user")).email(); } catch (_) {}
+
+// ---------- shipping problem types ----------
+const FT = {
+  failed:     { label: "Couldn't deliver", cls: "p-red", primary: "reship", second: "track",
+                tell: c => `${c} couldn't deliver your package, so we caught it before you had to ask. A fresh one ships today by express, on us. Reply if your address has changed.` },
+  stuck:      { label: "No movement 5+ days", cls: "p-amb", primary: "reship", second: "track",
+                tell: () => `Your package stopped moving, so we didn't wait. A new one ships today by express, on us. If the first one turns up, keep it.` },
+  notscanned: { label: "Not picked up", cls: "p-grey", primary: "tell", second: "track",
+                tell: () => `Quick heads-up: your order is packed, but the carrier hasn't picked it up yet. We're on it with the warehouse, and you'll have moving tracking shortly.` },
+  attempted:  { label: "Delivery attempt", cls: "p-amb", primary: "tell", second: "reship",
+                tell: c => `${c} tried to deliver your order but couldn't. Check the note they left, or reply here and we'll sort it out with them today.` },
+  late:       { label: "Running late", cls: "p-grey", primary: "tell", second: "reship",
+                tell: () => `Your package is running behind the carrier's date. We're watching it every day, and if it stalls we'll send a new one by express, on us.` }
+};
+const keyOf = p => p.fulfillmentId || p.order;
+const handled = () => new Set(cases.filter(c => c.ref).map(c => c.ref));
+const openFix = () => { const h = handled(); return (fix?.problems || []).filter(p => !h.has(keyOf(p))); };
+
+// ---------- Make it right ----------
+const TYPES = { damaged: "Damaged", wrong: "Wrong item", late: "Late delivery", service: "Bad service", sarah: "Sarah mistake", other: "Other" };
+const DOT = { damaged: "var(--bad)", wrong: "var(--amb)", late: "var(--ink)", service: "var(--muted)", sarah: "var(--ind)", other: "var(--dis)", fix: "var(--ind)" };
+const suggestGift = t => ({ damaged: 25, wrong: 25, late: 15, service: 15, sarah: 15 }[t.type] ?? 0) + 0;
+const openRight = () => inbox.filter(t => t.mood === "upset" && !t.closedAt && !t.handledAt).sort((a, b) => (a.waitingSince || a.firstAt) - (b.waitingSince || b.firstAt));
+const clock = t => { const left = 60 - (Date.now() - (t.waitingSince || t.firstAt)) / 6e4;
+  if (left <= 0) { const h = -left / 60; return `<span class="pill p-red">Over by ${h < 1 ? Math.round(-left) + "m" : Math.round(h) + "h"}</span>`; }
+  return `<span class="pill ${left <= 20 ? "p-amb" : "p-grey"}">${Math.round(left)} min left</span>`; };
+
+function render() {
+  const fx = openFix(), rt = openRight(), over = rt.filter(t => Date.now() - (t.waitingSince || t.firstAt) > 36e5).length;
+  const total = fx.length + rt.length;
+  $("headline").textContent = total ? `${total.toLocaleString()} customer${total === 1 ? "" : "s"} need${total === 1 ? "s" : ""} one click from you today.` : (fix ? "Everyone's taken care of right now." : "Loading today…");
+  $("n-fix").textContent = fix ? fx.length : "–"; $("n-right").textContent = rt.length; $("n-right").classList.toggle("red", rt.length > 0);
+  const recent = cases.filter(c => Date.now() - c.at < 30 * 864e5);
+  $("n-log").textContent = recent.length;
+  const todayRight = cases.filter(c => c.source === "right" && isToday(c.at));
+  $("s-fixed").textContent = cases.filter(c => c.source === "fix" && isToday(c.at)).length;
+  $("s-right").textContent = todayRight.length; $("s-right-gc").textContent = `$${todayRight.reduce((s, c) => s + (c.gift || 0), 0)} in gift cards`;
+  $("s-over").textContent = over; $("s-cases").textContent = recent.length;
+  $("over-n").hidden = !over; $("over-n").textContent = `${over} over 1 hour`;
+  renderFix(fx); renderRight(rt); renderLog();
+}
+
+function renderFix(fx) {
+  $("fix-n").textContent = fix ? `${fx.length} caught` : "…";
+  if (!fix) { $("fix-rows").innerHTML = `<div class="empty">${scan?.status === "failed" ? "The Shopify scan failed (" + esc(scan.error) + "). Try Rescan." : "Scanning the last 30 days of orders in Shopify. The first scan takes a minute or two…"}</div>`; return; }
+  const counts = {}; fx.forEach(p => counts[p.type] = (counts[p.type] || 0) + 1);
+  $("fix-chips").innerHTML = [`<button class="chip ${filter === "all" ? "on" : ""}" data-f="all">All · ${fx.length}</button>`,
+    ...Object.keys(FT).filter(k => counts[k]).map(k => `<button class="chip ${filter === k ? "on" : ""}" data-f="${k}">${FT[k].label} · ${counts[k]}</button>`),
+    `<button class="chip" id="rescan">Rescan</button>`].join("");
+  $("fix-chips").querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filter = b.dataset.f; render(); });
+  $("rescan").onclick = () => startScan(true);
+  const list = fx.filter(p => filter === "all" || p.type === filter);
+  const shown = list.slice(0, 60);
+  $("fix-rows").innerHTML = shown.length ? shown.map((p, i) => { const T = FT[p.type];
+    const btn = (kind, pri) => kind === "track" ? (p.trackingUrl ? `<a class="btn" href="${esc(p.trackingUrl)}" target="_blank" rel="noopener">Track</a>` : "")
+      : kind === "reship" ? `<button class="btn ${pri ? "pri" : ""}" data-act="reship" data-i="${i}">${p.type === "stuck" ? "Reship express + tell them" : pri ? "Reship + tell them" : "Reship"}</button>`
+      : `<button class="btn ${pri ? "pri" : ""}" data-act="tell" data-i="${i}">Tell them</button>`;
+    return `<div class="row"><div class="main">
+      <div class="l1"><span class="pill ${T.cls}">${T.label}</span><b>${esc(p.customer)}</b><span class="meta">${esc(p.order)}${p.product ? " · " + esc(p.product) : ""}${p.carrier ? " · " + esc(p.carrier) : ""}</span></div>
+      <div class="l2">${esc(p.what)} <span class="ago">· shipped ${ago(p.labelAt)}</span></div>
+      <div class="tell"><b>We'll tell them:</b> “${esc(T.tell(p.carrier || "The carrier"))}”</div></div>
+      <div class="acts">${btn(T.second, false)}${btn(T.primary, true)}<button class="lnk" data-act="done" data-i="${i}">Mark handled</button></div></div>`; }).join("")
+    + (list.length > shown.length ? `<div class="empty">Showing the oldest ${shown.length} of ${list.length}. Handle these and the next ones move up.</div>` : "")
+    : `<div class="empty">No shipping problems right now. Last scan ${ago(fix.at)}.</div>`;
+  $("fix-rows").querySelectorAll("[data-act]").forEach(b => b.onclick = () => fixAction(b.dataset.act, shown[+b.dataset.i]));
+  const ns = fix.notShipped;
+  if (ns?.count) {
+    const top = Object.entries(ns.byProduct).sort((a, b) => b[1] - a[1]).slice(0, 6), max = top[0]?.[1] || 1;
+    $("fix-ns").innerHTML = `<div class="ns"><div><h3>Not shipped after 5+ days</h3><div class="big">${ns.count.toLocaleString()}</div>
+      <p style="margin:4px 0 0;color:var(--muted);font-size:12.5px">Paid orders from the last 30 days the warehouse hasn't shipped. Pre-orders and merged orders are left out${fix.onHold?.count ? `, and ${fix.onHold.count} are on hold` : ""}. Oldest: ${ns.oldest.slice(0, 3).map(o => esc(o.order) + " (" + o.days + " days)").join(", ")}.</p></div>
+      <div><div style="font-size:12px;color:var(--muted);margin-bottom:6px">Units waiting, by product</div>${top.map(([t, n]) => `<div class="bar"><span title="${esc(t)}">${esc(t)}</span><i style="width:${Math.max(4, Math.round(n / max * 180))}px"></i><em>${n.toLocaleString()}</em></div>`).join("")}</div></div>`;
+  } else $("fix-ns").innerHTML = "";
+}
+
+function renderRight(rt) {
+  const connected = inbox.length > 0;
+  $("c-rp").style.background = connected ? "var(--good)" : "var(--dis)"; $("c-rp-t").textContent = connected ? "" : "Set up";
+  if (!rt.length) { $("right-rows").innerHTML = `<div class="empty">${connected ? "No upset customers waiting. Nice." : "Waiting for Richpanel. Once Richpanel sends new emails here, upset customers show up in this list with a 1-hour clock."}</div>`; return; }
+  $("right-rows").innerHTML = rt.map((t, i) => { const g = t.gift ?? suggestGift(t);
+    return `<div class="row"><div class="main">
+      <div class="l1">${clock(t)}<b>${esc(t.customer || t.email || "Customer")}</b>
+        <select class="type" data-i="${i}">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${t.type === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+        <span class="meta">${esc(t.order || "")}${t.messages > 1 ? ` · ${t.messages} emails` : ""}</span></div>
+      <div class="quote">“${esc(t.quote || t.summary || "")}”</div>
+      <div class="ctl"><div class="seg" data-i="${i}">${[0, 15, 25, 50].map(v => `<button data-v="${v}" class="${g === v ? "on" : ""}">${v ? "$" + v : "No card"}</button>`).join("")}</div>
+        <button class="tog ${t.sarah ? "on" : ""}" data-sarah="${i}">${t.sarah ? "✓ Sarah got it wrong" : "Sarah got it wrong?"}</button></div></div>
+      <div class="acts"><button class="btn ink" data-send="${i}">${g ? `Send $${g} gift card` : "Write the apology"}</button></div></div>`; }).join("");
+  const R = $("right-rows");
+  R.querySelectorAll("select.type").forEach(s => s.onchange = () => db.doc(`svc_inbox/${rt[+s.dataset.i].ticketId}`).update({ type: s.value }));
+  R.querySelectorAll(".seg").forEach(s => s.querySelectorAll("button").forEach(b => b.onclick = () => db.doc(`svc_inbox/${rt[+s.dataset.i].ticketId}`).update({ gift: +b.dataset.v })));
+  R.querySelectorAll("[data-sarah]").forEach(b => b.onclick = () => { const t = rt[+b.dataset.sarah]; db.doc(`svc_inbox/${t.ticketId}`).update({ sarah: !t.sarah }); });
+  R.querySelectorAll("[data-send]").forEach(b => b.onclick = () => makeRight(rt[+b.dataset.send]));
+}
+
+function renderLog() {
+  const rows = [...cases].sort((a, b) => b.at - a.at).slice(0, 200);
+  $("log-sub").textContent = `${cases.length} case${cases.length === 1 ? "" : "s"} · customer, order, product, what went wrong, what we did, cost`;
+  $("log-rows").innerHTML = rows.length ? rows.map(c => `<tr><td style="white-space:nowrap;color:var(--muted)">${ago(c.at)}</td><td><b>${esc(c.customer)}</b></td><td>${esc(c.order || "")}</td><td>${esc(c.product || "")}</td>
+    <td><i class="dot" style="background:${DOT[c.type] || DOT.other}"></i>${esc(c.what || "")}${c.sarah ? " + Sarah" : ""}</td><td>${esc(c.did)}</td><td><b>${c.gift ? "$" + c.gift : ""}</b></td><td style="color:var(--muted)">${esc(c.by || "")}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="empty">Every fix you make is saved here.</td></tr>`;
+}
+$("csv").onclick = () => {
+  const cols = ["when", "customer", "email", "order", "product", "type", "what", "did", "gift", "giftCode", "reshipOrder", "sarah", "by"];
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const text = [cols.join(","), ...cases.sort((a, b) => b.at - a.at).map(c => cols.map(k => q(k === "when" ? new Date(c.at).toISOString() : c[k])).join(","))].join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = `CO36-service-cases-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+};
+
+// ---------- modals ----------
+function modal(html) { const m = document.createElement("div"); m.className = "modal"; m.innerHTML = `<div class="mbox">${html}</div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); return m; }
+const logCase = c => db.doc(`svc_cases/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`).set({ at: Date.now(), by: me, ...c });
+
+function fixAction(act, p) {
+  const T = FT[p.type], msg = `Hi ${first(p.customer)},\n\n${T.tell(p.carrier || "The carrier")}\n\nWarmly,\nThe CO36 Team`;
+  const base = { source: "fix", ref: keyOf(p), customer: p.customer, email: p.email, order: p.order, product: p.product, type: "fix", what: `${T.label}: ${p.what}` };
+  if (act === "done") { logCase({ ...base, did: "Checked, no action needed" }); toast("Marked handled"); return; }
+  const isReship = act === "reship";
+  const m = modal(`<h3>${isReship ? "Reship " + esc(p.order) + " and tell " + esc(first(p.customer)) : "Tell " + esc(first(p.customer))}</h3>
+    <div class="kv"><span>Customer</span><div>${esc(p.customer)} · ${esc(p.email || "no email")}</div><span>Order</span><div>${esc(p.order)} · ${esc(p.product)}</div><span>Problem</span><div>${esc(p.what)}</div></div>
+    ${isReship ? `<p>This creates a free replacement order in Shopify, tagged <b>Reship</b> and linked to ${esc(p.order)}, so the warehouse ships it. One free reship per order.</p>` : ""}
+    <textarea id="m-msg">${esc(msg)}</textarea>
+    <p>Copy this into a new email to ${esc(p.email || "the customer")} in Richpanel. (Starting new emails from the hub comes once Richpanel allows it.)</p>
+    <div class="err" id="m-err"></div>
+    <div class="ft"><button class="btn" id="m-x">Cancel</button><button class="btn pri" id="m-go">${isReship ? "Reship now + copy message" : "Copy message + mark done"}</button></div>`);
+  m.querySelector("#m-x").onclick = () => m.remove();
+  m.querySelector("#m-go").onclick = async e => {
+    const b = e.target, text = m.querySelector("#m-msg").value; b.disabled = true; m.querySelector("#m-err").textContent = "";
+    try {
+      let did = "Told them first";
+      if (isReship) { b.textContent = "Creating order in Shopify…"; const r = await api.post("service", { op: "reship", order: p.order }); did = `Reshipped as ${r.order}`; base.reshipOrder = r.order; }
+      await navigator.clipboard.writeText(text).catch(() => {});
+      await logCase({ ...base, did, message: text });
+      m.remove(); toast(isReship ? `${p.order} reshipped · message copied` : "Message copied · fixed before they noticed");
+    } catch (err) { m.querySelector("#m-err").textContent = err.text || err.message; b.disabled = false; b.textContent = isReship ? "Reship now + copy message" : "Copy message + mark done"; }
+  };
+}
+
+async function makeRight(t) {
+  const gift = t.gift ?? suggestGift(t), T = TYPES[t.type] || "Other";
+  const m = modal(`<h3>Make it right · ${esc(t.customer || t.email || "")}</h3>
+    <div class="kv"><span>They said</span><div>“${esc(t.quote || "")}”</div><span>Problem</span><div>${esc(T)}${t.summary ? " · " + esc(t.summary) : ""}</div><span>Gift card</span><div>${gift ? "$" + gift + " (made in Shopify when you send)" : "None"}</div></div>
+    <textarea id="m-msg" placeholder="Claude is writing the apology…" disabled></textarea>
+    <p>This is sent as a reply in their Richpanel email thread. Edit anything before sending.</p>
+    <div class="err" id="m-err"></div>
+    <div class="ft"><button class="btn" id="m-x">Cancel</button><button class="btn" id="m-close">Mark handled, don't send</button><button class="btn ink" id="m-go" disabled>Send</button></div>`);
+  const ta = m.querySelector("#m-msg"), go = m.querySelector("#m-go"), err = m.querySelector("#m-err");
+  m.querySelector("#m-x").onclick = () => m.remove();
+  m.querySelector("#m-close").onclick = async () => { await db.doc(`svc_inbox/${t.ticketId}`).update({ handledAt: Date.now() });
+    await logCase({ source: "right", ref: t.ticketId, customer: t.customer || t.email, email: t.email, order: t.order, type: t.type, what: T, did: "Handled in Richpanel", sarah: !!t.sarah }); m.remove(); toast("Marked handled"); };
+  try {
+    const r = await sample(`You write customer-service emails for CO36, a men's clothing brand. The standard is Ritz-Carlton service: warm, personal, owns the problem, never makes excuses, never blames the customer, the carrier or "the system". Short: 4 to 6 sentences. Plain text, no subject line, no markdown.
+Customer first name: ${first(t.customer)}
+What they wrote: "${t.quote || ""}"
+Problem: ${T}${t.summary ? " (" + t.summary + ")" : ""}${t.order ? "\nOrder: " + t.order : ""}${t.messages > 1 ? `\nThey have written ${t.messages} times.` : ""}
+${gift ? `We're giving them a $${gift} gift card. Put the exact text [GIFT CARD] on its own line where the code goes, and say it's a small thank-you for their patience, not a fix.` : "No gift card this time."}
+Say exactly what we're doing next. Don't promise anything specific about dates or refunds unless it's stated above. Sign off: "Warmly,\nThe CO36 Team". Return only the email.`);
+    ta.value = (r.text || "").trim(); ta.disabled = false; go.disabled = false;
+  } catch (e) { ta.disabled = false; go.disabled = false; ta.value = `Hi ${first(t.customer)},\n\nI'm so sorry. You shouldn't have had to chase us, and that's on us.\n\n${gift ? "[GIFT CARD]\n\n" : ""}Warmly,\nThe CO36 Team`; err.textContent = "Claude couldn't draft this one, so here's a starting point."; }
+  go.onclick = async () => {
+    go.disabled = true; err.textContent = ""; let body = ta.value, card = null;
+    try {
+      if (gift) { go.textContent = "Making gift card…"; card = await api.post("service", { op: "giftCard", amount: gift, order: t.order, note: T });
+        const line = `Your $${gift} gift card code: ${card.code}`; body = body.includes("[GIFT CARD]") ? body.replace("[GIFT CARD]", line) : body.replace(/\n*(Warmly,)/, `\n\n${line}\n\n$1`); ta.value = body; }
+      go.textContent = "Sending…";
+      await api.post("service", { op: "reply", ticketId: t.ticketId, body });
+      await db.doc(`svc_inbox/${t.ticketId}`).update({ handledAt: Date.now(), repliedAt: Date.now() });
+      await logCase({ source: "right", ref: t.ticketId, customer: t.customer || t.email, email: t.email, order: t.order, type: t.type, what: T, did: gift ? `$${gift} gift card + apology` : "Apology", gift: gift || 0, giftCode: card?.code || null, sarah: !!t.sarah, message: body });
+      m.remove(); toast(gift ? `Sent · $${gift} gift card` : "Sent");
+    } catch (e) { err.textContent = (card ? `Gift card ${card.code} was made, but the email didn't send: ` : "") + (e.text || e.message); go.disabled = false; go.textContent = "Send"; }
+  };
+}
+
+// ---------- Shopify scan ----------
+let checking = null;
+async function startScan(force) {
+  try { scan = await api.post("service", { op: "scanStart" }); setSync(); if (!checking) checking = setInterval(checkScan, 8000); if (force) toast("Scanning Shopify…"); }
+  catch (e) { setSync(e.text || e.message); }
+}
+async function checkScan() {
+  try { scan = await api.post("service", { op: "scanCheck" }); setSync();
+    if (scan.status !== "running") { clearInterval(checking); checking = null; } }
+  catch (e) { setSync(e.text || e.message); clearInterval(checking); checking = null; }
+}
+function setSync(error) {
+  const s = $("sync"); s.className = "sync" + (error || scan?.status === "failed" ? " err" : scan?.status === "running" ? " run" : "");
+  const t = error ? error : scan?.status === "running" ? `Scanning Shopify${scan.objects ? " · " + scan.objects.toLocaleString() + " records" : ""}…` : fix ? `Synced ${ago(fix.at)}` : "Not scanned yet";
+  s.querySelector("span").textContent = t;
+  $("c-shop").style.background = error || scan?.status === "failed" ? "var(--bad)" : fix ? "var(--good)" : "var(--dis)"; $("c-shop-t").textContent = fix ? ago(fix.at) : "";
+}
+
+db.doc("svc_fix/latest").onSnapshot(s => { fix = s.exists ? s.data() : null; setSync(); render(); });
+db.doc("svc_fix/scan").onSnapshot(s => { scan = s.exists ? s.data() : null; setSync();
+  if (scan?.status === "running" && !checking) checking = setInterval(checkScan, 8000); });
+db.collection("svc_inbox").onSnapshot(s => { inbox = s.docs.map(d => d.data()); render(); });
+db.collection("svc_cases").onSnapshot(s => { cases = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
+
+// Rescan when the last one is over 30 minutes old (shared, so one person's scan updates everyone).
+const latest = await db.doc("svc_fix/latest").get(), sc = await db.doc("svc_fix/scan").get();
+if (!(sc.exists && sc.data().status === "running") && (!latest.exists || Date.now() - latest.data().at > 30 * 6e4)) startScan();
+setInterval(() => { render(); setSync(); }, 30000);
+})();
+</script>
+</body>
+</html>
