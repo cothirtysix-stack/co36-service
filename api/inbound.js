@@ -49,7 +49,6 @@ async function inner(req, res) {
     const looked = !ticketId && number && process.env.RICHPANEL_API_KEY
       ? await fetch(`https://api.richpanel.com/v1/tickets/number/${number}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
     ticketId ||= looked?.ticket?.id;
-    if (looked?.ticket) await putDoc("svc_meta", "shape", { t: Object.keys(looked.ticket), via: looked.ticket.via ? JSON.stringify(looked.ticket.via, (k, v) => typeof v === "string" ? typeof v : v).slice(0, 400) : null, recipient: typeof looked.ticket.recipient, comment: Object.keys(looked.ticket.comments?.[0] || {}), meta: JSON.stringify(looked.ticket.comments?.[0]?.metadata || null, (k, v) => typeof v === "string" ? typeof v : v).slice(0, 300) }).catch(() => {});
     const id = number ? "n" + number : String(ticketId || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
     if (!id || !ticketId) return res.status(400).json({ error: "no conversation number or ticket id" });
     const cur = await getDoc("svc_inbox", id);
@@ -59,11 +58,15 @@ async function inner(req, res) {
     if (/agent|operator|bot|ai|user/i.test(String(pick(b, "ticketMessageFrom", "message_from") || "")) && !/customer|visitor/i.test(String(pick(b, "ticketMessageFrom", "message_from")))) {
       if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
     }
-    const comments = looked?.ticket?.comments || [];
-    if (!pick(b, "ticketMessage", "message") && comments.length && comments[comments.length - 1].isOperator) {
+    const comments = looked?.ticket?.comments || [], isOp = c => !!(c.is_operator ?? c.isOperator);
+    const lastFromUs = /agent|operator|bot|ai|user/i.test(String(looked?.ticket?.last_message_sender_type || "")) || (comments.length && isOp(comments[comments.length - 1]));
+    if (!pick(b, "ticketMessage", "message") && lastFromUs) {
       if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
     }
-    const lastCustomer = comments.filter(c => !c.isOperator).pop();
+    const lastCustomer = comments.filter(c => !isOp(c)).pop();
+    const cp = looked?.ticket?.customer_profile || {};
+    const rpName = cp.name || [cp.firstName || cp.first_name, cp.lastName || cp.last_name].filter(Boolean).join(" ") || null;
+    const rpEmail = cp.email || looked?.ticket?.via?.source?.from?.address || null;
     const message = String(pick(b, "ticketMessage", "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "").trim();
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     const mood = await read(message, subject);
@@ -71,7 +74,7 @@ async function inner(req, res) {
     const now = Date.now();
     await putDoc("svc_inbox", id, {
       ticketId, number: number || cur?.number || null,
-      customer: pick(b, "ticketCustomerName", "customer_name", "name") || cur?.customer || null, email: pick(b, "ticketCustomerEmail", "customer_email", "email") || cur?.email || null,
+      customer: pick(b, "ticketCustomerName", "customer_name", "name") || rpName || cur?.customer || null, email: pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail || cur?.email || null,
       subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : Array.isArray(b.ticketConversationTags) ? b.ticketConversationTags : cur?.tags || [],
       mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood || "upset", type: mood?.type || cur?.type || "other",
       summary: mood?.summary || cur?.summary || null, quote: mood?.quote || message.slice(0, 140), order: mood?.order || cur?.order || null,
