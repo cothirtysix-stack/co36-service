@@ -1,20 +1,12 @@
 // Connection check: says which services work. Never returns key values.
 import { db, SB_URL, SB_ANON } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
-import postgres from "postgres";
 
 const NEED_SCOPES = ["read_orders", "read_fulfillments", "read_customers", "write_orders", "write_draft_orders", "write_gift_cards"];
 const run = async fn => { try { return await Promise.race([fn(), new Promise((_, no) => setTimeout(() => no(new Error("timed out after 8s")), 8000))]); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 160) }; } };
 
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
-  // Which database address works for a normal (parameter) query? Names and host type only, never values.
-  const tryUrl = async name => { const u = process.env[name]; if (!u) return { set: false };
-    const host = (() => { try { const x = new URL(u); return x.hostname.replace(/^[^.]*\./, "*.") + ":" + x.port; } catch { return "?"; } })();
-    const c = postgres(u, { ssl: "require", max: 1, prepare: false, connect_timeout: 6 });
-    const r = await run(async () => { const t = Date.now(); await c`select count(*) from hub.docs where coll = ${"svc_inbox"}`; return { ok: true, ms: Date.now() - t }; });
-    c.end({ timeout: 1 }).catch(() => {}); return { set: true, host, ...r }; };
-  const dbUrls = Object.fromEntries(await Promise.all(["DATABASE_URL", "POSTGRES_URL", "POSTGRES_URL_NON_POOLING"].map(async n => [n, await tryUrl(n)])));
   const [supabase, shop, richpanel, returns] = await Promise.all([
     run(async () => { if (!SB_URL() || !SB_ANON()) return { ok: false, error: "Supabase URL or key missing" }; await db()`select 1`; return { ok: true }; }),
     run(async () => {
@@ -45,5 +37,5 @@ export default async function handler(req, res) {
   const scan = await run(async () => { const rows = await db()`select id, data from hub.docs where coll = 'svc_fix' and not deleted`;
     const by = Object.fromEntries(rows.map(r => [r.id, r.data]));
     return { ok: true, scan: by.scan || null, latest: by.latest ? { at: by.latest.at, problems: by.latest.problems?.length, notShipped: by.latest.notShipped?.count } : null }; });
-  res.json({ dbUrls, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
