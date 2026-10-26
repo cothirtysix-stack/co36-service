@@ -265,9 +265,9 @@ function renderRight(rt) {
         <button class="tog ${t.sarah ? "on" : ""}" data-sarah="${i}">${t.sarah ? "✓ Sarah got it wrong" : "Sarah got it wrong?"}</button></div></div>
       <div class="acts"><button class="btn ink" data-send="${i}">${g ? `Send $${g} gift card` : "Write the apology"}</button></div></div>`; }).join("");
   const R = $("right-rows");
-  R.querySelectorAll("select.type").forEach(s => s.onchange = () => db.doc(`svc_inbox/${rt[+s.dataset.i].ticketId}`).update({ type: s.value }));
-  R.querySelectorAll(".seg").forEach(s => s.querySelectorAll("button").forEach(b => b.onclick = () => db.doc(`svc_inbox/${rt[+s.dataset.i].ticketId}`).update({ gift: +b.dataset.v })));
-  R.querySelectorAll("[data-sarah]").forEach(b => b.onclick = () => { const t = rt[+b.dataset.sarah]; db.doc(`svc_inbox/${t.ticketId}`).update({ sarah: !t.sarah }); });
+  R.querySelectorAll("select.type").forEach(s => s.onchange = () => db.doc(`svc_inbox/${rt[+s.dataset.i].docId}`).update({ type: s.value }));
+  R.querySelectorAll(".seg").forEach(s => s.querySelectorAll("button").forEach(b => b.onclick = () => db.doc(`svc_inbox/${rt[+s.dataset.i].docId}`).update({ gift: +b.dataset.v })));
+  R.querySelectorAll("[data-sarah]").forEach(b => b.onclick = () => { const t = rt[+b.dataset.sarah]; db.doc(`svc_inbox/${t.docId}`).update({ sarah: !t.sarah }); });
   R.querySelectorAll("[data-send]").forEach(b => b.onclick = () => makeRight(rt[+b.dataset.send]));
 }
 
@@ -325,7 +325,7 @@ async function makeRight(t) {
     <div class="ft"><button class="btn" id="m-x">Cancel</button><button class="btn" id="m-close">Mark handled, don't send</button><button class="btn ink" id="m-go" disabled>Send</button></div>`);
   const ta = m.querySelector("#m-msg"), go = m.querySelector("#m-go"), err = m.querySelector("#m-err");
   m.querySelector("#m-x").onclick = () => m.remove();
-  m.querySelector("#m-close").onclick = async () => { await db.doc(`svc_inbox/${t.ticketId}`).update({ handledAt: Date.now() });
+  m.querySelector("#m-close").onclick = async () => { await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now() });
     await logCase({ source: "right", ref: t.ticketId, customer: t.customer || t.email, email: t.email, order: t.order, type: t.type, what: T, did: "Handled in Richpanel", sarah: !!t.sarah }); m.remove(); toast("Marked handled"); };
   try {
     const r = await sample(`You write customer-service emails for CO36, a men's clothing brand. The standard is Ritz-Carlton service: warm, personal, owns the problem, never makes excuses, never blames the customer, the carrier or "the system". Short: 4 to 6 sentences. Plain text, no subject line, no markdown.
@@ -343,7 +343,7 @@ Say exactly what we're doing next. Don't promise anything specific about dates o
         const line = `Your $${gift} gift card code: ${card.code}`; body = body.includes("[GIFT CARD]") ? body.replace("[GIFT CARD]", line) : body.replace(/\n*(Warmly,)/, `\n\n${line}\n\n$1`); ta.value = body; }
       go.textContent = "Sending…";
       await api.post("service", { op: "reply", ticketId: t.ticketId, body });
-      await db.doc(`svc_inbox/${t.ticketId}`).update({ handledAt: Date.now(), repliedAt: Date.now() });
+      await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now(), repliedAt: Date.now() });
       await logCase({ source: "right", ref: t.ticketId, customer: t.customer || t.email, email: t.email, order: t.order, type: t.type, what: T, did: gift ? `$${gift} gift card + apology` : "Apology", gift: gift || 0, giftCode: card?.code || null, sarah: !!t.sarah, message: body });
       m.remove(); toast(gift ? `Sent · $${gift} gift card` : "Sent");
     } catch (e) { err.textContent = (card ? `Gift card ${card.code} was made, but the email didn't send: ` : "") + (e.text || e.message); go.disabled = false; go.textContent = "Send"; }
@@ -371,7 +371,7 @@ function setSync(error) {
 db.doc("svc_fix/latest").onSnapshot(s => { fix = s.exists ? s.data() : null; setSync(); render(); });
 db.doc("svc_fix/scan").onSnapshot(s => { scan = s.exists ? s.data() : null; setSync();
   if (scan?.status === "running" && !checking) checking = setInterval(checkScan, 8000); });
-db.collection("svc_inbox").onSnapshot(s => { inbox = s.docs.map(d => d.data()); render(); });
+db.collection("svc_inbox").onSnapshot(s => { inbox = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
 db.collection("svc_cases").onSnapshot(s => { cases = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
 
 // Rescan when the last one is over 30 minutes old (shared, so one person's scan updates everyone).

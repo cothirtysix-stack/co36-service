@@ -28,18 +28,29 @@ export default async function handler(req, res) {
   if (!got || !same(got, want)) return res.status(401).json({ error: "bad key" });
   try {
     const b = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-    const id = String(pick(b, "ticket_id", "conversation_id", "ticketId", "id") || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
-    if (!id) return res.status(400).json({ error: "no ticket_id" });
+    const number = String(pick(b, "conversation_no", "conversation_number", "ticket_number") || "").replace(/\D/g, "");
+    let ticketId = pick(b, "ticket_id", "conversation_id", "ticketId");
+    // Richpanel's template has the conversation number but no ticket id, so look the conversation up by number.
+    const looked = !ticketId && number && process.env.RICHPANEL_API_KEY
+      ? await fetch(`https://api.richpanel.com/v1/tickets/number/${number}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
+    ticketId ||= looked?.ticket?.id;
+    const id = number ? "n" + number : String(ticketId || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
+    if (!id || !ticketId) return res.status(400).json({ error: "no conversation number or ticket id" });
     const cur = await getDoc("svc_inbox", id);
-    const status = String(pick(b, "status") || "").toUpperCase();
+    const status = String(pick(b, "status") || looked?.ticket?.status || "").toUpperCase();
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }
-    const message = String(pick(b, "message", "last_message", "message_body", "body") || "").trim();
-    const subject = pick(b, "subject");
+    // Our own replies (Sarah or an agent) restart nothing; they count as answering.
+    if (/agent|operator|bot|ai|user/i.test(String(pick(b, "message_from") || "")) && !/customer|visitor/i.test(String(pick(b, "message_from")))) {
+      if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
+    }
+    const lastCustomer = (looked?.ticket?.comments || []).filter(c => !c.isOperator).pop();
+    const message = String(pick(b, "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "").trim();
+    const subject = pick(b, "subject") || looked?.ticket?.subject;
     const mood = await read(message, subject);
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false });
     const now = Date.now();
     await putDoc("svc_inbox", id, {
-      ticketId: id, number: pick(b, "conversation_no", "ticket_number", "conversation_number"),
+      ticketId, number: number || cur?.number || null,
       customer: pick(b, "customer_name", "name") || cur?.customer || null, email: pick(b, "customer_email", "email") || cur?.email || null,
       subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : cur?.tags || [],
       mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood || "upset", type: mood?.type || cur?.type || "other",
