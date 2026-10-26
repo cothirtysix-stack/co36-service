@@ -26,9 +26,17 @@ async function note(outcome, extra) { // running tally of what Richpanel sent, f
     await putDoc("svc_meta", "inbound", { counts, lastAt: Date.now(), lastOutcome: outcome, ...(extra ? { lastNote: String(extra).slice(0, 200) } : {}) }); } catch (_) {}
 }
 
+// Vercel freezes the function once the reply is sent, so anything saved after that can leave the database connection stuck.
+// Collect the reply, save the tally, then send.
 export default async function handler(req, res) {
-  const json = res.json.bind(res);
-  res.json = o => { note(res.statusCode >= 400 ? `error ${res.statusCode}` : o?.kept ? "kept" : o?.kept === false ? "skipped" : "ok", o?.error); return json(o); };
+  let out = null, code = 200;
+  const fake = { status(c) { code = c; return fake; }, json(o) { out = o; return fake; } };
+  await inner(req, fake);
+  await note(code >= 400 ? `error ${code}` : out?.kept ? "kept" : out?.kept === false ? "skipped" : "ok", out?.error);
+  res.status(code).json(out ?? {});
+}
+
+async function inner(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const want = process.env.SERVICE_INBOUND_KEY; if (!want) return res.status(500).json({ error: "SERVICE_INBOUND_KEY is not set in Vercel" });
   const got = req.headers["x-co36-key"] || String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
@@ -41,7 +49,7 @@ export default async function handler(req, res) {
     const looked = !ticketId && number && process.env.RICHPANEL_API_KEY
       ? await fetch(`https://api.richpanel.com/v1/tickets/number/${number}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
     ticketId ||= looked?.ticket?.id;
-    if (looked?.ticket) note("shape", JSON.stringify({ t: Object.keys(looked.ticket), via: looked.ticket.via && Object.keys(looked.ticket.via), rec: typeof looked.ticket.recipient }));
+    if (looked?.ticket) await note("shape", JSON.stringify({ t: Object.keys(looked.ticket), via: looked.ticket.via && Object.keys(looked.ticket.via), rec: typeof looked.ticket.recipient }));
     const id = number ? "n" + number : String(ticketId || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
     if (!id || !ticketId) return res.status(400).json({ error: "no conversation number or ticket id" });
     const cur = await getDoc("svc_inbox", id);
