@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   if (!got || !same(got, want)) return res.status(401).json({ error: "bad key" });
   try {
     const b = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-    const number = String(pick(b, "conversation_no", "conversation_number", "ticket_number") || "").replace(/\D/g, "");
+    const number = String(pick(b, "ticketConversationNumber", "conversation_no", "conversation_number", "ticket_number") || "").replace(/\D/g, "");
     let ticketId = pick(b, "ticket_id", "conversation_id", "ticketId");
     // Richpanel's template has the conversation number but no ticket id, so look the conversation up by number.
     const looked = !ticketId && number && process.env.RICHPANEL_API_KEY
@@ -37,22 +37,26 @@ export default async function handler(req, res) {
     const id = number ? "n" + number : String(ticketId || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
     if (!id || !ticketId) return res.status(400).json({ error: "no conversation number or ticket id" });
     const cur = await getDoc("svc_inbox", id);
-    const status = String(pick(b, "status") || looked?.ticket?.status || "").toUpperCase();
+    const status = String(pick(b, "ticketConversationStatus", "status") || looked?.ticket?.status || "").toUpperCase();
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }
     // Our own replies (Sarah or an agent) restart nothing; they count as answering.
-    if (/agent|operator|bot|ai|user/i.test(String(pick(b, "message_from") || "")) && !/customer|visitor/i.test(String(pick(b, "message_from")))) {
+    if (/agent|operator|bot|ai|user/i.test(String(pick(b, "ticketMessageFrom", "message_from") || "")) && !/customer|visitor/i.test(String(pick(b, "ticketMessageFrom", "message_from")))) {
       if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
     }
-    const lastCustomer = (looked?.ticket?.comments || []).filter(c => !c.isOperator).pop();
-    const message = String(pick(b, "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "").trim();
-    const subject = pick(b, "subject") || looked?.ticket?.subject;
+    const comments = looked?.ticket?.comments || [];
+    if (!pick(b, "ticketMessage", "message") && comments.length && comments[comments.length - 1].isOperator) {
+      if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
+    }
+    const lastCustomer = comments.filter(c => !c.isOperator).pop();
+    const message = String(pick(b, "ticketMessage", "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "").trim();
+    const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     const mood = await read(message, subject);
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false });
     const now = Date.now();
     await putDoc("svc_inbox", id, {
       ticketId, number: number || cur?.number || null,
-      customer: pick(b, "customer_name", "name") || cur?.customer || null, email: pick(b, "customer_email", "email") || cur?.email || null,
-      subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : cur?.tags || [],
+      customer: pick(b, "ticketCustomerName", "customer_name", "name") || cur?.customer || null, email: pick(b, "ticketCustomerEmail", "customer_email", "email") || cur?.email || null,
+      subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : Array.isArray(b.ticketConversationTags) ? b.ticketConversationTags : cur?.tags || [],
       mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood || "upset", type: mood?.type || cur?.type || "other",
       summary: mood?.summary || cur?.summary || null, quote: mood?.quote || message.slice(0, 140), order: mood?.order || cur?.order || null,
       firstAt: cur?.firstAt || Date.parse(pick(b, "created_at") || "") || now, lastAt: now,
