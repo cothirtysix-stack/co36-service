@@ -59,7 +59,7 @@ async function inner(req, res) {
       if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
     }
     const comments = looked?.ticket?.comments || [], isOp = c => !!(c.is_operator ?? c.isOperator);
-    const lastFromUs = /agent|operator|bot|ai|user/i.test(String(looked?.ticket?.last_message_sender_type || "")) || (comments.length && isOp(comments[comments.length - 1]));
+    const lastFromUs = /^(agent|operator|bot|ai)$/i.test(String(looked?.ticket?.last_message_sender_type || "")) || (comments.length && isOp(comments[comments.length - 1]));
     if (!pick(b, "ticketMessage", "message") && lastFromUs) {
       if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
     }
