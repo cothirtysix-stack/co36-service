@@ -32,6 +32,7 @@ export default async function handler(req, res) {
     })
   ]);
   const inbox = await run(async () => { const [r] = await db()`select count(*)::int as n, max((data->>'lastAt')::bigint) as last from hub.docs where coll = 'svc_inbox' and not deleted`;
-    return { ok: true, kept: r.n, lastAt: r.last ? new Date(Number(r.last)).toISOString() : null }; });
+    const meta = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'inbound'`;
+    return { ok: true, received: meta[0]?.data || null, kept: r.n, lastAt: r.last ? new Date(Number(r.last)).toISOString() : null }; });
   res.json({ inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }

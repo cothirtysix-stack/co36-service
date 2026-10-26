@@ -21,7 +21,14 @@ Message: ${String(text || "").slice(0, 4000)}`;
   try { const o = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || ""); return { ...o, type: TYPES.includes(o.type) ? o.type : "other" }; } catch { return null; }
 }
 
+async function note(outcome, extra) { // running tally of what Richpanel sent, for the status page
+  try { const cur = (await getDoc("svc_meta", "inbound")) || {}; const counts = { ...(cur.counts || {}) }; counts[outcome] = (counts[outcome] || 0) + 1;
+    await putDoc("svc_meta", "inbound", { counts, lastAt: Date.now(), lastOutcome: outcome, ...(extra ? { lastNote: String(extra).slice(0, 200) } : {}) }); } catch (_) {}
+}
+
 export default async function handler(req, res) {
+  const json = res.json.bind(res);
+  res.json = o => { note(res.statusCode >= 400 ? `error ${res.statusCode}` : o?.kept ? "kept" : o?.kept === false ? "skipped" : "ok", o?.error); return json(o); };
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const want = process.env.SERVICE_INBOUND_KEY; if (!want) return res.status(500).json({ error: "SERVICE_INBOUND_KEY is not set in Vercel" });
   const got = req.headers["x-co36-key"] || String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
