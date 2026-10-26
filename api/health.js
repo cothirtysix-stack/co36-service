@@ -32,8 +32,8 @@ export default async function handler(req, res) {
     })
   ]);
   const inbox = await run(async () => { const [r] = await db()`select count(*)::int as n, max((data->>'lastAt')::bigint) as last from hub.docs where coll = 'svc_inbox' and not deleted`;
-    const meta = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'inbound'`;
-    return { ok: true, received: meta[0]?.data || null, kept: r.n, lastAt: r.last ? new Date(Number(r.last)).toISOString() : null }; });
+    const meta = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'inbound'`, shape = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'shape'`;
+    return { ok: true, shape: shape[0]?.data || null, received: meta[0]?.data || null, kept: r.n, lastAt: r.last ? new Date(Number(r.last)).toISOString() : null }; });
   const scan = await run(async () => { const rows = await db()`select id, data from hub.docs where coll = 'svc_fix' and not deleted`;
     const by = Object.fromEntries(rows.map(r => [r.id, r.data]));
     return { ok: true, scan: by.scan || null, latest: by.latest ? { at: by.latest.at, problems: by.latest.problems?.length, notShipped: by.latest.notShipped?.count } : null }; });

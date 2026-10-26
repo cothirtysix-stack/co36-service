@@ -49,7 +49,7 @@ async function inner(req, res) {
     const looked = !ticketId && number && process.env.RICHPANEL_API_KEY
       ? await fetch(`https://api.richpanel.com/v1/tickets/number/${number}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
     ticketId ||= looked?.ticket?.id;
-    if (looked?.ticket) await note("shape", JSON.stringify({ t: Object.keys(looked.ticket), via: looked.ticket.via && Object.keys(looked.ticket.via), rec: typeof looked.ticket.recipient }));
+    if (looked?.ticket) await putDoc("svc_meta", "shape", { t: Object.keys(looked.ticket), via: looked.ticket.via ? JSON.stringify(looked.ticket.via, (k, v) => typeof v === "string" ? typeof v : v).slice(0, 400) : null, recipient: typeof looked.ticket.recipient, comment: Object.keys(looked.ticket.comments?.[0] || {}), meta: JSON.stringify(looked.ticket.comments?.[0]?.metadata || null, (k, v) => typeof v === "string" ? typeof v : v).slice(0, 300) }).catch(() => {});
     const id = number ? "n" + number : String(ticketId || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
     if (!id || !ticketId) return res.status(400).json({ error: "no conversation number or ticket id" });
     const cur = await getDoc("svc_inbox", id);
