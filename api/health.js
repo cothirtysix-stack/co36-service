@@ -1,12 +1,16 @@
 // Connection check: says which services work. Never returns key values.
 import { db, SB_URL, SB_ANON } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
+import postgres from "postgres";
 
 const NEED_SCOPES = ["read_orders", "read_fulfillments", "read_customers", "write_orders", "write_draft_orders", "write_gift_cards"];
 const run = async fn => { try { return await Promise.race([fn(), new Promise((_, no) => setTimeout(() => no(new Error("timed out after 8s")), 8000))]); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 160) }; } };
 
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
+  const locks = await run(async () => (await postgres(process.env.DATABASE_URL || process.env.POSTGRES_URL, { ssl: "require", max: 1, prepare: false })`select pid, state, wait_event_type, now() - xact_start as age, left(query, 90) as q
+    from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and state <> 'idle' order by xact_start nulls last limit 12`)
+    .map(r => ({ pid: r.pid, state: r.state, wait: r.wait_event_type, age: String(r.age), q: r.q })));
   const [supabase, shop, richpanel, returns] = await Promise.all([
     run(async () => { if (!SB_URL() || !SB_ANON()) return { ok: false, error: "Supabase URL or key missing" }; await db()`select 1`; return { ok: true }; }),
     run(async () => {
@@ -37,8 +41,5 @@ export default async function handler(req, res) {
   const scan = await run(async () => { const rows = await db()`select id, data from hub.docs where coll = 'svc_fix' and not deleted`;
     const by = Object.fromEntries(rows.map(r => [r.id, r.data]));
     return { ok: true, scan: by.scan || null, latest: by.latest ? { at: by.latest.at, problems: by.latest.problems?.length, notShipped: by.latest.notShipped?.count } : null }; });
-  const locks = await run(async () => (await db()`select pid, state, wait_event_type, now() - xact_start as age, left(query, 90) as q
-    from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() and state <> 'idle' order by xact_start nulls last limit 12`)
-    .map(r => ({ pid: r.pid, state: r.state, wait: r.wait_event_type, age: String(r.age), q: r.q })));
   res.json({ locks, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
