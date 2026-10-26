@@ -69,11 +69,18 @@ async function inner(req, res) {
       await ourReply(id, cur); return res.json({ ok: true, kept: false });
     }
     const comments = looked?.ticket?.comments || [], isOp = c => !!(c.is_operator ?? c.isOperator);
-    const lastFromUs = /^(agent|operator|bot|ai)$/i.test(String(looked?.ticket?.last_message_sender_type || "")) || (comments.length && isOp(comments[comments.length - 1]));
-    if (!pick(b, "ticketMessage", "message") && lastFromUs) {
-      await ourReply(id, cur); return res.json({ ok: true, kept: false });
+    // Richpanel's "Things are busy" auto-reply lands seconds after every customer email, so "last message is ours" is not enough.
+    // Work from the newest customer message and only handle each one once.
+    const lastCust = comments.filter(c => !isOp(c)).pop();
+    const seen = await getDoc("svc_seen", id);
+    if (!pick(b, "ticketMessage", "message")) {
+      if (!lastCust || seen?.last === lastCust.id) {
+        if (comments.length && isOp(comments[comments.length - 1]) && !/things are a bit busy|received your message/i.test(comments[comments.length - 1].plain_body || "")) await ourReply(id, cur);
+        return res.json({ ok: true, kept: false });
+      }
+      await putDoc("svc_seen", id, { last: lastCust.id, at: Date.now() });
     }
-    const lastCustomer = comments.filter(c => !isOp(c)).pop();
+    const lastCustomer = lastCust;
     const cp = looked?.ticket?.customer_profile || {};
     const rpName = cp.name || [cp.firstName || cp.first_name, cp.lastName || cp.last_name].filter(Boolean).join(" ") || null;
     const rpEmail = cp.email || looked?.ticket?.via?.source?.from?.address || null;
