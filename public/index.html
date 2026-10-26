@@ -291,7 +291,7 @@ function modal(html) { const m = document.createElement("div"); m.className = "m
 const logCase = c => db.doc(`svc_cases/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`).set({ at: Date.now(), by: me, ...c });
 
 function fixAction(act, p) {
-  const T = FT[p.type], msg = `Hi ${first(p.customer)},\n\n${T.tell(p.carrier || "The carrier")}\n\nWarmly,\nThe CO36 Team`;
+  const T = FT[p.type], msg = `Hi ${first(p.customer)},\n\n${T.tell(p.carrier || "The carrier")}\n\nTalk soon,\nElla · CO36`;
   const base = { source: "fix", ref: keyOf(p), customer: p.customer, email: p.email, order: p.order, product: p.product, type: "fix", what: `${T.label}: ${p.what}` };
   if (act === "done") { logCase({ ...base, did: "Checked, no action needed" }); toast("Marked handled"); return; }
   const isReship = act === "reship";
@@ -333,14 +333,14 @@ Customer first name: ${first(t.customer)}
 What they wrote: "${t.quote || ""}"
 Problem: ${T}${t.summary ? " (" + t.summary + ")" : ""}${t.order ? "\nOrder: " + t.order : ""}${t.messages > 1 ? `\nThey have written ${t.messages} times.` : ""}
 ${gift ? `We're giving them a $${gift} gift card. Put the exact text [GIFT CARD] on its own line where the code goes, and say it's a small thank-you for their patience, not a fix.` : "No gift card this time."}
-Say exactly what we're doing next. Don't promise anything specific about dates or refunds unless it's stated above. Sign off: "Warmly,\nThe CO36 Team". Return only the email.`);
+Say exactly what we're doing next. Don't promise anything specific about dates or refunds unless it's stated above. Sign off: "Talk soon,\nElla · CO36". Return only the email.`);
     ta.value = (r.text || "").trim(); ta.disabled = false; go.disabled = false;
-  } catch (e) { ta.disabled = false; go.disabled = false; ta.value = `Hi ${first(t.customer)},\n\nI'm so sorry. You shouldn't have had to chase us, and that's on us.\n\n${gift ? "[GIFT CARD]\n\n" : ""}Warmly,\nThe CO36 Team`; err.textContent = "Claude couldn't draft this one, so here's a starting point."; }
+  } catch (e) { ta.disabled = false; go.disabled = false; ta.value = `Hi ${first(t.customer)},\n\nI'm so sorry. You shouldn't have had to chase us, and that's on us.\n\n${gift ? "[GIFT CARD]\n\n" : ""}Talk soon,\nElla · CO36`; err.textContent = "Claude couldn't draft this one, so here's a starting point."; }
   go.onclick = async () => {
     go.disabled = true; err.textContent = ""; let body = ta.value, card = null;
     try {
       if (gift) { go.textContent = "Making gift card…"; card = await api.post("service", { op: "giftCard", amount: gift, order: t.order, note: T });
-        const line = `Your $${gift} gift card code: ${card.code}`; body = body.includes("[GIFT CARD]") ? body.replace("[GIFT CARD]", line) : body.replace(/\n*(Warmly,)/, `\n\n${line}\n\n$1`); ta.value = body; }
+        const line = `Your $${gift} gift card code: ${card.code}`; body = body.includes("[GIFT CARD]") ? body.replace("[GIFT CARD]", line) : body.replace(/\n*(Talk soon,|Warmly,)/, `\n\n${line}\n\n$1`); ta.value = body; }
       go.textContent = "Sending…";
       await api.post("service", { op: "reply", ticketId: t.ticketId, body });
       await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now(), repliedAt: Date.now() });
