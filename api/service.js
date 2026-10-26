@@ -2,6 +2,7 @@
 import { wrap, putDoc, getDoc } from "../lib/server.js";
 import { shopify, need } from "../lib/shopify.js";
 import { bulkQuery, parseBulk, classify, eventsQuery, classifyMoving } from "../lib/fix.js";
+import { draftFor, loadTicket, isOp } from "../lib/ella.js";
 
 const fail = (msg, status = 400) => { throw Object.assign(new Error(msg), { status }); };
 const userErr = (label, errs) => { if (errs?.length) fail(`${label}: ${errs.map(e => e.message).join("; ")}`, 502); };
@@ -92,7 +93,19 @@ async function reship({ order, override }) {
   return { order: made?.name, orderId: made?.id };
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship };
+// Rewrite Ella's draft, optionally with an instruction ("offer store credit", "shorter").
+async function redraft({ id, note }) {
+  const ret = await getDoc("svc_returns", String(id || ""));
+  if (!ret) fail("Not found", 404);
+  const t = ret.number ? await loadTicket(ret.number) : null;
+  const comments = t?.comments || [];
+  const last = comments.filter(c => !isOp(c)).pop();
+  await putDoc("svc_returns", id, { status: "drafting" }, true);
+  await draftFor(id, { who: ret.customer, mail: ret.email, subject: ret.subject, message: String(last?.plain_body || last?.body || ret.message || ""), comments, note: String(note || "").slice(0, 300) });
+  return { ok: true };
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });

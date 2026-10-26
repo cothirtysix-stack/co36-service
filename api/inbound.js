@@ -1,7 +1,9 @@
 // Richpanel HTTP Target → Service Hub. Richpanel posts each new customer message here (Settings → Integrations → HTTP Target,
 // plus an automation rule "New message received → Notify HTTP Targets"). Claude reads the mood; upset and happy customers are kept.
 import crypto from "node:crypto";
+import { waitUntil } from "@vercel/functions";
 import { putDoc, getDoc } from "../lib/server.js";
+import { draftFor } from "../lib/ella.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -10,7 +12,8 @@ const TYPES = ["damaged", "wrong", "late", "service", "sarah", "other"];
 async function read(text, subject) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) return null;
   const prompt = `A customer emailed CO36, a men's clothing brand. Read their message and answer with JSON only:
-{"mood":"upset"|"happy"|"neutral","type":"damaged"|"wrong"|"late"|"service"|"sarah"|"other","summary":"what happened, under 12 words","quote":"their most telling sentence, under 140 characters","order":"order number like #12345 or null"}
+{"mood":"upset"|"happy"|"neutral","intent":"return"|"exchange"|"none","type":"damaged"|"wrong"|"late"|"service"|"sarah"|"other","summary":"what happened, under 12 words","quote":"their most telling sentence, under 140 characters","order":"order number like #12345 or null"}
+intent: return = wants to send something back, asks for a return label or a refund for an item they received; exchange = wants a different size, color or style; none = anything else (where is my order, cancel before shipping, questions).
 upset = angry, frustrated, repeating themselves, threatening a dispute or bad review, or let down. happy = praise or thanks. Questions without emotion are neutral.
 type: damaged item; wrong (wrong or missing item, wrong size sent); late (not shipped, delayed, lost, delivered but not received); service (no reply, slow, rude, refund not processed); sarah (complains about an automated or AI reply); other.
 Subject: ${String(subject || "").slice(0, 200)}
@@ -19,6 +22,13 @@ Message: ${String(text || "").slice(0, 4000)}`;
     body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 300, messages: [{ role: "user", content: prompt }] }) });
   const j = await r.json().catch(() => ({})); const t = (j.content || []).map(b => b.text || "").join("");
   try { const o = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || ""); return { ...o, type: TYPES.includes(o.type) ? o.type : "other" }; } catch { return null; }
+}
+
+// Sarah or an agent answered in Richpanel.
+async function ourReply(id, cur) {
+  if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true);
+  const ret = await getDoc("svc_returns", id);
+  if (ret && ret.status !== "sent" && !(ret.sentAt && Date.now() - ret.sentAt < 120e3)) await putDoc("svc_returns", id, { sarahAt: Date.now() }, true);
 }
 
 async function note(outcome, extra) { // running tally of what Richpanel sent, for the status page
@@ -55,13 +65,13 @@ async function inner(req, res) {
     const status = String(pick(b, "ticketConversationStatus", "status") || looked?.ticket?.status || "").toUpperCase();
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }
     // Our own replies (Sarah or an agent) restart nothing; they count as answering.
-    if (/agent|operator|bot|ai|user/i.test(String(pick(b, "ticketMessageFrom", "message_from") || "")) && !/customer|visitor/i.test(String(pick(b, "ticketMessageFrom", "message_from")))) {
-      if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
+    if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
+      await ourReply(id, cur); return res.json({ ok: true, kept: false });
     }
     const comments = looked?.ticket?.comments || [], isOp = c => !!(c.is_operator ?? c.isOperator);
     const lastFromUs = /^(agent|operator|bot|ai)$/i.test(String(looked?.ticket?.last_message_sender_type || "")) || (comments.length && isOp(comments[comments.length - 1]));
     if (!pick(b, "ticketMessage", "message") && lastFromUs) {
-      if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true); return res.json({ ok: true, kept: false });
+      await ourReply(id, cur); return res.json({ ok: true, kept: false });
     }
     const lastCustomer = comments.filter(c => !isOp(c)).pop();
     const cp = looked?.ticket?.customer_profile || {};
@@ -70,7 +80,15 @@ async function inner(req, res) {
     const message = String(pick(b, "ticketMessage", "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "").trim();
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     const mood = await read(message, subject);
-    if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false });
+    // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
+    const ret = await getDoc("svc_returns", id);
+    if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {
+      const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
+      await putDoc("svc_returns", id, { ticketId, number, customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
+        status: "drafting", receivedAt: ret?.status === "sent" ? Date.now() : ret?.receivedAt || Date.now(), lastAt: Date.now(), sarahAt: null }, true);
+      waitUntil(draftFor(id, { who, mail, subject, message, comments }));
+    }
+    if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
     const now = Date.now();
     await putDoc("svc_inbox", id, {
       ticketId, number: number || cur?.number || null,

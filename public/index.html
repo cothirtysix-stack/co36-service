@@ -94,6 +94,8 @@ td .dot{display:inline-block;margin-right:6px;vertical-align:1px}
 .mbox .ft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .err{color:var(--bad2);font-size:13px;min-height:0}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-weight:600;font-size:13px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.ret textarea{width:100%;min-height:150px;border:1px solid var(--line2);border-radius:12px;padding:12px;font:13.5px/1.5 Inter,sans-serif;background:var(--page);color:var(--ink);resize:vertical;margin-top:8px}
+.race{font-variant-numeric:tabular-nums}
 .kv{display:grid;grid-template-columns:110px 1fr;gap:4px 12px;font-size:13px}.kv span{color:var(--muted)}
 @media (max-width:980px){.wrap{display:block}.side{position:static;width:auto;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)}.grp,.conn,.back,.nav.soon{display:none}.nav{width:auto}
 .hero{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ns{grid-template-columns:1fr}main{padding:16px}.row{flex-direction:column;align-items:stretch}.acts{justify-content:flex-start}}
@@ -104,6 +106,7 @@ td .dot{display:inline-block;margin-right:6px;vertical-align:1px}
   <aside class="side">
     <div class="logo"><div class="tile">CO36</div><div><b>Service Hub</b><span>Manager</span></div></div>
     <div class="grp">Today</div>
+    <button class="nav" data-go="sec-ret"><i class="dot" style="background:var(--good)"></i>Returns &amp; exchanges<span class="cnt" id="n-ret">–</span></button>
     <button class="nav" data-go="sec-fix"><i class="dot" style="background:var(--ind)"></i>Fix before they know<span class="cnt" id="n-fix">–</span></button>
     <button class="nav" data-go="sec-right"><i class="dot" style="background:var(--bad)"></i>Make it right<span class="cnt" id="n-right">–</span></button>
     <div class="nav soon"><i class="dot" style="background:var(--dis)"></i>Say thank you<span class="soonp">Soon</span></div>
@@ -138,6 +141,12 @@ td .dot{display:inline-block;margin-right:6px;vertical-align:1px}
         <div class="st"><small>Over 1 hour</small><b id="s-over" style="color:var(--bad)">–</b><span>upset, waiting on us</span></div>
         <div class="st"><small>Cases · 30 days</small><b id="s-cases" style="color:var(--ind)">–</b><span>saved in CO36's database</span></div>
       </div>
+    </section>
+
+    <section class="card" id="sec-ret">
+      <div class="ch"><div class="ic" style="background:var(--goodt);color:var(--good2)">↺</div>
+        <div><h2>Returns &amp; exchanges <span class="pill p-good" id="ret-n">…</span></h2><p>Ella drafts the reply the moment the email lands. Send it before Sarah answers (she usually takes about 5 minutes).</p></div></div>
+      <div id="ret-rows"><div class="empty">Loading…</div></div>
     </section>
 
     <section class="card" id="sec-fix">
@@ -175,7 +184,7 @@ $("today").textContent = new Date().toLocaleDateString("en-US", { weekday: "long
 document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => $(b.dataset.go).scrollIntoView({ behavior: "smooth", block: "start" }));
 
 const db = await window.claude.use("db"), api = await window.claude.use("api"), sample = await window.claude.use("sample");
-let fix = null, scan = null, inbox = [], cases = [], filter = "all", me = "";
+let fix = null, scan = null, inbox = [], cases = [], rets = [], filter = "all", me = "";
 try { me = await (await window.claude.use("user")).email(); } catch (_) {}
 
 // ---------- shipping problem types ----------
@@ -217,6 +226,54 @@ function render() {
   $("s-over").textContent = over; $("s-cases").textContent = recent.length;
   $("over-n").hidden = !over; $("over-n").textContent = `${over} over 1 hour`;
   renderFix(fx); renderRight(rt); renderLog();
+}
+
+const openRets = () => rets.filter(r => r.status !== "sent" && r.status !== "skipped").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
+const mmss = ms => { const m = Math.floor(ms / 6e4); return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`; };
+let retEditing = null; const edits = {}; // typed changes survive re-renders (key = conversation + draft time)
+function renderRet() {
+  const list = openRets(), sentToday = rets.filter(r => r.status === "sent" && isToday(r.sentAt));
+  const beat = sentToday.filter(r => !r.sarahAt || r.sentAt < r.sarahAt).length;
+  $("n-ret").textContent = list.length; $("ret-n").textContent = `${list.length} waiting · ${sentToday.length} sent today${sentToday.length ? ` · beat Sarah ${beat}` : ""}`;
+  const focus = document.activeElement?.dataset?.ta, caret = document.activeElement?.selectionStart;
+  $("ret-rows").innerHTML = list.length ? list.map((r, i) => {
+    const age = Date.now() - (r.receivedAt || Date.now()), sarah = r.sarahAt && r.sarahAt > (r.receivedAt || 0);
+    const clock = sarah ? `<span class="pill p-amb">Sarah answered ${mmss(r.sarahAt - r.receivedAt)} after</span>` : `<span class="pill ${age > 5 * 6e4 ? "p-red" : age > 3 * 6e4 ? "p-amb" : "p-good"} race">${mmss(age)} ago</span>`;
+    const flags = (r.flags || []).map(f => `<span class="pill p-red">${esc({ needs_human: "Needs a person", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" }[f] || f)}</span>`).join(" ");
+    const body = r.status === "drafting" ? `<div class="empty" style="padding:10px 0">Ella is writing…</div>` : r.status === "error" ? `<div class="err" style="margin-top:8px">Ella couldn't draft this one: ${esc(r.error)}</div>` : `<textarea data-ta="${esc(r.docId)}" data-k="${esc(r.docId + ":" + (r.draftedAt || 0))}">${esc(edits[r.docId + ":" + (r.draftedAt || 0)] ?? r.draft ?? "")}</textarea>`;
+    return `<div class="row ret" style="align-items:flex-start"><div class="main">
+      <div class="l1">${clock}<span class="pill ${r.intent === "exchange" ? "p-ind" : "p-grey"}">${r.intent === "exchange" ? "Exchange" : "Return"}</span><b>${esc(r.customer || r.email || "Customer")}</b>
+        <span class="meta">${esc((r.orders || []).join(", "))}${r.number ? ` · Richpanel #${esc(r.number)}` : ""}</span> ${flags}</div>
+      <div class="quote">“${esc(String(r.message || "").slice(0, 400))}”</div>
+      ${r.items?.length ? `<div class="l2 ago" style="color:var(--muted)">Bought: ${esc(r.items.join(" · "))}</div>` : ""}
+      ${r.plan ? `<div class="tell"><b>Ella's plan:</b> ${esc(r.plan)}</div>` : ""}
+      ${body}</div>
+      <div class="acts" style="flex-direction:column;align-items:stretch;min-width:150px">
+        <button class="btn ink" data-rsend="${i}" ${r.status !== "draft" ? "disabled" : ""}>Send</button>
+        <button class="btn" data-rre="${i}">Rewrite…</button>
+        <button class="lnk" data-rskip="${i}">Skip (Sarah has it)</button></div></div>`; }).join("")
+    : `<div class="empty">No return or exchange emails waiting. New ones show up here within seconds.</div>`;
+  const R = $("ret-rows");
+  R.querySelectorAll("textarea[data-ta]").forEach(t => { t.oninput = () => { edits[t.dataset.k] = t.value; }; t.onfocus = () => retEditing = t.dataset.ta; t.onblur = () => { retEditing = null; };
+    if (t.dataset.ta === focus) { t.focus(); try { t.setSelectionRange(caret, caret); } catch (_) {} } });
+  R.querySelectorAll("[data-rsend]").forEach(b => b.onclick = () => sendRet(list[+b.dataset.rsend], b));
+  R.querySelectorAll("[data-rskip]").forEach(b => b.onclick = async () => { const r = list[+b.dataset.rskip]; await db.doc(`svc_returns/${r.docId}`).update({ status: "skipped", skippedAt: Date.now(), skippedBy: me }); toast("Skipped"); });
+  R.querySelectorAll("[data-rre]").forEach(b => b.onclick = async () => { const r = list[+b.dataset.rre];
+    const note = prompt("What should Ella change? (leave empty to just rewrite)\nFor example: offer store credit instead, shorter, ask which shirt", "");
+    if (note === null) return; b.disabled = true; b.textContent = "Rewriting…";
+    try { await api.post("service", { op: "redraft", id: r.docId, note }); } catch (e) { toast(e.text || e.message); } });
+}
+async function sendRet(r, b) {
+  const ta = document.querySelector(`textarea[data-ta="${CSS.escape(r.docId)}"]`), body = (ta?.value || r.draft || "").trim();
+  if (!body) return toast("The reply is empty");
+  if (r.sarahAt && !confirm("Sarah already answered this customer. Send Ella's reply too?")) return;
+  b.disabled = true; b.textContent = "Sending…";
+  try {
+    await api.post("service", { op: "reply", ticketId: r.ticketId, body });
+    await db.doc(`svc_returns/${r.docId}`).update({ status: "sent", sentAt: Date.now(), sentBy: me, sentText: body, edited: body !== (r.draft || "").trim() });
+    await logCase({ source: "returns", ref: r.docId, customer: r.customer || r.email, email: r.email, order: (r.orders || [])[0], product: (r.items || [])[0], type: r.intent, what: r.intent === "exchange" ? "Exchange request" : "Return request", did: `Ella: ${r.plan || "replied"}`, message: body });
+    toast(r.sarahAt ? "Sent" : `Sent in ${mmss(Date.now() - r.receivedAt)}, before Sarah`);
+  } catch (e) { toast(e.text || e.message); b.disabled = false; b.textContent = "Send"; }
 }
 
 function renderFix(fx) {
@@ -372,12 +429,14 @@ db.doc("svc_fix/latest").onSnapshot(s => { fix = s.exists ? s.data() : null; set
 db.doc("svc_fix/scan").onSnapshot(s => { scan = s.exists ? s.data() : null; setSync();
   if (scan?.status === "running" && !checking) checking = setInterval(checkScan, 8000); });
 db.collection("svc_inbox").onSnapshot(s => { inbox = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
+db.collection("svc_returns").onSnapshot(s => { rets = s.docs.map(d => ({ docId: d.id, ...d.data() })); renderRet(); });
 db.collection("svc_cases").onSnapshot(s => { cases = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
 
 // Rescan when the last one is over 30 minutes old (shared, so one person's scan updates everyone).
 const latest = await db.doc("svc_fix/latest").get(), sc = await db.doc("svc_fix/scan").get();
 if (!(sc.exists && sc.data().status === "running") && (!latest.exists || Date.now() - latest.data().at > 30 * 6e4)) startScan();
 setInterval(() => { render(); setSync(); }, 30000);
+setInterval(() => { if (!retEditing) renderRet(); }, 10000);
 })();
 </script>
 </body>

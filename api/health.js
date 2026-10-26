@@ -37,5 +37,7 @@ export default async function handler(req, res) {
   const scan = await run(async () => { const rows = await db()`select id, data from hub.docs where coll = 'svc_fix' and not deleted`;
     const by = Object.fromEntries(rows.map(r => [r.id, r.data]));
     return { ok: true, scan: by.scan || null, latest: by.latest ? { at: by.latest.at, problems: by.latest.problems?.length, notShipped: by.latest.notShipped?.count } : null }; });
-  res.json({ scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  const returns_lane = await run(async () => { const rows = await db()`select data->>'status' as st, count(*)::int as n, max((data->>'receivedAt')::bigint) as last from hub.docs where coll = 'svc_returns' and not deleted group by 1`;
+    return { ok: true, byStatus: Object.fromEntries(rows.map(r => [r.st, r.n])), lastAt: rows.reduce((m, r) => Math.max(m, Number(r.last) || 0), 0) || null }; });
+  res.json({ returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
