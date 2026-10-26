@@ -2,7 +2,7 @@
 import { db, SB_URL, SB_ANON } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
 
-const NEED_SCOPES = ["read_orders", "read_all_orders", "read_fulfillments", "read_customers", "write_orders", "write_draft_orders", "write_gift_cards"];
+const NEED_SCOPES = ["read_orders", "read_fulfillments", "read_customers", "write_orders", "write_draft_orders", "write_gift_cards"];
 const run = async fn => { try { return await fn(); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 160) }; } };
 
 export default async function handler(req, res) {
