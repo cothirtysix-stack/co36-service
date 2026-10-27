@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CO36 Service Hub</title>
+<link rel="icon" href="/apps/service.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apps/service.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--dis:#B5B5BE;--line:#ECECF0;--line2:#E2E2E8;--line3:#F1F1F4;--page:#F7F7F9;--surface:#fff;--col:#EFEFF3;--soft:#FBFBFC;--seg:#ECECF0;
+--ind:#5B5BF6;--ind2:#4343D9;--indt:#EEEEFE;--indb:#DCDCFB;--good:#16A34A;--good2:#15803D;--goodt:#E8F6EE;--goodb:#BFE5CD;--bad:#EF4444;--bad2:#B91C1C;--badt:#FEECEC;--badb:#F8C9C9;--amb:#F59E0B;--amb2:#B45309;--ambt:#FEF3E2;
+--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--dis:#5C5C66;--line:#26262E;--line2:#30303A;--line3:#1E1E25;--page:#0E0E12;--surface:#16161C;--col:#1B1B22;--soft:#121217;--seg:#24242C;
+--indt:#23234A;--indb:#33335E;--goodt:#12301F;--goodb:#1E4A30;--badt:#3A1616;--badb:#5A2424;--ambt:#3A2A10;--ind2:#9B9BFF;--good2:#4ADE80;--bad2:#F87171;--amb2:#FBBF24;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,textarea,input{font-family:inherit}button{cursor:pointer}
+a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoration:underline}
+.page{min-height:100vh;display:flex;flex-direction:column}
+/* header */
+.hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tile{width:34px;height:34px;border-radius:9px;background:#0B0B0F;color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px Inter;flex:none}
+.ttl{display:flex;flex-direction:column;gap:1px;min-width:0}.ttl b{font:800 18px Inter;letter-spacing:-.02em}.ttl span{font:500 12px Inter;color:var(--muted)}
+.seg{display:flex;gap:2px;background:var(--seg);padding:3px;border-radius:10px}
+.seg button{border:0;height:30px;padding:0 12px;border-radius:8px;font:600 12px Inter;background:transparent;color:var(--muted);box-shadow:none}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.pnav{display:flex;gap:4px;background:var(--line3);padding:3px;border-radius:10px}
+.pnav a,.pnav span{height:30px;padding:0 12px;border-radius:8px;font:600 12px/30px Inter;color:var(--muted)}
+.pnav span{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.pnav a:hover{color:var(--ink);text-decoration:none}
+/* top card */
+.top{padding:18px 24px 0;display:grid;grid-template-columns:1fr;gap:12px}
+.lane{border-radius:18px;padding:18px 22px;display:flex;flex-direction:column;gap:12px;background:#0B0B0F;border:1.5px solid #0B0B0F;color:#fff}
+.lh{display:flex;align-items:center;gap:8px;width:100%}.lh i{width:10px;height:10px;border-radius:50%;flex:none}.lh b{font:800 16px Inter;flex:1}.lh small{font:600 11px Inter;color:#A5A5F9}
+.exs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%}
+.exs div{display:flex;flex-direction:column;gap:2px;min-width:0}.exs b{font:800 26px Inter;letter-spacing:-.02em}.exs span{font:600 12px Inter}.exs small{font:500 11px Inter;color:#B5B5BE}
+.nd{font:500 10.5px Inter;color:var(--dis)}.lane .nd{color:#8A8A96}
+.tiles{padding:12px 24px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.kpi .k{font:600 12px Inter;color:var(--muted)}.kpi .v{font:800 28px Inter;letter-spacing:-.02em}.kpi .s{font:500 12px/1.4 Inter;color:var(--body)}
+/* everyone else */
+.flt{padding:24px 24px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.flt .lbl{margin-right:auto;font:700 11px Inter;letter-spacing:.06em;color:var(--ind2)}
+.bulk{height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--ink);color:var(--surface);font:600 13px Inter;white-space:nowrap}
+.bwrap{padding:12px 24px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.board{display:flex;gap:12px;align-items:flex-start;min-width:560px}
+.col{flex:1 1 260px;min-width:0;background:var(--col);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.chd{display:flex;align-items:center;gap:8px;padding:4px 4px 2px}.chd i{width:8px;height:8px;border-radius:50%;flex:none}.chd b{font:700 13px Inter;flex:1}.chd em{font:800 18px Inter;font-style:normal;letter-spacing:-.02em}
+.csub{font:500 11px/1.4 Inter;color:var(--muted);padding:0 4px 4px}
+.cempty{padding:16px 6px;text-align:center;font:600 12px Inter;color:var(--good2)}
+.csoon{padding:16px 8px;text-align:center;font:500 12px/1.45 Inter;color:var(--muted)}
+.more{border:0;background:var(--surface);border-radius:10px;height:34px;font:600 12px Inter;color:var(--ind)}
+.kc{text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:6px;color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.04);width:100%;font:inherit}
+.kc.sel{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.kt{display:flex;align-items:center;gap:6px;width:100%}.kt b{font:700 13px Inter;flex:1;min-width:0;overflow-wrap:anywhere}
+.tp{font:700 10px Inter;padding:2px 6px;border-radius:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t-grey{background:var(--line3);color:var(--muted)}
+.ki{font:500 12px/1.4 Inter;color:var(--body);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.kp{display:flex;gap:4px;flex-wrap:wrap}
+.pp{font:600 10px Inter;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.p-ink{background:#0B0B0F;color:#fff}.p-ind{background:var(--indt);color:var(--ind2)}.p-grey{background:var(--line3);color:var(--body)}.p-good{background:var(--goodt);color:var(--good2)}
+/* VIP band */
+.band{margin-top:36px;background:var(--surface);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:8px 0 24px}
+.bandlbl{display:flex;justify-content:center;margin-top:-22px}.bandlbl span{font:700 11px Inter;letter-spacing:.06em;color:#fff;background:#0B0B0F;padding:6px 14px;border-radius:999px}
+.s2h{padding:14px 24px 0;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.s2h .t{flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px}.s2h .t b{font:800 20px Inter;letter-spacing:-.02em}.s2h .t span{font:500 13px/1.5 Inter;color:var(--muted)}
+.s2h .c{font:600 13px Inter;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.vempty{margin:14px 24px 0;padding:28px 20px;text-align:center;font:500 13px/1.5 Inter;color:var(--muted);background:var(--page);border:1.5px dashed var(--line2);border-radius:14px}
+/* drawer */
+.ovl{position:fixed;inset:0;background:rgba(11,11,15,.25);z-index:40}
+.drw{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);z-index:41;box-shadow:-10px 0 40px rgba(11,11,15,.18);display:flex;flex-direction:column}
+.dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dh .t{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.dh .n{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dh .n b{font:800 20px Inter;letter-spacing:-.02em;overflow-wrap:anywhere}
+.dh .m{font:500 12px Inter;color:var(--muted);overflow-wrap:anywhere}
+.x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line2);background:var(--surface);color:var(--ink);font:600 15px Inter;flex:none}
+.db{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.dmsg{background:var(--goodt);border-radius:12px;padding:12px 14px;font:400 14px/1.55 Inter;white-space:pre-wrap;overflow-wrap:anywhere}
+.dnote{font:500 12px/1.5 Inter;color:var(--muted);background:var(--page);border-radius:10px;padding:8px 12px}
+.dl{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}
+.dta{width:100%;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font:400 14px/1.6 Inter;resize:vertical;outline:none;color:var(--ink);background:var(--surface)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.facts div{background:var(--page);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}.facts small{font:600 10px Inter;color:var(--muted);letter-spacing:.05em}.facts span{font:600 13px Inter;overflow-wrap:anywhere}
+.df{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.alt{height:44px;padding:0 14px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--ink);font:600 13px Inter}
+.pri{height:44px;padding:0 18px;border:0;border-radius:10px;background:#0B0B0F;color:#fff;font:600 13px Inter}
+.pri.green{background:#16A34A}
+.pri[disabled],.alt[disabled]{opacity:.55;cursor:not-allowed}
+/* confirm + toast */
+.cfm{position:fixed;inset:0;background:rgba(11,11,15,.4);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.cbox{width:min(440px,100%);background:var(--surface);border-radius:18px;box-shadow:0 20px 60px rgba(11,11,15,.3);padding:22px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto}
+.cbox.wide{width:min(720px,100%)}
+.cbox h3{margin:0;font:800 18px Inter}.cbox small{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}
+.cl{display:flex;gap:10px;font:500 14px/1.45 Inter}.cl i{color:var(--ind);font-weight:700;font-style:normal}
+.cft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.vall{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
+@media (max-width:640px){.hdr,.top,.tiles,.flt,.bwrap,.s2h{padding-left:16px;padding-right:16px}.hdr{gap:10px}.vempty{margin-left:16px;margin-right:16px}
+.exs b{font-size:22px}.lane{padding:16px}.s2h .c{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hdr">
+    <div class="tile">CO36</div>
+    <div class="ttl"><b>Service Hub</b><span id="sub">Say thank you · take care of VIPs</span></div>
+    <div style="flex:1"></div>
+    <div class="seg" id="ranges"></div>
+    <nav class="pnav"><span>Home</span><a href="/returns.html">Returns</a><a href="/fulfillment.html">Fulfillment</a></nav>
+  </header>
+
+  <section class="top">
+    <div class="lane">
+      <div class="lh"><i style="background:#16A34A"></i><b>Happy · grow it</b><small class="rl"></small></div>
+      <div class="exs" id="joy-stats"></div>
+    </div>
+  </section>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="flt">
+    <span class="lbl">EVERYONE ELSE</span>
+    <span id="bulk"></span>
+  </section>
+  <section class="bwrap"><div class="board" id="board"></div></section>
+
+  <div class="band">
+    <div class="bandlbl"><span>VIP · DAILY CHECK-IN</span></div>
+    <section class="s2h">
+      <div class="t"><b>Today's 10 VIPs</b><span>A new 10 every day, from people not checked in on for 60+ days. A short personal email from you, no selling. Ella writes the draft only from what we actually know: orders, emails, returns and reviews.</span></div>
+      <div class="c"><span style="color:var(--dis)">— of 10 sent</span><span class="nd">needs data</span></div>
+    </section>
+    <div class="vempty">Coming soon: needs a customer list from Shopify.<br>We don't track who was last contacted 60+ days ago yet, so no VIPs are picked here.</div>
+  </div>
+  <div style="height:56px"></div>
+</div>
+<div id="drawer"></div>
+
+<script src="/shim.js"></script>
+<script>
+(async () => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toast = t => { document.querySelectorAll(".toast").forEach(x => x.remove()); const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const ts = v => { if (v == null || v === "") return null; if (typeof v === "number") return v < 1e12 ? v * 1000 : v; const n = Number(v); if (Number.isFinite(n)) return n < 1e12 ? n * 1000 : n; const p = Date.parse(v); return Number.isFinite(p) ? p : null; };
+const isToday = t => t && new Date(t).toDateString() === new Date().toDateString();
+const short = t => { if (!t) return "—"; const d = Date.now() - t; if (d < 36e5) return Math.max(1, Math.round(d / 6e4)) + "m"; if (isToday(t)) return new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase(); const days = Math.floor(d / 864e5); return days < 1 ? Math.max(1, Math.round(d / 36e5)) + "h" : days + "d"; };
+const money = n => n == null || !Number.isFinite(+n) ? "" : "$" + Math.round(+n).toLocaleString();
+const first = n => String(n || "").trim().split(/\s+/)[0] || "there";
+const ND = `<span class="nd">needs data</span>`;
+const DAY = 864e5;
+
+const db = await window.claude.use("db"), api = await window.claude.use("api");
+let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
+
+// ---------- state ----------
+let range = "today", happy = [], loaded = false, sel = null;
+const edits = {};
+let cust = {}, custLoading = false, custErr = "", custKey = "";
+
+const RANGES = [["today", "Today"], ["week", "This week"], ["d30", "30 days"]];
+const RLABEL = { today: "TODAY", week: "THIS WEEK", d30: "30 DAYS" };
+const periodStart = () => { if (range === "today") { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); } return Date.now() - (range === "week" ? 7 : 30) * DAY; };
+
+// ---------- conversations (happy only) ----------
+const when = t => t.lastAt || t.firstAt || t.waitingSince;
+const isOpen = t => !t.handledAt && !t.closedAt;
+const openHappy = () => happy.filter(isOpen).sort((a, b) => (when(b) || 0) - (when(a) || 0));
+const doneToday = () => happy.filter(t => isToday(t.handledAt) || isToday(t.closedAt)).sort((a, b) => (b.handledAt || b.closedAt || 0) - (a.handledAt || a.closedAt || 0));
+const custOf = t => cust[String(t.email || "").trim().toLowerCase()];
+const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order${+c.orders === 1 ? "" : "s"}` : "", money(c.spent)].filter(Boolean).join(" · ") : "";
+const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you have 30 seconds, would you share it on Trustpilot? It helps other guys find us: [Trustpilot link]\n\nTalk soon,\nElla · CO36`;
+
+// VIP lookup (read only): orders / spent / vip for the open happy conversations.
+async function loadCustomers() {
+  const emails = [...new Set(openHappy().map(t => String(t.email || "").trim().toLowerCase()).filter(Boolean))].sort();
+  const key = emails.join(",");
+  if (key === custKey) return; custKey = key;
+  if (!emails.length) { custLoading = false; render(); return; }
+  custLoading = true; custErr = ""; render();
+  try { const r = await api.post("service", { op: "customers", emails }); if (key !== custKey) return; cust = { ...cust, ...(r && typeof r === "object" ? r : {}) }; }
+  catch (e) { if (key !== custKey) return; custErr = e.text || e.message || "Couldn't load customers"; console.warn("customers:", custErr); }
+  custLoading = false; render(); if (sel) renderDrawer();
+}
+
+// ---------- cards ----------
+const cards = new Map();
+function card(t, col) {
+  const key = t.docId; cards.set(key, { t, col });
+  const c = custOf(t), done = col === "done";
+  const pill = done ? (t.repliedAt ? ["Thanked", "p-good"] : t.closedAt && !t.handledAt ? ["Closed", "p-grey"] : ["Done", "p-ind"]) : ["Happy", "p-good"];
+  const extra = (c?.vip ? `<span class="pp p-ink">VIP</span>` : "") + (c && ltv(c) ? `<span class="pp p-grey">${esc(ltv(c))}</span>` : "");
+  const msg = t.quote || t.summary || "";
+  return `<button class="kc${sel === key ? " sel" : ""}" data-open="${esc(key)}">
+    <div class="kt"><b>${esc(t.customer || t.email || "Customer")}</b><span class="tp t-grey">${esc(short(done ? (t.handledAt || t.closedAt) : when(t)))}</span></div>
+    ${msg ? `<span class="ki">“${esc(msg)}”</span>` : ""}
+    <div class="kp"><span class="pp ${pill[1]}">${esc(pill[0])}</span>${extra}</div></button>`;
+}
+const COLS = [
+  { k: "joy", label: "Happy · ask for Trustpilot", dot: "#16A34A", sub: "Said something kind. Invite them to review", empty: "All invited." },
+  { k: "done", label: "Done today", dot: "#5B5BF6", sub: "Thanked or closed today", empty: "Nothing yet today." }
+];
+const lists = {};
+function renderCol(c) {
+  const list = c.k === "joy" ? openHappy() : doneToday(); lists[c.k] = list;
+  const n = list.length;
+  const body = !loaded ? `<div class="csoon">Loading…</div>` : list.slice(0, 6).map(t => card(t, c.k)).join("") || `<div class="cempty">${esc(c.empty)}</div>`;
+  return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em>${loaded ? n.toLocaleString() : "…"}</em></div>
+    <span class="csub">${esc(c.sub)}</span>${body}${n > 6 ? `<button class="more" data-all="${c.k}">View all ${n.toLocaleString()}</button>` : ""}</div>`;
+}
+
+// ---------- render ----------
+function seg(el, opts, cur, pick) {
+  el.innerHTML = opts.map(([k, l]) => `<button class="${cur === k ? "on" : ""}" data-k="${k}">${l}</button>`).join("");
+  el.querySelectorAll("button").forEach(b => b.onclick = () => pick(b.dataset.k));
+}
+function render() {
+  cards.clear();
+  seg($("ranges"), RANGES, range, k => { range = k; render(); });
+  document.querySelectorAll(".rl").forEach(e => e.textContent = RLABEL[range]);
+  const open = openHappy(), start = periodStart();
+  $("sub").textContent = `Say thank you · take care of VIPs · ${new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`;
+
+  const inPeriod = happy.filter(t => (t.firstAt || when(t)) >= start).length;
+  $("joy-stats").innerHTML = [
+    [loaded ? inPeriod.toLocaleString() : "…", "Happy messages", "Kind words, thank-yous", "#fff", 0],
+    ["—", "Trustpilot reviews", "connect Trustpilot", "#8A8A96", 1],
+    ["—", "Avg rating", "connect Trustpilot", "#8A8A96", 1]
+  ].map(([v, k, s, c, nd]) => `<div><b style="color:${c}">${v}</b><span>${k}</span><small>${s}</small>${nd ? ND : ""}</div>`).join("");
+
+  const vipN = open.filter(t => custOf(t)?.vip).length;
+  const vipV = !open.length ? "0" : custLoading ? "…" : custErr ? "—" : String(vipN);
+  $("tiles").innerHTML = [
+    { k: "Waiting for a thank-you", v: loaded ? String(open.length) : "…", s: "Said something kind, not answered yet", c: "var(--good2)", b: "var(--goodb)" },
+    { k: "Happy VIPs", v: vipV, s: custErr ? "Couldn't load order history from Shopify" : "5+ orders or $500+ spent, waiting now", c: "var(--ink)", nd: custErr ? 1 : 0 },
+    { k: "Trustpilot invites sent", v: "—", s: "connect Trustpilot", c: "var(--dis)", nd: 1 },
+    { k: "VIP check-ins", v: "—", s: "Needs a customer list from Shopify", c: "var(--dis)", nd: 1 }
+  ].map(t => `<div class="kpi" style="${t.b ? "border-color:" + t.b : ""}"><span class="k">${esc(t.k)}</span><span class="v" style="color:${t.c}">${esc(t.v)}</span><span class="s">${esc(t.s)}</span>${t.nd ? ND : ""}</div>`).join("");
+
+  $("bulk").innerHTML = open.length > 1 ? `<button class="bulk" id="joyall">Send all Trustpilot invites (${open.length.toLocaleString()})</button>` : "";
+  if ($("joyall")) $("joyall").onclick = () => notConnected(open.length);
+
+  $("board").innerHTML = COLS.map(renderCol).join("");
+  document.querySelectorAll("#board [data-open]").forEach(b => b.onclick = () => openDrawer(b.dataset.open));
+  document.querySelectorAll("#board [data-all]").forEach(b => b.onclick = () => viewAll(b.dataset.all));
+}
+
+// ---------- modals ----------
+function shell(html, wide) { const m = document.createElement("div"); m.className = "cfm"; m.innerHTML = `<div class="cbox${wide ? " wide" : ""}">${html}</div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); return m; }
+function ask(title, lines, btn, label = "THIS WILL", cancel = "Cancel") { return new Promise(res => {
+  const m = shell(`<h3>${esc(title)}</h3><div style="display:flex;flex-direction:column;gap:8px"><small>${esc(label)}</small>${lines.map(l => `<div class="cl"><i>→</i><span>${esc(l)}</span></div>`).join("")}</div>
+    <div class="cft">${cancel ? `<button class="alt" data-c="0">${esc(cancel)}</button>` : ""}<button class="pri" data-c="1">${esc(btn)}</button></div>`);
+  m.onclick = e => { const c = e.target.closest("[data-c]"); if (e.target === m || c) { m.remove(); res(!!(c && c.dataset.c === "1")); } }; }); }
+// Trustpilot isn't connected: say so, send nothing.
+function notConnected(n) {
+  return ask("Trustpilot isn't connected yet", [
+    n > 1 ? `Nothing was sent to these ${n.toLocaleString()} customers` : "Nothing was sent to this customer",
+    "Invites go out once Trustpilot's invitation API (paid plan) is connected to the hub",
+    "Until then you can thank them by hand in Richpanel"
+  ], "OK", "WHAT HAPPENS", "");
+}
+function viewAll(k) {
+  const c = COLS.find(x => x.k === k), list = lists[k] || [];
+  const m = shell(`<h3>${esc(c.label)} · ${list.length.toLocaleString()}</h3><div class="vall">${list.map(t => card(t, k)).join("")}</div>
+    <div class="cft"><button class="alt" id="va-x">Close</button></div>`, true);
+  m.querySelector("#va-x").onclick = () => m.remove();
+  m.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { m.remove(); openDrawer(b.dataset.open); });
+}
+
+// ---------- drawer ----------
+function closeDrawer() { sel = null; $("drawer").innerHTML = ""; document.querySelectorAll(".kc.sel").forEach(e => e.classList.remove("sel")); }
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sel && !document.querySelector(".cfm")) closeDrawer(); });
+function openDrawer(key) { sel = key; document.querySelectorAll(".kc").forEach(e => e.classList.toggle("sel", e.dataset.open === key)); renderDrawer(); }
+const facts = list => `<div class="facts">${list.map(([k, v]) => `<div><small>${esc(k)}</small><span>${esc(v || "—")}</span></div>`).join("")}</div>`;
+const dt = t => t ? new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+function renderDrawer() {
+  if (!sel) return;
+  const t = happy.find(x => x.docId === sel);
+  if (!t) { closeDrawer(); return; }
+  const focus = document.activeElement?.id === "d-ta", caret = focus ? document.activeElement.selectionStart : null;
+  const c = custOf(t), open = isOpen(t), msg = t.quote || t.summary || "";
+  const pill = c?.vip ? ["VIP · happy", "p-ink"] : open ? ["Happy", "p-good"] : ["Done", "p-ind"];
+  const meta = [t.order || "No order", t.email, t.number ? "Richpanel #" + t.number : ""].filter(Boolean).join(" · ");
+  const lookup = custLoading && !c ? "Loading…" : custErr && !c ? "Couldn't load" : "";
+  $("drawer").innerHTML = `<div class="ovl" id="d-ovl"></div><aside class="drw"><div class="dh"><div class="t"><div class="n"><b>${esc(t.customer || t.email || "Customer")}</b><span class="pp ${pill[1]}" style="font-size:11px;padding:3px 8px">${esc(pill[0])}</span></div><span class="m">${esc(meta)}</span></div><button class="x" id="d-x">×</button></div>
+    <div class="db">
+      ${msg ? `<div class="dmsg">“${esc(String(msg).slice(0, 2000))}”</div>` : ""}
+      ${t.summary && t.quote && t.summary !== t.quote ? `<div class="dnote">${esc(t.summary)}</div>` : ""}
+      ${facts([["ORDERS", c?.orders != null ? (+c.orders).toLocaleString() : lookup], ["SPENT", c ? money(c.spent) : lookup], ["LAST ORDER", c?.lastOrder ? String(c.lastOrder) + (c.lastOrderAt ? " · " + short(ts(c.lastOrderAt)) : "") : lookup], ["VIP", c ? (c.vip ? "Yes" : "No") : lookup], ["RECEIVED", dt(t.firstAt)], ["EMAILS", t.messages ? String(t.messages) : ""]])}
+      ${open ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">TRUSTPILOT INVITE</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[t.docId] ?? inviteBody(t))}</textarea></div>
+        <div class="dnote">Trustpilot isn't connected yet, so this invite can't be sent from the hub.</div>`
+        : `<div class="dnote">${t.repliedAt ? "Thanked " + esc(dt(t.repliedAt)) + "." : ""} ${t.handledAt ? "Marked done " + esc(dt(t.handledAt)) + "." : t.closedAt ? "Closed " + esc(dt(t.closedAt)) + "." : ""}</div>`}
+    </div><div class="df">${open ? `<button class="alt" id="d-done">Mark done, don't send</button><button class="pri green" id="d-send">Send Trustpilot invite</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
+  const D = $("drawer");
+  D.querySelector("#d-ovl").onclick = closeDrawer; D.querySelector("#d-x").onclick = closeDrawer;
+  if (D.querySelector("#d-close")) D.querySelector("#d-close").onclick = closeDrawer;
+  const ta = D.querySelector("#d-ta");
+  if (ta) { ta.oninput = () => { edits[t.docId] = ta.value; }; if (focus) { ta.focus(); try { ta.setSelectionRange(caret, caret); } catch (_) {} } }
+  const send = D.querySelector("#d-send"); if (send) send.onclick = () => notConnected(1);
+  const done = D.querySelector("#d-done"); if (done) done.onclick = async () => {
+    const who = t.customer || t.email || "this customer";
+    if (!(await ask(`Mark ${who} done?`, ["Nothing is sent to the customer", "Move this conversation to \"Done today\""], "Mark done"))) return;
+    done.disabled = true;
+    try { await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now(), handledBy: me }); toast("Marked done"); closeDrawer(); }
+    catch (e) { toast(e.text || e.message); done.disabled = false; }
+  };
+}
+
+// ---------- live data ----------
+db.collection("svc_inbox").onSnapshot(s => {
+  // Home shows happy customers only; everything else is dropped right here.
+  happy = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "happy")
+    .map(t => ({ ...t, firstAt: ts(t.firstAt), lastAt: ts(t.lastAt), waitingSince: ts(t.waitingSince), handledAt: ts(t.handledAt), repliedAt: ts(t.repliedAt), closedAt: ts(t.closedAt) }));
+  loaded = true; render(); if (sel && !document.activeElement?.closest?.(".drw")) renderDrawer(); loadCustomers();
+});
+render();
+setInterval(() => { if (!document.querySelector(".cfm")) render(); }, 30000);
+})();
+</script>
+</body>
+</html>
