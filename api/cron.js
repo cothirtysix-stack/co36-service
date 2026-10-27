@@ -38,6 +38,15 @@ export default async function handler(req, res) {
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
   if (!live) return res.json({ ok: true, live: false });
   await init();
+  // Repair (Oct 27): Sarah's private hand-off notes were mistaken for replies, so some drafts were marked "Sarah answered".
+  // Re-check those against the real thread: if the customer is still the last to speak, put them back in line.
+  const since = Date.parse(AUTOPILOT.since || 0) || 0;
+  const fix = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and data->>'sarahAt' is not null
+    and data->>'repairedAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 5`;
+  for (const { id, data: r } of fix) {
+    const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
+    await putDoc("svc_returns", id, last && !isOp(last) && String(t?.status).toUpperCase() !== "CLOSED" ? { sarahAt: null, answeredBy: null, repairedAt: Date.now() } : { repairedAt: Date.now() }, true);
+  }
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} order by seq limit 50`;
   const sent = [], held = [];

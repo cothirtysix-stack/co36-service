@@ -3,7 +3,7 @@
 import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { putDoc, getDoc } from "../lib/server.js";
-import { draftFor, isNoise } from "../lib/ella.js";
+import { draftFor, isNoise, RETURN_WORDS } from "../lib/ella.js";
 import { recordReply } from "../lib/learn.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
@@ -79,7 +79,9 @@ async function inner(req, res) {
     if (qcm) { await putDoc("svc_qcthread", qcm[1], { ticketId, number, at: Date.now() }); return res.json({ ok: true, kept: false, qc: true }); }
     // Our own replies (Sarah or an agent) restart nothing; they count as answering.
     if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
-      await ourReply(id, cur, (looked?.ticket?.comments || []).filter(c => !isNoise(c)).pop()); return res.json({ ok: true, kept: false });
+      const real = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), lastReal = real[real.length - 1];
+      if (lastReal && (lastReal.is_operator ?? lastReal.isOperator)) await ourReply(id, cur, lastReal); // a private note or auto-reply isn't an answer
+      return res.json({ ok: true, kept: false });
     }
     const comments = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), isOp = c => !!(c.is_operator ?? c.isOperator);
     // Richpanel's "Things are busy" auto-reply lands seconds after every customer email, so "last message is ours" is not enough.
@@ -100,7 +102,9 @@ async function inner(req, res) {
     const message = String(pick(b, "ticketMessage", "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "")
       .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/[ \t]+/g, " ").trim();
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
-    const mood = await read(message, subject);
+    let mood = await read(message, subject).catch(() => null);
+    // Safety net: if the reader failed or missed an obvious return/exchange ("too big for a medium, may I exchange for a small?"), use the words.
+    if (RETURN_WORDS.test(`${subject || ""} ${message}`) && (!mood || mood.intent === "none")) mood = { ...(mood || { mood: "neutral", type: "other" }), intent: /exchange|swap|another size|size (up|down)/i.test(message) ? "exchange" : "return" };
     // Learning: how did they react to what we (Ella, Sarah or the team) said last?
     await recordReply({ id, comments, lastCust, mood, isOp, isNoise }).catch(() => {});
     // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
