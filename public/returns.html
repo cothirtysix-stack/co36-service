@@ -720,8 +720,10 @@ async function sendSafe(list) {
 }
 
 // ---------- load Richpanel returns (pages of 100) ----------
-async function loadReturns() {
-  const token = ++loadToken, start = periodStart(); rp = []; rpCount = null; rpErr = ""; rpLoading = true; render();
+// quiet = the 5-minute background refresh: keep the board on screen and swap the new list in at the end.
+async function loadReturns(quiet) {
+  const token = ++loadToken, start = periodStart(); let acc = [];
+  if (!quiet) { rp = []; rpCount = null; rpErr = ""; rpLoading = true; render(); }
   let fields = RETURN_FIELDS, skip = 0;
   try {
     for (let page = 0; page < 40; page++) {
@@ -731,13 +733,14 @@ async function loadReturns() {
       if (token !== loadToken) return;
       const got = Array.isArray(res?.returns) ? res.returns : [];
       rpCount = res?.count || rpCount;
-      rp = rp.concat(got.map(mapReturn).filter(r => !r.createdAt || r.createdAt >= start));
-      render();
+      acc = acc.concat(got.map(mapReturn).filter(r => !r.createdAt || r.createdAt >= start));
+      if (!quiet) { rp = acc; render(); }
       if (got.length < 100) break;
       skip += 100;
     }
-  } catch (e) { if (token !== loadToken) return; rpErr = e.text || e.message || "Unknown error"; console.warn("returnsList:", rpErr); }
+  } catch (e) { if (token !== loadToken || quiet) return; rpErr = e.text || e.message || "Unknown error"; console.warn("returnsList:", rpErr); }
   if (token !== loadToken) return;
+  if (quiet && !rpErr) rp = acc;
   rpLoading = false; render(); if (sel) renderDrawer();
 }
 
@@ -746,11 +749,12 @@ const apLive = await fetch("/api/config").then(r => r.json()).then(c => !!c.auto
 db.doc("svc_meta/autopilot").onSnapshot(d => { const off = d.exists && d.data().off; document.getElementById("ap-t").textContent = !apLive ? "Ella drafts · autopilot off" : off ? "Autopilot paused · click to resume" : "Ella is on · autopilot"; document.getElementById("autopilot").dataset.off = off ? "1" : ""; });
 document.getElementById("autopilot").onclick = async () => { if (!apLive) return toast("Autopilot is off. Ella only drafts; nothing is sent by itself."); const off = !!document.getElementById("autopilot").dataset.off;
   if (!(await ask(off ? "Resume Ella's autopilot?" : "Pause Ella's autopilot?", off ? ["Ella sends simple return and exchange replies by herself again, 8–12 minutes after each email", "Flagged, VIP and refund cases still wait for a person"] : ["Ella stops sending by herself right away", "Drafts keep appearing; you can still send them by hand"], off ? "Resume" : "Pause"))) return;
-  await db.doc("svc_meta/autopilot").set({ off: !off, by: me, at: Date.now() }); toast(off ? "Autopilot on" : "Autopilot paused"); };
+  await db.doc("svc_meta/autopilot").update({ off: !off, by: me, at: Date.now() }); toast(off ? "Autopilot on" : "Autopilot paused"); };
 db.collection("svc_returns").onSnapshot(s => { rets = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); if (sel && sel.startsWith("s:")) renderDrawer(); });
 db.collection("svc_experiments").onSnapshot(s => { exps = s.docs.map(d => ({ id: d.id, ...d.data() })); renderVariants(); renderLab(); });
 render(); loadReturns();
 setInterval(tick, 1000);
+setInterval(() => { if (document.visibilityState === "visible" && !rpLoading) loadReturns(true); }, 5 * 60e3);
 setInterval(() => { if (!document.querySelector(".cfm")) render(); }, 30000);
 })();
 </script>
