@@ -8,6 +8,7 @@
     const t = await getToken();
     const r = await fetch("/api/" + path, { method: "POST", headers: { "content-type": "application/json", ...(t ? { authorization: "Bearer " + t } : {}) }, body: JSON.stringify(body) });
     let j = {}; try { j = await r.json(); } catch (_) {}
+    if (r.status === 401 && path !== "login") { try { if (localStorage.getItem("co36-service-session")) { localStorage.removeItem("co36-service-session"); location.reload(); } } catch (_) {} }
     if (!r.ok) { const e = new Error(j.error || r.statusText); e.code = j.code || (r.status === 401 ? "not_granted" : "tool_error"); e.text = j.error; throw e; }
     return j;
   }
@@ -127,6 +128,7 @@
   async function boot() {
     const cfg = await fetch("/api/config").then(r => r.json());
     if (cfg.devNoAuth) { resolveReady(); startLoop(); return; }
+    if (cfg.passwordLogin) return passwordBoot();
     if (!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error("Supabase keys missing");
     await new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
@@ -167,6 +169,41 @@
     out.textContent = "Sign out"; out.title = session.user?.email || "";
     out.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:50;border:1px solid #ECECF0;background:#fff;border-radius:99px;padding:6px 12px;font:12px Inter,system-ui,sans-serif;color:#6E6E7A;cursor:pointer";
     out.onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    document.body.appendChild(out);
+    resolveReady(); startLoop();
+  }
+  // The hub's own sign-in (one password set in Vercel). Remembered in this browser for 60 days.
+  async function passwordBoot() {
+    const KEY = "co36-service-session";
+    let saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) {}
+    if (!saved?.token) {
+      const o = document.createElement("div");
+      o.style.cssText = "position:fixed;inset:0;z-index:9999;background:#F7F7F9;display:grid;place-items:center;font-family:Inter,system-ui,sans-serif;padding:16px";
+      o.innerHTML = `<form id="co36-in" style="width:min(360px,100%);background:#fff;border:1px solid #ECECF0;border-radius:20px;padding:28px;display:grid;gap:14px;box-shadow:0 8px 30px rgba(16,16,40,.06)">
+        <div style="font-weight:800;font-size:22px">CO36 Service</div>
+        <div style="font-size:13.5px;color:#6E6E7A">Sign in with your email and the Service Hub password.</div>
+        <input id="co36-em" type="email" required autocomplete="username" placeholder="you@cothirtysix.com" style="border:1px solid #ECECF0;border-radius:12px;padding:11px 13px;font-size:15px">
+        <input id="co36-pw" type="password" required autocomplete="current-password" placeholder="Password" style="border:1px solid #ECECF0;border-radius:12px;padding:11px 13px;font-size:15px">
+        <button style="border:0;background:#5B5BF6;color:#fff;border-radius:99px;padding:11px;font-weight:700;font-size:14px;cursor:pointer">Sign in</button>
+        <div id="co36-msg" style="font-size:13px;color:#6E6E7A;min-height:18px"></div></form>`;
+      document.body.appendChild(o);
+      const m = document.getElementById("co36-msg");
+      document.getElementById("co36-in").onsubmit = async e => {
+        e.preventDefault(); m.style.color = "#6E6E7A"; m.textContent = "Signing in…";
+        const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: document.getElementById("co36-em").value, password: document.getElementById("co36-pw").value }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { m.style.color = "#EF4444"; m.textContent = j.error || "Couldn't sign in."; return; }
+        try { localStorage.setItem(KEY, JSON.stringify(j)); } catch (_) {}
+        location.reload();
+      };
+      return;
+    }
+    getToken = async () => saved.token; who = saved.email || "";
+    const out = document.createElement("button");
+    out.textContent = "Sign out"; out.title = who;
+    out.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:50;border:1px solid #ECECF0;background:#fff;border-radius:99px;padding:6px 12px;font:12px Inter,system-ui,sans-serif;color:#6E6E7A;cursor:pointer";
+    out.onclick = () => { try { localStorage.removeItem(KEY); } catch (_) {} location.reload(); };
     document.body.appendChild(out);
     resolveReady(); startLoop();
   }
