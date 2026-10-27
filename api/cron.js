@@ -32,7 +32,9 @@ export default async function handler(req, res) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' order by seq limit 50`;
   const sent = [], held = [];
   for (const { id, data: r } of rows) {
-    if (!SAFE_INTENTS.includes(r.intent) || (r.flags || []).length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
+    // "no_order" is safe: that reply just asks for the order number.
+    const blocking = (r.flags || []).filter(f => f !== "no_order");
+    if (!SAFE_INTENTS.includes(r.intent) || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
     if (Date.now() < (r.receivedAt || 0) + delayMs(id)) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
     const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
