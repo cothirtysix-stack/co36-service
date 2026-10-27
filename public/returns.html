@@ -333,8 +333,9 @@ const inPeriod = t => t && t >= periodStart();
 // ---------- svc_returns (Ella's conversations) ----------
 const FLAG = { no_thread: "No email thread found · reply yourself", needs_human: "Needs a person", asked_if_bot: "Asked if a person · reply yourself", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" };
 const afterQc = (kind, sent) => rets.filter(r => r.stage === "after_qc" && r.kind === kind && (sent ? r.status === "sent" : r.status === "draft")).sort((a, b) => (a.qcAt || 0) - (b.qcAt || 0));
-const justAsked = () => rets.filter(r => r.stage !== "after_qc").filter(r => r.status === "drafting" || r.status === "draft" || r.status === "error").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
-const offerOut = () => rets.filter(r => r.stage !== "after_qc" && r.status === "sent" && inPeriod(r.sentAt)).sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0));
+// Answered by Sarah or the team = no longer waiting on us: it moves to "Offer out" (waiting on the customer).
+const justAsked = () => rets.filter(r => r.stage !== "after_qc" && !r.sarahAt).filter(r => r.status === "drafting" || r.status === "draft" || r.status === "error").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
+const offerOut = () => rets.filter(r => r.stage !== "after_qc" && (r.status === "sent" ? inPeriod(r.sentAt) : r.sarahAt && r.status !== "skipped" && inPeriod(r.sarahAt))).sort((a, b) => (a.sentAt || a.sarahAt || 0) - (b.sentAt || b.sarahAt || 0));
 const svcNeeds = r => (r.flags || []).includes("needs_human");
 const svcLate = r => (r.status === "draft" || r.status === "drafting" || r.status === "error") && Date.now() - (r.receivedAt || Date.now()) >= 5 * 6e4;
 const safeDrafts = () => justAsked().filter(r => r.status === "draft" && !(r.flags || []).length && !r.sarahAt && (r.draft || "").trim());
