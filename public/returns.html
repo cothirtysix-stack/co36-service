@@ -266,7 +266,8 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
 // Richpanel Returns adapter. Field names are not confirmed yet: change these two
 // things (RETURN_FIELDS + mapReturn) and the whole board follows.
 // ============================================================================
-const RETURN_FIELDS = "_id name status createdAt orderNumber outcome type customer { name email } total { amount refund } aggregatedShipmentStatus exchangeOrderNumber statusPageUrl";
+// Field names checked against the live Richpanel Returns API (Oct 27). shipmentStatus is JSON: { shipmentId: "LABEL_CREATED" | "IN_TRANSIT" | "DELIVERED" … }.
+const RETURN_FIELDS = "_id name status createdAt updatedAt orderNumber outcome type returnMethod customer { name email } total { amount refund } shipmentStatus exchangeOrderNumber statusPageUrl";
 
 function mapReturn(r) {
   r = r || {};
@@ -274,7 +275,10 @@ function mapReturn(r) {
   const ts = v => { if (v == null || v === "") return null; if (typeof v === "number") return v < 1e12 ? v * 1000 : v; const n = Number(v); if (Number.isFinite(n)) return n < 1e12 ? n * 1000 : n; const p = Date.parse(v); return Number.isFinite(p) ? p : null; };
   const o = up(r.outcome || r.type || r.resolution);
   const outcome = /EXCH/.test(o) ? "EXCHANGE" : /CREDIT|GIFT/.test(o) ? "STORE_CREDIT" : /REFUND/.test(o) ? "REFUND" : (o || "UNKNOWN");
-  const s = up(r.aggregatedShipmentStatus || r.shipmentStatus || r.shipment?.status);
+  // One return can have several shipments; use the furthest along.
+  const RANK = v => /DELIVER/.test(v) && !/OUT_FOR/.test(v) ? 4 : /TRANSIT|OUT_FOR|PICKED|ACCEPTED|SHIPPED/.test(v) ? 3 : /EXCEPT|FAIL|RETURN_TO/.test(v) ? 2 : v ? 1 : 0;
+  const ss = r.shipmentStatus && typeof r.shipmentStatus === "object" ? Object.values(r.shipmentStatus).map(up) : [up(r.shipmentStatus || r.shipment?.status)];
+  const s = ss.sort((a, b) => RANK(b) - RANK(a))[0] || "";
   const shipment = !s ? "NONE"
     : /DELIVER/.test(s) && !/OUT_FOR/.test(s) ? "DELIVERED"
     : /TRANSIT|OUT_FOR|PICKED|ACCEPTED|SHIPPED|AVAILABLE/.test(s) ? "IN_TRANSIT"
@@ -734,8 +738,9 @@ async function loadReturns() {
 }
 
 // ---------- live data ----------
-db.doc("svc_meta/autopilot").onSnapshot(d => { const off = d.exists && d.data().off; document.getElementById("ap-t").textContent = off ? "Autopilot paused · click to resume" : "Ella is on · autopilot"; document.getElementById("autopilot").dataset.off = off ? "1" : ""; });
-document.getElementById("autopilot").onclick = async () => { const off = !!document.getElementById("autopilot").dataset.off;
+const apLive = await fetch("/api/config").then(r => r.json()).then(c => !!c.autopilot).catch(() => false);
+db.doc("svc_meta/autopilot").onSnapshot(d => { const off = d.exists && d.data().off; document.getElementById("ap-t").textContent = !apLive ? "Ella drafts · autopilot off" : off ? "Autopilot paused · click to resume" : "Ella is on · autopilot"; document.getElementById("autopilot").dataset.off = off ? "1" : ""; });
+document.getElementById("autopilot").onclick = async () => { if (!apLive) return toast("Autopilot is off. Ella only drafts; nothing is sent by itself."); const off = !!document.getElementById("autopilot").dataset.off;
   if (!(await ask(off ? "Resume Ella's autopilot?" : "Pause Ella's autopilot?", off ? ["Ella sends simple return and exchange replies by herself again, 10–20 minutes after each email", "Flagged, VIP and refund cases still wait for a person"] : ["Ella stops sending by herself right away", "Drafts keep appearing; you can still send them by hand"], off ? "Resume" : "Pause"))) return;
   await db.doc("svc_meta/autopilot").set({ off: !off, by: me, at: Date.now() }); toast(off ? "Autopilot on" : "Autopilot paused"); };
 db.collection("svc_returns").onSnapshot(s => { rets = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); if (sel && sel.startsWith("s:")) renderDrawer(); });
