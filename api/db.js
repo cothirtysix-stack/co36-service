@@ -3,7 +3,7 @@ const CAP = 3_000_000;
 const ok = s => typeof s === "string" && /^[A-Za-z0-9_\-.~:@+\/]{1,300}$/.test(s);
 // The Service Hub shares a database with CO36 HQ: only service collections (svc_*) are reachable from here.
 const svc = c => ok(c) && /^svc_/.test(c) && c !== "svc_users"; // logins are only reachable through /api/team
-export default wrap(async (req, res) => {
+export default wrap(async (req, res, who) => {
   await init();
   const s = db(), b = req.body || {};
   if (b.op === "poll") {
@@ -17,6 +17,8 @@ export default wrap(async (req, res) => {
     return res.json({ rows: out, more: out.length < rows.length || rows.length === 500 });
   }
   if (!svc(b.coll) || !ok(b.id)) return res.status(403).json({ error: "not allowed" });
+  // Settings (svc_meta: Ella on/off, wait time, warehouse) are David's only.
+  if (b.coll === "svc_meta" && who?.role === "member") return res.status(403).json({ error: "Only David can change settings." });
   if (b.op === "set") {
     await s`insert into hub.docs (coll, id, data) values (${b.coll}, ${b.id}, ${s.json(b.data ?? {})})
       on conflict (coll, id) do update set data = excluded.data, deleted = false, seq = nextval('hub.docs_seq')`;

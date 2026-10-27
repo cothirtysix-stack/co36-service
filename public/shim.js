@@ -207,8 +207,8 @@
       if (!pages.includes(page)) { location.replace(`/${pages[0] || "returns"}.html`); return; }
       const hide = () => document.querySelectorAll("a[href]").forEach(a => { const m = a.getAttribute("href").match(/^\/(\w+)\.html/); if (m && !pages.includes(m[1])) a.style.display = "none"; });
       hide(); new MutationObserver(hide).observe(document.body, { childList: true, subtree: true });
-    } else if (page !== "team") {
-      const t = document.createElement("a"); t.href = "/team.html"; t.textContent = "Team";
+    } else if (page !== "settings") {
+      const t = document.createElement("a"); t.href = "/settings.html"; t.textContent = "Settings";
       t.style.cssText = "position:fixed;left:100px;bottom:16px;z-index:50;border:1px solid #ECECF0;background:#fff;border-radius:99px;padding:6px 12px;font:12px Inter,system-ui,sans-serif;color:#6E6E7A;text-decoration:none";
       document.body.appendChild(t);
     }

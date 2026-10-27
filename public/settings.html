@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CO36 Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--line:#ECECF0;--page:#F7F7F9;--surface:#fff;--ind:#5B5BF6;--indt:#EEEEFE;--good:#16A34A;--goodt:#E8F6EE;--bad:#EF4444;--badt:#FEECEC;--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--line:#26262E;--page:#0E0E12;--surface:#16161C;--indt:#23234A;--goodt:#12301F;--badt:#3A1616;--shadow:none}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:28px 16px 80px;display:grid;gap:18px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.top h1{font:800 22px Inter;letter-spacing:-.02em;margin:0;flex:1}
+.top a{color:var(--muted);text-decoration:none;font-weight:600;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px;display:grid;gap:12px}
+.card h2{font:700 15px Inter;margin:0}.sub{color:var(--muted);font-size:13px;margin:0}
+input[type=text],input[type=email]{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;font:15px Inter}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:520px){.row2{grid-template-columns:1fr}}
+.pages{display:flex;gap:8px;flex-wrap:wrap}
+.pages label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer}
+button{border:0;background:var(--ind);color:#fff;border-radius:99px;padding:10px 16px;font:700 13px Inter;cursor:pointer}
+button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}button.red{background:transparent;color:var(--bad);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+.msg{font-size:13px;min-height:18px;color:var(--muted)}.msg.err{color:var(--bad)}
+.pw{background:var(--goodt);border-radius:12px;padding:14px;display:grid;gap:6px}.pw code{font:700 18px ui-monospace,Menlo,monospace;letter-spacing:.02em;user-select:all;word-break:break-all}
+.person{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}.person:first-child{border-top:0}
+.who{flex:1;min-width:180px}.who b{display:block}.who span{color:var(--muted);font-size:12.5px}
+.chip{background:var(--indt);color:var(--ind);border-radius:99px;padding:2px 9px;font-size:12px;font-weight:600;margin-right:4px}
+.empty{color:var(--muted);font-size:13px}
+.set{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}.set:first-of-type{border-top:0}
+.set .who{min-width:220px}.num{width:64px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px;font:600 14px Inter;text-align:center}
+.sw{position:relative;width:44px;height:26px;border-radius:99px;background:var(--line);border:0;padding:0;flex:none}.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw.on{background:var(--good)}.sw.on::after{left:21px}
+h3.sec{font:800 13px Inter;letter-spacing:.06em;color:var(--muted);margin:10px 0 -6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>Settings</h1><a href="/home.html">Home ›</a><a href="/returns.html">Returns ›</a><a href="/fulfillment.html">Fulfillment ›</a></div>
+
+  <h3 class="sec">ELLA</h3>
+  <div class="card">
+    <div class="set"><div class="who"><b>Ella answers return &amp; exchange emails by herself</b><span id="apSub">Refunds, VIPs and anything unusual always wait for a person.</span></div><button class="sw" id="apSw" aria-label="Ella autopilot"></button></div>
+    <div class="set"><div class="who"><b>Wait before she replies</b><span>So it feels like a person, not a bot.</span></div>
+      <input class="num" id="dMin" type="number" min="1" max="120"> to <input class="num" id="dMax" type="number" min="1" max="120"> minutes <button class="ghost" id="dSave">Save</button></div>
+    <div class="set"><div class="who"><b>After quality check: send her follow-up by herself</b><span>Off = she only drafts them on the Returns board (bottom section) for you to check.</span></div><button class="sw" id="qcSw" aria-label="After quality check autopilot"></button></div>
+    <div class="msg" id="setMsg"></div>
+  </div>
+
+  <h3 class="sec">TEAM</h3>
+  <div class="card">
+    <h2>Add a person</h2>
+    <p class="sub">They get their own password and only see the pages you tick. No access to the calendar.</p>
+    <div class="row2"><input id="name" type="text" placeholder="Name"><input id="email" type="email" placeholder="her@cothirtysix.com"></div>
+    <div class="pages" id="newPages">
+      <label><input type="checkbox" value="home"> Home</label>
+      <label><input type="checkbox" value="returns" checked> Returns</label>
+      <label><input type="checkbox" value="fulfillment"> Fulfillment</label>
+    </div>
+    <div><button id="add">Add and make a password</button></div>
+    <div class="msg" id="msg"></div>
+    <div class="pw" id="pw" hidden></div>
+  </div>
+
+  <div class="card">
+    <h2>People with access</h2>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<script src="/shim.js"></script>
+<script type="module">
+const api = await window.claude.use("api");
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LABEL = { home: "Home", returns: "Returns", fulfillment: "Fulfillment" };
+const say = (t, err) => { $("msg").textContent = t; $("msg").className = "msg" + (err ? " err" : ""); };
+const showPw = (email, pw) => { $("pw").hidden = false;
+  $("pw").innerHTML = `<div>Send this to <b>${esc(email)}</b> by text. It's shown only once.</div><code>${esc(pw)}</code>
+    <div class="sub">Link: ${esc(location.origin)}/returns.html · she signs in with her email and this password.</div>`; };
+
+async function load() {
+  let people;
+  try { people = await api.post("team", { op: "list" }); }
+  catch (e) { $("list").innerHTML = `<div class="empty">${esc(e.text || e.message)}</div>`; return; }
+  if (!people.length) { $("list").innerHTML = `<div class="empty">Nobody yet. Only you can sign in.</div>`; return; }
+  $("list").innerHTML = people.map(p => `<div class="person" data-email="${esc(p.email)}">
+    <div class="who"><b>${esc(p.name || p.email)}</b><span>${esc(p.email)}</span><div>${p.pages.map(x => `<span class="chip">${LABEL[x] || esc(x)}</span>`).join("")}</div></div>
+    <button class="ghost" data-act="reset">New password</button><button class="red" data-act="remove">Remove</button></div>`).join("");
+}
+
+$("add").onclick = async () => {
+  const email = $("email").value.trim(), name = $("name").value.trim();
+  const pages = [...document.querySelectorAll("#newPages input:checked")].map(i => i.value);
+  $("pw").hidden = true; say("Adding…"); $("add").disabled = true;
+  try { const r = await api.post("team", { op: "add", email, name, pages }); say("Added."); showPw(email, r.password); $("email").value = $("name").value = ""; load(); }
+  catch (e) { say(e.text || e.message, true); }
+  $("add").disabled = false;
+};
+
+$("list").onclick = async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const email = b.closest(".person").dataset.email;
+  if (b.dataset.act === "remove") {
+    if (!confirm(`Remove ${email}? They're signed out right away.`)) return;
+    try { await api.post("team", { op: "remove", email }); say(`Removed ${email}.`); load(); } catch (e) { say(e.text || e.message, true); }
+  } else {
+    if (!confirm(`Make a new password for ${email}? The old one stops working.`)) return;
+    try { const r = await api.post("team", { op: "reset", email }); say("New password made."); showPw(email, r.password); } catch (e) { say(e.text || e.message, true); }
+  }
+};
+load();
+
+// Ella settings live in svc_meta/autopilot (the cron reads them every minute).
+const db = await window.claude.use("db"), me = await (await window.claude.use("user")).email();
+const cfg = await fetch("/api/config").then(r => r.json()).catch(() => ({}));
+let ap = {};
+const sayS = t => { $("setMsg").textContent = t; setTimeout(() => { if ($("setMsg").textContent === t) $("setMsg").textContent = ""; }, 2600); };
+const paint = () => { $("apSw").classList.toggle("on", !!cfg.autopilot && !ap.off); $("qcSw").classList.toggle("on", !!ap.afterQcAuto);
+  $("apSub").textContent = !cfg.autopilot ? "Switched off in the code. Ask Claude to turn her on." : "Refunds, VIPs and anything unusual always wait for a person.";
+  if (document.activeElement !== $("dMin")) $("dMin").value = ap.minDelay || 8; if (document.activeElement !== $("dMax")) $("dMax").value = ap.maxDelay || 12; };
+db.doc("svc_meta/autopilot").onSnapshot(d => { ap = d.exists ? d.data() : {}; paint(); });
+const save = async (patch, msg) => { await db.doc("svc_meta/autopilot").update({ ...patch, by: me, at: Date.now() }); sayS(msg); };
+$("apSw").onclick = () => { if (!cfg.autopilot) return sayS("Ella's autopilot is switched off in the code."); const off = !ap.off;
+  if (confirm(off ? "Pause Ella? She stops sending by herself right away. Drafts keep coming." : "Turn Ella back on? She sends simple return and exchange replies by herself.")) save({ off }, off ? "Ella paused." : "Ella is on."); };
+$("qcSw").onclick = () => { const on = !ap.afterQcAuto;
+  if (confirm(on ? "Let Ella send her after-quality-check follow-ups by herself? (Never refunds.)" : "Back to drafts only for after-quality-check follow-ups?")) save({ afterQcAuto: on }, on ? "She'll send them by herself." : "Drafts only."); };
+$("dSave").onclick = () => { const a = Math.round(+$("dMin").value), b = Math.round(+$("dMax").value);
+  if (!(a >= 1 && b >= a && b <= 120)) return sayS("Pick a range like 8 to 12."); save({ minDelay: a, maxDelay: b }, `Ella waits ${a}–${b} minutes.`); };
+</script>
+</body>
+</html>

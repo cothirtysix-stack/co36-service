@@ -5,9 +5,10 @@ import { loadTicket, isOp, isNoise } from "../lib/ella.js";
 import { pollAfterQc } from "../lib/afterqc.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
-const delayMs = id => { // stable 10–20 min per conversation, so it doesn't look automatic
+const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
+  const lo = +s.minDelay || AUTOPILOT.minDelayMin, hi = Math.max(lo, +s.maxDelay || AUTOPILOT.maxDelayMin);
   let h = 0; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return (AUTOPILOT.minDelayMin + (h % (AUTOPILOT.maxDelayMin - AUTOPILOT.minDelayMin + 1))) * 6e4;
+  return (lo + (h % (hi - lo + 1))) * 6e4;
 };
 
 // Shadow mode: copy each new draft into the Richpanel conversation as a PRIVATE note (customers never see notes),
@@ -39,11 +40,14 @@ export default async function handler(req, res) {
   for (const { id, data: r } of rows) {
     // "no_order" is safe: that reply just asks for the order number.
     const blocking = (r.flags || []).filter(f => f !== "no_order");
-    if (!SAFE_INTENTS.includes(r.intent) || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
-    if (Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id)) continue;
+    const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && off?.afterQcAuto);
+    if (!safe || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
+    if (Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
     const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
-    if (!t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last))) {
+    // After-QC follow-ups are ours to start, so "our message is last" is expected there; only a newer customer message stops them.
+    const stale = r.intent === "after_qc" ? !t : !t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last));
+    if (stale) {
       await putDoc("svc_returns", id, { sarahAt: Date.now(), autoSkipped: "someone already replied or it was closed" }, true); continue;
     }
     const r2 = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
