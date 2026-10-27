@@ -2,7 +2,7 @@
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
 import { loadTicket, isOp, isNoise } from "../lib/ella.js";
-import { pollAfterQc, notifyRefunds } from "../lib/afterqc.js";
+import { pollAfterQc, notifyRefunds, scanQcThreads } from "../lib/afterqc.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
@@ -27,6 +27,7 @@ async function postNotes() {
 
 export default async function handler(req, res) {
   // After-return follow-ups: draft only (intent "after_qc" is never auto-sent below).
+  await scanQcThreads().catch(() => {});
   const qc = await pollAfterQc().catch(e => ({ error: String(e.message || e).slice(0, 200) }));
   if (qc.error || qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true).catch(() => {});
   await postNotes().catch(() => {});
