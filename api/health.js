@@ -47,7 +47,9 @@ export default async function handler(req, res) {
     const [n] = await db()`select count(*)::int as c from hub.docs where coll = 'svc_returns' and id like 'qc-%' and not deleted`; const k = await db()`select data->>'kind' as kind, data->>'status' as status, (data->>'ticketId' is not null) as thread, (data->>'refundNotifiedAt' is not null) as told, coalesce(data->>'refundNoted', '') as noted, count(*)::int as c from hub.docs where coll = 'svc_returns' and id like 'qc-%' and not deleted group by 1,2,3,4,5`;
     const [q] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'qcscan'`;
     const [t] = await db()`select count(*)::int as c from hub.docs where coll = 'svc_qcthread' and not deleted`;
-    return { last: r?.data || null, docs: n.c, kinds: k, scan: q?.data || null, threads: t.c }; });
+    const miss = await db()`select d.data->'orders'->>0 as o, d.data->>'refundNotifiedAt' as at, exists(select 1 from hub.docs x where x.coll = 'svc_qcthread' and x.id = replace(d.data->'orders'->>0, '#', '')) as has
+      from hub.docs d where d.coll = 'svc_returns' and d.id like 'qc-%' and not d.deleted and d.data->>'ticketId' is null and d.data->>'status' = 'draft'`;
+    return { last: r?.data || null, docs: n.c, kinds: k, scan: q?.data || null, threads: t.c, missing: miss.map(m => ({ order: String(m.o || "").slice(0, 3) + "…", has: m.has, at: m.at })) }; });
   const ap = await run(async () => { const r = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'autopilot'`;
     return { ok: true, on: AUTOPILOT.on, until: AUTOPILOT.until, pausedOnBoard: !!r[0]?.data?.off, live: AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !r[0]?.data?.off }; });
   // Ella's order lookup on a known recent order (result: found or the error, no customer data).
