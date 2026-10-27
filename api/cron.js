@@ -9,7 +9,22 @@ const delayMs = id => { // stable 10–20 min per conversation, so it doesn't lo
   return (AUTOPILOT.minDelayMin + (h % (AUTOPILOT.maxDelayMin - AUTOPILOT.minDelayMin + 1))) * 6e4;
 };
 
+// Shadow mode: copy each new draft into the Richpanel conversation as a PRIVATE note (customers never see notes),
+// so the team and Claude can compare Ella with Sarah.
+async function postNotes() {
+  await init();
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and (data->>'notedAt') is null order by seq desc limit 10`;
+  for (const { id, data: r } of rows) {
+    const body = `ELLA'S DRAFT · NOT SENT (private note, customer can't see this)\nPlan: ${r.plan || "-"}${(r.flags || []).length ? `\nFlags: ${r.flags.join(", ")}` : ""}\n\n${r.draft}`;
+    const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
+      headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
+      body: JSON.stringify({ ticket: { comment: { body, sender_type: "operator", public: false, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });
+    await putDoc("svc_returns", id, x.ok ? { notedAt: Date.now() } : { noteError: `Richpanel ${x.status}`, notedAt: Date.now() }, true);
+  }
+}
+
 export default async function handler(req, res) {
+  await postNotes().catch(() => {});
   const off = await getDoc("svc_meta", "autopilot");
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
   if (!live) return res.json({ ok: true, live: false });
