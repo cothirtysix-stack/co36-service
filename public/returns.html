@@ -369,7 +369,7 @@ function svcCard(r, col) {
   else { time = short(r.sentAt); tcls = "t-grey"; }
   const pill = needs ? ["Needs you", "p-red"] : r.status === "drafting" ? ["Ella is writing", "p-mute"] : r.status === "error" ? ["Couldn't draft", "p-red"]
     : col === "new" && r.status === "draft" ? ["Draft ready", "p-amb"] : r.intent === "exchange" ? ["Exchange", "p-ind"] : ["Return", "p-grey"];
-  const extra = (r.sarahAt ? `<span class="pp p-amb">Sarah answered</span>` : "") + (r.flags || []).filter(f => f !== "needs_human").map(f => `<span class="pp p-red">${esc(FLAG[f] || f)}</span>`).join("");
+  const extra = (r.sarahAt ? `<span class="pp p-amb">${r.answeredBy === "team" ? "Team answered" : "Sarah answered"}</span>` : "") + (r.flags || []).filter(f => f !== "needs_human").map(f => `<span class="pp p-red">${esc(FLAG[f] || f)}</span>`).join("");
   const item = (r.items || []).join(" · ") || r.subject || (r.orders || []).join(", ") || "";
   return cardHtml({ key, name: r.customer || r.email || "Customer", time, tcls, item, pill, extra, urgent, recvAttr });
 }
@@ -652,7 +652,7 @@ function renderDrawer() {
         ${(r.items || []).length ? `<div class="dtags">${r.items.map(i => `<span>${esc(i)}</span>`).join("")}</div>` : ""}
         ${r.plan ? `<div class="plan"><i>E</i><span><b>Ella's plan:</b> ${esc(r.plan)}</span></div>` : ""}
         ${flags.length ? `<div class="dflag">${esc(flags.join(" · "))}</div>` : ""}
-        ${r.sarahAt ? `<div class="dflag" style="color:var(--amb2);background:var(--ambt)">Sarah answered ${esc(mmss(r.sarahAt - (r.receivedAt || r.sarahAt)))} after the email came in.</div>` : ""}
+        ${r.sarahAt ? `<div class="dflag" style="color:var(--amb2);background:var(--ambt)">${r.answeredBy === "team" ? "A teammate" : "Sarah"} answered ${esc(mmss(r.sarahAt - (r.receivedAt || r.sarahAt)))} after the email came in.</div>` : ""}
         ${r.status === "drafting" ? `<div class="dnote">Ella is writing…</div>` : r.status === "error" ? `<div class="dflag">Ella couldn't draft this one: ${esc(r.error)}</div>` : ""}
         ${r.status === "draft" ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">ELLA'S DRAFT · EDIT BEFORE SENDING</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[k] ?? r.draft ?? "")}</textarea></div>` : ""}
         ${r.status === "sent" ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">WHAT WE SENT</span><div class="dmsg" style="background:var(--surface);border:1px solid var(--line2)">${esc(r.sentText || r.draft || "")}</div></div>` : ""}

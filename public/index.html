@@ -239,7 +239,7 @@ function renderRet() {
   const focus = document.activeElement?.dataset?.ta, caret = document.activeElement?.selectionStart;
   $("ret-rows").innerHTML = list.length ? list.map((r, i) => {
     const age = Date.now() - (r.receivedAt || Date.now()), sarah = r.sarahAt && r.sarahAt > (r.receivedAt || 0);
-    const clock = sarah ? `<span class="pill p-amb">Sarah answered ${mmss(r.sarahAt - r.receivedAt)} after</span>` : `<span class="pill ${age > 5 * 6e4 ? "p-red" : age > 3 * 6e4 ? "p-amb" : "p-good"} race">${mmss(age)} ago</span>`;
+    const clock = sarah ? `<span class="pill p-amb">${r.answeredBy === "team" ? "Team" : "Sarah"} answered ${mmss(r.sarahAt - r.receivedAt)} after</span>` : `<span class="pill ${age > 5 * 6e4 ? "p-red" : age > 3 * 6e4 ? "p-amb" : "p-good"} race">${mmss(age)} ago</span>`;
     const flags = (r.flags || []).map(f => `<span class="pill p-red">${esc({ needs_human: "Needs a person", asked_if_bot: "Asked if a person · reply yourself", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" }[f] || f)}</span>`).join(" ");
     const body = r.status === "drafting" ? `<div class="empty" style="padding:10px 0">Ella is writing…</div>` : r.status === "error" ? `<div class="err" style="margin-top:8px">Ella couldn't draft this one: ${esc(r.error)}</div>` : `<textarea data-ta="${esc(r.docId)}" data-k="${esc(r.docId + ":" + (r.draftedAt || 0))}">${esc(edits[r.docId + ":" + (r.draftedAt || 0)] ?? r.draft ?? "")}</textarea>`;
     return `<div class="row ret" style="align-items:flex-start"><div class="main">

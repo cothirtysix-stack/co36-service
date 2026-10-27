@@ -25,10 +25,19 @@ Message: ${String(text || "").slice(0, 4000)}`;
 }
 
 // Sarah or an agent answered in Richpanel.
-async function ourReply(id, cur) {
+// Someone replied in Richpanel. Work out who: Ella (her draft was sent from anywhere), Sarah (Richpanel's AI account), or a teammate.
+const SARAH_ID = "7ba38484-f064-43d8-83f6-f9e6060b1fd0";
+const words = t => String(t || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+async function ourReply(id, cur, last) {
   if (cur) await putDoc("svc_inbox", id, { repliedAt: Date.now() }, true);
   const ret = await getDoc("svc_returns", id);
-  if (ret && ret.status !== "sent" && !(ret.sentAt && Date.now() - ret.sentAt < 120e3)) await putDoc("svc_returns", id, { sarahAt: Date.now() }, true);
+  if (!ret || ret.status === "sent" || (ret.sentAt && Date.now() - ret.sentAt < 120e3)) return;
+  const body = words(last?.plain_body || last?.body), draft = words(ret.draft);
+  if (draft && body && (body === draft || body.startsWith(draft.slice(0, 120)))) {
+    await putDoc("svc_returns", id, { status: "sent", sentAt: Date.now(), sentBy: "Ella (sent in Richpanel)", sentText: last.plain_body || last.body, edited: false }, true); return;
+  }
+  const who = last?.author_id === SARAH_ID ? "sarah" : "team";
+  await putDoc("svc_returns", id, { sarahAt: Date.now(), answeredBy: who }, true);
 }
 
 async function note(outcome, extra) { // running tally of what Richpanel sent, for the status page
@@ -66,7 +75,7 @@ async function inner(req, res) {
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }
     // Our own replies (Sarah or an agent) restart nothing; they count as answering.
     if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
-      await ourReply(id, cur); return res.json({ ok: true, kept: false });
+      await ourReply(id, cur, (looked?.ticket?.comments || []).filter(c => !isNoise(c)).pop()); return res.json({ ok: true, kept: false });
     }
     const comments = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), isOp = c => !!(c.is_operator ?? c.isOperator);
     // Richpanel's "Things are busy" auto-reply lands seconds after every customer email, so "last message is ours" is not enough.
@@ -75,7 +84,7 @@ async function inner(req, res) {
     const seen = await getDoc("svc_seen", id);
     if (!pick(b, "ticketMessage", "message")) {
       if (!lastCust || seen?.last === lastCust.id) {
-        if (comments.length && isOp(comments[comments.length - 1])) await ourReply(id, cur);
+        if (comments.length && isOp(comments[comments.length - 1])) await ourReply(id, cur, comments[comments.length - 1]);
         return res.json({ ok: true, kept: false });
       }
       await putDoc("svc_seen", id, { last: lastCust.id, at: Date.now() });
