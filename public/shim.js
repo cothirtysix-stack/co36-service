@@ -181,7 +181,7 @@
       o.style.cssText = "position:fixed;inset:0;z-index:9999;background:#F7F7F9;display:grid;place-items:center;font-family:Inter,system-ui,sans-serif;padding:16px";
       o.innerHTML = `<form id="co36-in" style="width:min(360px,100%);background:#fff;border:1px solid #ECECF0;border-radius:20px;padding:28px;display:grid;gap:14px;box-shadow:0 8px 30px rgba(16,16,40,.06)">
         <div style="font-weight:800;font-size:22px">CO36 Service</div>
-        <div style="font-size:13.5px;color:#6E6E7A">Sign in with your email and the Service Hub password.</div>
+        <div style="font-size:13.5px;color:#6E6E7A">Sign in with your email and password.</div>
         <input id="co36-em" type="email" required autocomplete="username" placeholder="you@cothirtysix.com" style="border:1px solid #ECECF0;border-radius:12px;padding:11px 13px;font-size:15px">
         <input id="co36-pw" type="password" required autocomplete="current-password" placeholder="Password" style="border:1px solid #ECECF0;border-radius:12px;padding:11px 13px;font-size:15px">
         <button style="border:0;background:#5B5BF6;color:#fff;border-radius:99px;padding:11px;font-weight:700;font-size:14px;cursor:pointer">Sign in</button>
@@ -200,6 +200,18 @@
       return;
     }
     getToken = async () => saved.token; who = saved.email || "";
+    // Teammates only see the pages David gave them; anything else sends them to their first page.
+    const page = (location.pathname.match(/\/(\w+)\.html$/) || [])[1] || "index";
+    if (saved.role === "member") {
+      const pages = saved.pages || [];
+      if (!pages.includes(page)) { location.replace(`/${pages[0] || "returns"}.html`); return; }
+      const hide = () => document.querySelectorAll("a[href]").forEach(a => { const m = a.getAttribute("href").match(/^\/(\w+)\.html/); if (m && !pages.includes(m[1])) a.style.display = "none"; });
+      hide(); new MutationObserver(hide).observe(document.body, { childList: true, subtree: true });
+    } else if (page !== "team") {
+      const t = document.createElement("a"); t.href = "/team.html"; t.textContent = "Team";
+      t.style.cssText = "position:fixed;left:100px;bottom:16px;z-index:50;border:1px solid #ECECF0;background:#fff;border-radius:99px;padding:6px 12px;font:12px Inter,system-ui,sans-serif;color:#6E6E7A;text-decoration:none";
+      document.body.appendChild(t);
+    }
     const out = document.createElement("button");
     out.textContent = "Sign out"; out.title = who;
     out.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:50;border:1px solid #ECECF0;background:#fff;border-radius:99px;padding:6px 12px;font:12px Inter,system-ui,sans-serif;color:#6E6E7A;cursor:pointer";

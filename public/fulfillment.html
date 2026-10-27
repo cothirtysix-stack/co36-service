@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CO36 Fulfillment</title>
+<link rel="icon" href="/apps/service.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apps/service.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--dis:#B5B5BE;--line:#ECECF0;--line2:#E2E2E8;--line3:#F1F1F4;--page:#F7F7F9;--surface:#fff;--col:#EFEFF3;--soft:#FBFBFC;--seg:#ECECF0;
+--ind:#5B5BF6;--ind2:#4343D9;--indt:#EEEEFE;--indb:#DCDCFB;--good:#16A34A;--good2:#15803D;--goodt:#E8F6EE;--goodb:#BFE5CD;--bad:#EF4444;--bad2:#B91C1C;--badt:#FEECEC;--badb:#F8C9C9;--badsoft:#FEF5F5;--amb:#F59E0B;--amb2:#B45309;--ambt:#FEF3E2;--ambsoft:#FEF9EC;
+--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--dis:#5C5C66;--line:#26262E;--line2:#30303A;--line3:#1E1E25;--page:#0E0E12;--surface:#16161C;--col:#1B1B22;--soft:#121217;--seg:#24242C;
+--indt:#23234A;--indb:#33335E;--goodt:#12301F;--goodb:#1E4A30;--badt:#3A1616;--badb:#5A2424;--badsoft:#2A1414;--ambt:#3A2A10;--ambsoft:#2A2010;--ind2:#9B9BFF;--good2:#4ADE80;--bad2:#F87171;--amb2:#FBBF24;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,textarea,input{font-family:inherit}button{cursor:pointer}
+a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoration:underline}
+.page{min-height:100vh;display:flex;flex-direction:column}
+/* header */
+.hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tile{width:34px;height:34px;border-radius:9px;background:#0B0B0F;color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px Inter;flex:none}
+.ttl{display:flex;flex-direction:column;gap:1px;min-width:0}.ttl b{font:800 18px Inter;letter-spacing:-.02em}.ttl span{font:500 12px Inter;color:var(--muted)}
+.seg{display:flex;gap:2px;background:var(--seg);padding:3px;border-radius:10px}
+.seg button{border:0;height:30px;padding:0 12px;border-radius:8px;font:600 12px Inter;background:transparent;color:var(--muted);box-shadow:none}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.spill{border:0;display:flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:999px;background:var(--line3)}
+.spill i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--dis)}.spill span{font:600 12px Inter;color:var(--body)}
+.spill.open{background:var(--goodt)}.spill.open i{background:var(--good)}.spill.open span{color:var(--good2)}
+.spill.fri{background:var(--ambt)}.spill.fri i{background:var(--amb)}.spill.fri span{color:var(--amb2)}
+.spill.run i{background:var(--ind)}.spill.err i{background:var(--bad)}.spill.err span{color:var(--bad2)}
+.prev{font:600 11px Inter;color:var(--muted);background:var(--line3);padding:4px 9px;border-radius:999px;white-space:nowrap}
+.links{display:flex;gap:12px;flex-wrap:wrap}.hlink{font:600 12px Inter}.hlink.cur{color:var(--ink)}
+/* top cards */
+.top{padding:18px 24px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:12px}
+.lane{border-radius:18px;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+.lane.ex{background:var(--surface);border:1.5px solid var(--line);box-shadow:var(--shadow)}
+.lane.rt{background:#0B0B0F;border:1.5px solid #0B0B0F;color:#fff;gap:10px}
+.lh{display:flex;align-items:center;gap:8px;width:100%}.lh i{width:10px;height:10px;border-radius:50%;flex:none}.lh b{font:800 16px Inter;flex:1}.lh small{font:600 11px Inter;color:var(--muted)}.lane.rt .lh small{color:#A5A5F9}
+.exs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%}
+.exs div{display:flex;flex-direction:column;gap:2px}.exs b{font:800 26px Inter;letter-spacing:-.02em}.exs span{font:600 12px Inter}.exs small{font:500 11px Inter;color:var(--muted)}
+.fn{display:flex;align-items:center;gap:10px;width:100%}
+.fn .k{font:600 12px Inter;width:160px;flex:none;color:#E2E2E8}
+.fn .b{flex:1;height:18px;border-radius:5px;background:#1E1E26;overflow:hidden}.fn .b i{display:block;height:100%;border-radius:5px}
+.fn .p{font:800 14px Inter;width:50px;text-align:right}.fn .n{font:500 11px Inter;width:52px;text-align:right;color:#B5B5BE}
+.fnote{font:500 11px/1.45 Inter;color:#B5B5BE}
+.nd{font:500 10.5px Inter;color:var(--dis)}.lane.rt .nd{color:#8A8A96}
+.tiles{padding:12px 24px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.kpi .k{font:600 12px Inter;color:var(--muted)}.kpi .v{font:800 28px Inter;letter-spacing:-.02em}.kpi .s{font:500 12px/1.4 Inter;color:var(--body)}
+/* filters */
+.flt{padding:16px 24px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.flt .seg{margin-right:6px}
+.chp{height:34px;padding:0 14px;border-radius:999px;font:600 13px Inter;border:1px solid var(--line2);background:var(--surface);color:var(--body);display:flex;align-items:center;gap:6px}
+.chp span{font:700 11px Inter;opacity:.75}.chp.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.bulk{height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--ink);color:var(--surface);font:600 13px Inter;white-space:nowrap}
+/* stage 1 heading */
+.s1h{padding:18px 24px 0;display:flex;flex-direction:column;gap:4px}
+.s1h b{font:700 11px Inter;letter-spacing:.06em;color:var(--ind2)}.s1h span{font:500 13px/1.5 Inter;color:var(--muted)}
+/* board */
+.bwrap{padding:12px 24px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.board{display:flex;gap:12px;align-items:flex-start;min-width:900px}.board.s2{min-width:1100px}
+.col{flex:1 1 0;min-width:200px;background:var(--col);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}.s2 .col{background:var(--line3)}
+.chd{display:flex;align-items:center;gap:8px;padding:4px 4px 2px}.chd i{width:8px;height:8px;border-radius:50%;flex:none}.chd b{font:700 13px Inter;flex:1}.chd em{font:800 18px Inter;font-style:normal;letter-spacing:-.02em}.chd em.red{color:var(--bad2)}
+.csub{font:500 11px/1.4 Inter;color:var(--muted);padding:0 4px 4px}
+.cempty{padding:16px 6px;text-align:center;font:600 12px Inter;color:var(--good2)}
+.csoon{padding:16px 8px;text-align:center;font:500 12px/1.45 Inter;color:var(--muted)}
+.more{border:0;background:var(--surface);border-radius:10px;height:34px;font:600 12px Inter;color:var(--ind)}
+.kc{text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:6px;color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.04);width:100%;font:inherit}
+.kc.urg{border-color:var(--badb)}.kc.sel{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.kt{display:flex;align-items:center;gap:6px;width:100%}.kt b{font:700 13px Inter;flex:1;min-width:0;overflow-wrap:anywhere}
+.tp{font:700 10px Inter;padding:2px 6px;border-radius:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t-amb{background:var(--ambt);color:var(--amb2)}.t-red{background:#EF4444;color:#fff}.t-grey{background:var(--line3);color:var(--muted)}
+.ki{font:500 12px/1.35 Inter;color:var(--body);overflow-wrap:anywhere}
+.kp{display:flex;gap:4px;flex-wrap:wrap}
+.pp{font:600 10px Inter;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.p-red{background:var(--badt);color:var(--bad2)}.p-amb{background:var(--ambt);color:var(--amb2)}.p-ind{background:var(--indt);color:var(--ind2)}.p-grey{background:var(--line3);color:var(--body)}.p-good{background:var(--goodt);color:var(--good2)}
+/* stage 2 */
+.band{margin-top:36px;background:var(--surface);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:8px 0 24px}
+.bandlbl{display:flex;justify-content:center;margin-top:-22px}.bandlbl span{font:700 11px Inter;letter-spacing:.06em;color:#fff;background:#0B0B0F;padding:6px 14px;border-radius:999px}
+.s2h{padding:14px 24px 0;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.s2h .t{flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px}.s2h .t b{font:800 20px Inter;letter-spacing:-.02em}.s2h .t span{font:500 13px/1.5 Inter;color:var(--muted)}
+.after{display:flex;gap:10px;flex-wrap:wrap}
+.after div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:130px}.after b{font:800 20px Inter;letter-spacing:-.02em}.after span{font:500 11px Inter;color:var(--muted)}
+/* lower */
+.low{padding:24px 24px 56px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+.bh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bh .t{flex:1;min-width:220px;display:flex;flex-direction:column;gap:2px}.bh .t b{font:800 16px Inter}.bh .t span{font:500 12px/1.45 Inter;color:var(--muted)}
+.oddn{min-width:26px;height:26px;padding:0 8px;border-radius:999px;background:var(--line3);color:var(--dis);font:700 13px/26px Inter;text-align:center}
+.vempty{padding:28px 20px;text-align:center;font:500 13px/1.5 Inter;color:var(--muted)}
+.crg{display:grid;grid-template-columns:1fr 64px 64px;gap:10px;padding:10px 20px;border-bottom:1px solid var(--line3);font:500 13px Inter;align-items:center}
+.crg.h{font:600 11px Inter;color:var(--muted)}.crg span:not(:first-child){text-align:right}.crg span:first-child{color:var(--body)}.crg b{font-weight:700}
+.gnote{padding:12px 20px;font:500 12px/1.5 Inter;color:var(--body);background:var(--soft)}
+.sr{padding:12px 20px;border-bottom:1px solid var(--line3);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.sr .t{flex:1;min-width:160px;display:flex;flex-direction:column;gap:2px;min-width:0}.sr .t b{font:600 13px Inter;overflow-wrap:anywhere}.sr .t span{font:500 11px Inter;color:var(--muted)}
+.sr .v{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.sr .v b{font:700 13px Inter;color:var(--amb2)}.sr .v span{font:500 11px Inter;color:var(--muted)}
+.sbtn{height:34px;padding:0 10px;border:1px solid var(--line2);border-radius:9px;background:var(--surface);color:var(--ink);font:600 12px Inter;white-space:nowrap}
+.olist{padding:10px 20px 14px;display:flex;flex-direction:column;gap:6px}.olist small{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}
+.olist div{display:flex;gap:8px;font:500 12px/1.4 Inter;color:var(--body)}.olist div b{font-weight:700;color:var(--ink);white-space:nowrap}.olist div span{flex:1;min-width:0;overflow-wrap:anywhere}.olist div em{font-style:normal;color:var(--amb2);font-weight:700;white-space:nowrap}
+/* drawer */
+.ovl{position:fixed;inset:0;background:rgba(11,11,15,.25);z-index:40}
+.drw{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);z-index:41;box-shadow:-10px 0 40px rgba(11,11,15,.18);display:flex;flex-direction:column}
+.dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dh .t{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.dh .n{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dh .n b{font:800 20px Inter;letter-spacing:-.02em;overflow-wrap:anywhere}
+.dh .m{font:500 12px Inter;color:var(--muted);overflow-wrap:anywhere}
+.x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line2);background:var(--surface);color:var(--ink);font:600 15px Inter;flex:none}
+.db{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.trk{display:flex;gap:3px}.trk div{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.trk i{height:5px;border-radius:999px;background:var(--line)}.trk i.done{background:#16A34A}.trk i.now{background:#F59E0B}.trk i.now.red{background:#EF4444}
+.trk span{font:600 9px Inter;color:var(--dis);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trk span.on{color:var(--ink)}
+.wrong{display:flex;gap:10px;align-items:flex-start;background:var(--ambsoft);border-radius:12px;padding:10px 12px}.wrong.red{background:var(--badsoft)}
+.wrong i{font:800 13px Inter;font-style:normal;color:var(--amb2);flex:none}.wrong.red i{color:var(--bad2)}.wrong span{font:500 13px/1.45 Inter}.wrong b,.plan b{font-weight:700}
+.plan{display:flex;gap:10px;align-items:flex-start;background:var(--indt);border-radius:12px;padding:10px 12px}.plan i{width:22px;height:22px;border-radius:50%;background:var(--ind);color:#fff;font:700 11px Inter;font-style:normal;display:flex;align-items:center;justify-content:center;flex:none}.plan span{font:500 13px/1.45 Inter}
+.evs{display:flex;flex-direction:column}.ev{display:flex;gap:12px;align-items:flex-start;padding:7px 0}.ev i{width:9px;height:9px;border-radius:50%;margin-top:4px;flex:none;background:#D4D4DA}
+.ev span{flex:1;display:flex;flex-direction:column;gap:1px}.ev b{font:600 13px Inter}.ev small{font:500 11px Inter;color:var(--muted)}.ev.dim b{color:var(--muted)}
+.dl{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}
+.dmsg{background:var(--page);border-radius:12px;padding:12px 14px;font:400 14px/1.55 Inter;white-space:pre-wrap;overflow-wrap:anywhere}
+.dnote{font:500 12px/1.5 Inter;color:var(--muted);background:var(--page);border-radius:10px;padding:8px 12px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.facts div{background:var(--page);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}.facts small{font:600 10px Inter;color:var(--muted);letter-spacing:.05em}.facts span{font:600 13px Inter;overflow-wrap:anywhere}
+.df{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.alt{height:44px;padding:0 14px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--ink);font:600 13px Inter;display:inline-flex;align-items:center}
+.alt:hover{text-decoration:none;color:var(--ink)}
+.pri{height:44px;padding:0 18px;border:0;border-radius:10px;background:#0B0B0F;color:#fff;font:600 13px Inter}
+/* modal + toast */
+.cfm{position:fixed;inset:0;background:rgba(11,11,15,.4);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.cbox{width:min(440px,100%);background:var(--surface);border-radius:18px;box-shadow:0 20px 60px rgba(11,11,15,.3);padding:22px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto}
+.cbox.wide{width:min(720px,100%)}
+.cbox h3{margin:0;font:800 18px Inter}.cbox p{margin:0;font:500 14px/1.5 Inter;color:var(--body)}
+.cft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.vall{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
+@media (max-width:640px){.hdr,.top,.tiles,.flt,.s1h,.bwrap,.s2h,.low{padding-left:16px;padding-right:16px}.hdr{gap:10px}
+.fn .k{width:112px}.fn .n{width:40px}.fn .p{width:40px}.exs b{font-size:22px}.lane{padding:16px}.crg{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hdr">
+    <div class="tile">CO36</div>
+    <div class="ttl"><b>Fulfillment</b><span id="sub">Shopify + UPS/USPS · every order from paid to delivered</span></div>
+    <div style="flex:1"></div>
+    <div class="seg" id="ranges"></div>
+    <button class="spill" id="wh" title="Warehouse hours: Mon–Fri 9–5, closes Friday at sunset, closed Saturday, some Sundays"><i></i><span>Warehouse…</span></button>
+    <div class="spill" id="sync"><i></i><span>Loading…</span></div>
+    <span class="prev">Preview · not live yet</span>
+    <nav class="links"><a class="hlink" href="/home.html">Home ›</a><a class="hlink" href="/returns.html">Returns ›</a><a class="hlink cur" href="/fulfillment.html" aria-current="page">Fulfillment</a></nav>
+  </header>
+
+  <section class="top">
+    <div class="lane ex">
+      <div class="lh"><i style="background:#5B5BF6"></i><b>Warehouse · get it out today</b><small class="rl"></small></div>
+      <div class="exs" id="wh-stats"></div>
+    </div>
+    <div class="lane rt">
+      <div class="lh"><i style="background:#F59E0B"></i><b>In transit · catch it before they do</b><small class="rl"></small></div>
+      <div id="bars" style="display:flex;flex-direction:column;gap:10px;width:100%"></div>
+    </div>
+  </section>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="flt">
+    <div class="seg" id="carriers"></div>
+    <span id="chips" style="display:contents"></span>
+    <span style="flex:1"></span>
+    <span id="bulk"></span>
+  </section>
+
+  <section class="s1h">
+    <b>STAGE 1 · IN THE WAREHOUSE</b>
+    <span>Only orders with a problem. Anything here is our fault, so fix it first. Timers count warehouse hours only: Mon–Fri 9–5, closes Friday at sunset, closed Saturday, some Sundays.</span>
+  </section>
+  <section class="bwrap"><div class="board" id="board1"></div></section>
+
+  <div class="band">
+    <div class="bandlbl"><span>STAGE 2 · IN TRANSIT</span></div>
+    <section class="s2h">
+      <div class="t"><b>On the road</b><span>Only packages with a problem. On-time packages stay off this board. We tell the customer first and fix it before they write in.</span></div>
+      <div class="after" id="road"></div>
+    </section>
+    <section class="bwrap"><div class="board s2" id="board2"></div></section>
+  </div>
+
+  <section class="low">
+    <div class="box" style="flex:3 1 560px">
+      <div class="bh"><span class="oddn">—</span><div class="t"><b>Something looks off</b><span>Shopify, ShipHero and the carrier don't agree. Caught by comparing all three every hour.</span></div></div>
+      <div class="vempty">Coming soon: needs ShipHero. ShipHero connects this week, then this list compares Shopify, ShipHero and the carrier every hour (fulfilled with no shipment, duplicate tracking, wrong state, weight mismatch, charged twice, tracking never synced).</div>
+    </div>
+    <div style="flex:2 1 360px;min-width:0;display:flex;flex-direction:column;gap:16px">
+      <div class="box">
+        <div class="bh" style="flex-direction:column;align-items:stretch;gap:2px"><b style="font:800 16px Inter">Carrier report · <span class="rl"></span></b><span style="font:500 12px Inter;color:var(--muted)">Who's late, who loses packages</span></div>
+        <div id="carrier"></div>
+      </div>
+      <div class="box">
+        <div class="bh" style="flex-direction:column;align-items:stretch;gap:2px"><b style="font:800 16px Inter">Out of stock, orders waiting</b><span style="font:500 12px Inter;color:var(--muted)">Paid 5+ days ago, not shipped. Next inbound PO and ETA come with ShipHero.</span></div>
+        <div id="stock"></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="drawer"></div>
+
+<script src="/shim.js"></script>
+<script>
+// ============================================================================
+// Warehouse location: SET THIS TO THE REAL WAREHOUSE. Used for the Friday sunset
+// time and for all warehouse-hour timers. (Placeholder: New York City.)
+// ============================================================================
+const WAREHOUSE = { lat: 40.71, lng: -74.01, tz: "America/New_York" };
+const OPEN_H = 9, CLOSE_H = 17;
+
+(async () => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toast = t => { document.querySelectorAll(".toast").forEach(x => x.remove()); const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const DAY = 864e5;
+const ND = `<span class="nd">needs data</span>`;
+const tsOf = v => v == null || v === "" ? null : typeof v === "number" ? v : (Number.isFinite(Date.parse(v)) ? Date.parse(v) : null);
+const ago = t => { t = tsOf(t); if (!t) return "—"; const m = Math.max(0, Math.round((Date.now() - t) / 6e4)); return m < 60 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)} days ago`; };
+const first = n => String(n || "").trim().split(/\s+/)[0] || "there";
+const dayStr = t => { t = tsOf(t); return t ? new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: WAREHOUSE.tz }) : "—"; };
+const whenStr = t => { t = tsOf(t); return t ? new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: WAREHOUSE.tz }) : "—"; };
+const clock = t => new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: WAREHOUSE.tz }).replace(/\s/g, "").toLowerCase();
+
+// ---------- warehouse time (all math in the warehouse's time zone) ----------
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const dtf = new Intl.DateTimeFormat("en-US", { timeZone: WAREHOUSE.tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", weekday: "short" });
+function parts(ts) { const o = {}; dtf.formatToParts(new Date(ts)).forEach(p => o[p.type] = p.value); return { y: +o.year, m: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, s: +o.second, dow: DOW.indexOf(o.weekday) }; }
+// Wall-clock time at the warehouse → timestamp (handles daylight saving).
+function localTs(y, m, d, h, mi = 0) {
+  const want = Date.UTC(y, m - 1, d, h, mi); let ts = want;
+  for (let i = 0; i < 3; i++) { const p = parts(ts); ts = want - (Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s) - ts); }
+  return ts;
+}
+// Sunset for a calendar date at the warehouse (standard NOAA/sunrise-equation solar calculation, ~1 min accuracy).
+const sunsetCache = {};
+function sunset(y, m, d) {
+  const key = `${y}-${m}-${d}`; if (sunsetCache[key]) return sunsetCache[key];
+  const rad = Math.PI / 180, lat = WAREHOUSE.lat, lng = WAREHOUSE.lng;
+  const n = Math.round(Date.UTC(y, m - 1, d, 12) / DAY + 2440587.5 - 2451545);
+  const Js = n - lng / 360;
+  const M = ((357.5291 + 0.98560028 * Js) % 360 + 360) % 360;
+  const C = 1.9148 * Math.sin(M * rad) + 0.02 * Math.sin(2 * M * rad) + 0.0003 * Math.sin(3 * M * rad);
+  const L = (M + C + 180 + 102.9372) % 360;
+  const Jt = 2451545 + Js + 0.0053 * Math.sin(M * rad) - 0.0069 * Math.sin(2 * L * rad);
+  const decl = Math.asin(Math.sin(L * rad) * Math.sin(23.4397 * rad));
+  const cosW = (Math.sin(-0.833 * rad) - Math.sin(lat * rad) * Math.sin(decl)) / (Math.cos(lat * rad) * Math.cos(decl));
+  const w = Math.acos(Math.max(-1, Math.min(1, cosW))) / rad;
+  return (sunsetCache[key] = (Jt + w / 360 - 2440587.5) * DAY);
+}
+let meta = { sundayOpen: false, at: 0 }; // svc_meta/warehouse
+const dateKey = (y, m, d) => `${y}-${m}-${d}`;
+const addDays = (y, m, d, k) => { const t = new Date(Date.UTC(y, m - 1, d + k)); return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate(), dow: t.getUTCDay() }; };
+// The Sunday toggle covers the Sunday on/after the day it was set.
+function sundayOpenOn(y, m, d) {
+  if (!meta.sundayOpen || !meta.at) return false;
+  const p = parts(meta.at), s = addDays(p.y, p.m, p.d, (7 - p.dow) % 7);
+  return dateKey(s.y, s.m, s.d) === dateKey(y, m, d);
+}
+// Open window for one warehouse calendar day, or null when closed.
+function dayWindow(y, m, d, dow) {
+  if (dow === 6) return null;                                   // Shabbat
+  if (dow === 0 && !sundayOpenOn(y, m, d)) return null;         // Sunday only when toggled open
+  const open = localTs(y, m, d, OPEN_H);
+  const close = dow === 5 ? sunset(y, m, d) : localTs(y, m, d, CLOSE_H); // Friday closes at sunset
+  return close > open ? [open, close] : null;
+}
+// Warehouse hours between two timestamps.
+function whHours(t0, t1 = Date.now()) {
+  t0 = tsOf(t0); if (!t0 || t1 <= t0) return 0;
+  const a = parts(t0), b = parts(t1), end = dateKey(b.y, b.m, b.d); let ms = 0;
+  for (let k = 0; k < 120; k++) {
+    const c = addDays(a.y, a.m, a.d, k), w = dayWindow(c.y, c.m, c.d, c.dow);
+    if (w) ms += Math.max(0, Math.min(w[1], t1) - Math.max(w[0], t0));
+    if (dateKey(c.y, c.m, c.d) === end) break;
+  }
+  return ms / 36e5;
+}
+function whStatus(now = Date.now()) {
+  const p = parts(now), w = dayWindow(p.y, p.m, p.d, p.dow);
+  if (w && now >= w[0] && now < w[1]) {
+    if (p.dow === 5) return { cls: "fri", label: `Open · closes at sunset (${clock(w[1])})` };
+    if (p.dow === 0) return { cls: "open", label: "Open this Sunday · closes 5pm" };
+    return { cls: "open", label: "Open · closes 5pm" };
+  }
+  let next = "";
+  for (let k = 0; k < 9; k++) { const c = addDays(p.y, p.m, p.d, k), x = dayWindow(c.y, c.m, c.d, c.dow); if (x && x[0] > now) { next = k === 0 ? "today" : k === 1 && p.dow !== 5 && p.dow !== 6 ? "tomorrow" : DOW[c.dow]; break; } }
+  if (p.dow === 0) return { cls: "", label: "Closed Sunday · opens Mon 9am" };
+  return { cls: "", label: `Closed · opens ${next || "Mon"} 9am` };
+}
+
+// ---------- preview mode: every action is switched off ----------
+function shell(html, wide) { const m = document.createElement("div"); m.className = "cfm"; m.innerHTML = `<div class="cbox${wide ? " wide" : ""}">${html}</div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); return m; }
+function notLive() {
+  const m = shell(`<h3>Not live yet</h3><p>Fulfillment actions are switched off for now. Nothing was sent or changed.</p><div class="cft"><button class="pri" data-ok>OK</button></div>`);
+  m.querySelector("[data-ok]").onclick = () => m.remove();
+}
+
+const db = await window.claude.use("db"), api = await window.claude.use("api");
+
+// ---------- state ----------
+let fix = null, scan = null, cases = [], range = "today", carrier = "All", chip = "all", sel = null;
+const RANGES = [["today", "Today"], ["week", "This week"], ["d30", "30 days"]];
+const RLABEL = { today: "TODAY", week: "THIS WEEK", d30: "30 DAYS" };
+const periodStart = () => { if (range === "today") { const p = parts(Date.now()); return localTs(p.y, p.m, p.d, 0); } return Date.now() - (range === "week" ? 7 : 30) * DAY; };
+const inPeriod = t => { t = tsOf(t); return !!t && t >= periodStart(); };
+
+// ---------- problems from the Shopify scan (svc_fix/latest) ----------
+// Message templates copied from index.html (Fix before they know).
+const FT = {
+  failed:     { label: "Couldn't deliver", tell: c => `${c} couldn't deliver your package, so we caught it before you had to ask. A fresh one ships today by express, on us. Reply if your address has changed.` },
+  stuck:      { label: "No movement 5+ days", tell: () => `Your package stopped moving, so we didn't wait. A new one ships today by express, on us. If the first one turns up, keep it.` },
+  notscanned: { label: "Not picked up", tell: () => `Quick heads-up: your order is packed, but the carrier hasn't picked it up yet. We're on it with the warehouse, and you'll have moving tracking shortly.` },
+  attempted:  { label: "Delivery attempt", tell: c => `${c} tried to deliver your order but couldn't. Check the note they left, or reply here and we'll sort it out with them today.` },
+  late:       { label: "Running late", tell: () => `Your package is running behind the carrier's date. We're watching it every day, and if it stalls we'll send a new one by express, on us.` }
+};
+const keyOf = p => p.fulfillmentId || p.order;
+const colOf = p => p.type === "notscanned" ? "w_label" : p.type === "stuck" ? "t_stuck" : p.type === "late" ? "t_delay"
+  : p.type === "failed" && /return/i.test(p.what || "") ? "t_rts" : "t_exc";
+const carrierName = p => /usps/i.test(p.carrier || "") ? "USPS" : /ups/i.test(p.carrier || "") ? "UPS" : (p.carrier || "");
+function problems() {
+  const handled = new Set(cases.filter(c => c.ref).map(c => c.ref)), now = Date.now();
+  return (fix?.problems || []).filter(p => !handled.has(keyOf(p))).map(p => {
+    const col = colOf(p), wh = col === "w_label" ? whHours(p.labelAt, now) : null;
+    const flagged = col === "w_label" ? wh >= 24 : col !== "t_delay";
+    return { ...p, col, wh, flagged, key: "p:" + keyOf(p), cname: carrierName(p) };
+  });
+}
+const RED = ["w_new", "t_stuck", "t_exc", "t_rts"];
+const urgentX = p => p.flagged && p.col !== "t_delay";
+const lateX = p => p.col === "t_delay";
+const carrierOk = p => carrier === "All" || p.cname === carrier;
+const pass = p => carrierOk(p) && (chip === "all" || (chip === "urgent" && urgentX(p)) || (chip === "late" && lateX(p)));
+
+// ---------- cards ----------
+const cards = new Map();
+function timeOf(p) {
+  const now = Date.now();
+  if (p.col === "w_label") { const h = Math.floor(p.wh); return { text: `${h}h`, cls: h >= 48 ? "t-red" : h >= 24 ? "t-amb" : "t-grey", title: "Warehouse hours since the label was made" }; }
+  if (p.col === "t_delay") { const e = tsOf(p.eta); const d = e ? Math.max(1, Math.round((now - e) / DAY)) : null; return { text: d ? `+${d} day${d === 1 ? "" : "s"}` : ago(p.since), cls: "t-amb", title: "Days past the carrier's date" }; }
+  if (p.col === "t_stuck") { const s = tsOf(p.since); const d = s ? Math.floor((now - s) / DAY) : null; return { text: d != null ? `${d} days` : "—", cls: "t-red", title: "Days since the last carrier scan" }; }
+  const s = tsOf(p.since), d = s ? Math.floor((now - s) / DAY) : null;
+  return { text: d == null ? "—" : d < 1 ? "today" : `${d} day${d === 1 ? "" : "s"}`, cls: "t-red", title: "Since the carrier reported it" };
+}
+function pillOf(p) {
+  switch (p.col) {
+    case "w_label": return p.flagged ? ["No scan", "p-amb"] : ["Not late yet", "p-grey"];
+    case "t_delay": return ["Late", "p-amb"];
+    case "t_stuck": return ["Likely lost", "p-red"];
+    case "t_rts": return ["Coming back", "p-red"];
+    default: return p.type === "attempted" ? ["Delivery attempt", "p-amb"] : ["Couldn't deliver", "p-red"];
+  }
+}
+function card(p) {
+  cards.set(p.key, p);
+  const t = timeOf(p), pl = pillOf(p), red = RED.includes(p.col);
+  const item = [p.order, p.product].filter(Boolean).join(" · ");
+  return `<button class="kc${red ? " urg" : ""}${sel === p.key ? " sel" : ""}" data-open="${esc(p.key)}">
+    <div class="kt"><b>${esc(p.customer || p.email || "Customer")}</b><span class="tp ${t.cls}" title="${esc(t.title)}">${esc(t.text)}</span></div>
+    ${item ? `<span class="ki">${esc(item)}</span>` : ""}
+    <div class="kp"><span class="pp ${pl[1]}">${esc(pl[0])}</span>${p.cname ? `<span class="pp p-grey">${esc(p.cname)}</span>` : ""}</div></button>`;
+}
+
+// ---------- columns ----------
+const SOON = "Coming soon: needs ShipHero. ShipHero connects this week.";
+const COLS1 = [
+  { k: "w_new", label: "Paid, not at ShipHero", dot: "#EF4444", sub: "Should reach ShipHero within 15 min", soon: SOON },
+  { k: "w_hold", label: "On hold", dot: "#F59E0B", sub: "Address, fraud check or out of stock", hold: true },
+  { k: "w_pack", label: "Packing too long", dot: "#F59E0B", sub: "Paid 24h+ ago (warehouse hours), still not packed", soon: SOON },
+  { k: "w_label", label: "Label made, no scan", dot: "#B45309", sub: "No carrier scan 24 warehouse hours after the label", empty: "Every label scanned." }
+];
+const COLS2 = [
+  { k: "t_delay", label: "Running late", dot: "#F59E0B", sub: "Behind the delivery date. Heads-up first", empty: "All on time." },
+  { k: "t_stuck", label: "No scan 5+ days", dot: "#EF4444", sub: "Likely lost. Reship before they notice", empty: "Nothing stuck." },
+  { k: "t_exc", label: "Carrier exception", dot: "#EF4444", sub: "Damaged, bad address, weather", empty: "No exceptions." },
+  { k: "t_rts", label: "Return to sender", dot: "#B91C1C", sub: "Coming back to us. Fix and resend", empty: "None." },
+  { k: "t_missing", label: "Delivered, says missing", dot: "#0B0B0F", sub: "Believe them. One per customer, then a person", soon: "Coming soon: needs customer claims from Richpanel + ShipHero." }
+];
+const lists = {};
+const byOld = (a, b) => (tsOf(a.since) || 0) - (tsOf(b.since) || 0);
+function renderCol(c, all) {
+  if (c.soon) return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em style="color:var(--dis)">—</em></div><span class="csub">${esc(c.sub)}</span><div class="csoon">${esc(c.soon)}</div></div>`;
+  if (c.hold) { const n = fix?.onHold?.count;
+    return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em>${fix ? (n || 0).toLocaleString() : "…"}</em></div><span class="csub">${esc(c.sub)}</span>
+      <div class="csoon">${!fix ? "Scanning Shopify…" : n ? `${n.toLocaleString()} order${n === 1 ? " is" : "s are"} on hold in Shopify (all carriers). The reason and customer per order come with ShipHero.` : "No holds."}</div></div>`; }
+  const vis = all.filter(p => p.col === c.k && pass(p)).sort(byOld); lists[c.k] = vis;
+  const n = vis.length, red = RED.includes(c.k) || (c.k === "w_label" && vis.some(p => p.flagged));
+  const body = !fix ? `<div class="csoon">${scan?.status === "failed" ? "The Shopify scan failed. It retries on the next load." : "Scanning Shopify…"}</div>`
+    : vis.slice(0, 6).map(card).join("") || `<div class="cempty">${esc(c.empty)}</div>`;
+  return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em class="${red && n ? "red" : ""}">${fix ? n.toLocaleString() : "…"}</em></div>
+    <span class="csub">${esc(c.sub)}</span>${body}${n > 6 ? `<button class="more" data-all="${c.k}">View all ${n.toLocaleString()}</button>` : ""}</div>`;
+}
+
+// ---------- render ----------
+function seg(el, opts, cur, pick) {
+  el.innerHTML = opts.map(([k, l]) => `<button class="${cur === k ? "on" : ""}" data-k="${esc(k)}">${esc(l)}</button>`).join("");
+  el.querySelectorAll("button").forEach(b => b.onclick = () => pick(b.dataset.k));
+}
+function renderWh() {
+  const s = whStatus(), el = $("wh"); el.className = "spill " + s.cls; el.querySelector("span").textContent = s.label;
+}
+function setSync(error) {
+  const s = $("sync"), err = error || scan?.status === "failed";
+  s.className = "spill" + (err ? " err" : scan?.status === "running" ? " run" : fix ? " open" : "");
+  s.querySelector("span").textContent = error ? "Shopify scan: " + error : scan?.status === "running" ? `Scanning Shopify${scan.objects ? " · " + scan.objects.toLocaleString() + " records" : ""}…` : scan?.status === "failed" ? "Shopify scan failed" : fix ? `Shopify synced ${ago(fix.at)}` : "Not scanned yet";
+}
+function render() {
+  cards.clear(); renderWh(); setSync();
+  seg($("ranges"), RANGES, range, k => { range = k; render(); });
+  seg($("carriers"), [["All", "All"], ["UPS", "UPS"], ["USPS", "USPS"]], carrier, k => { carrier = k; render(); });
+  document.querySelectorAll(".rl").forEach(e => e.textContent = RLABEL[range]);
+  $("sub").textContent = `Shopify + UPS/USPS · ShipHero connects this week · every order from paid to delivered · ${new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: WAREHOUSE.tz })}`;
+
+  const all = problems(), cOk = all.filter(carrierOk), inR = cOk.filter(p => inPeriod(p.ordered));
+  const cnt = (list, k) => list.filter(p => p.col === k).length;
+
+  // Warehouse card: needs total order volume (ShipHero).
+  $("wh-stats").innerHTML = [["Orders paid", "Shopify", "var(--ink)"], ["Shipped same day", "Paid before 2pm", "var(--good2)"], ["Paid → first scan", "Warehouse hours. Goal: under 12h", "var(--ind2)"]]
+    .map(([k, s, c]) => `<div><b style="color:var(--dis)">—</b><span>${k}</span><small>${s}</small>${ND}</div>`).join("");
+
+  // In transit bars: real problem counts from orders placed in the period; % needs total shipped.
+  const exc = inR.filter(p => p.col === "t_exc" || p.col === "t_rts").length;
+  const rows = [["Shipped", null, "#3F3F4A"], ["Delivered on time", null, "#16A34A"], ["Running late", cnt(inR, "t_delay"), "#F59E0B"], ["Stuck 5+ days", cnt(inR, "t_stuck"), "#EF4444"], ["Exceptions", exc, "#EF4444"], ["Lost", null, "#B91C1C"]];
+  const max = Math.max(1, ...rows.map(r => r[1] || 0));
+  $("bars").innerHTML = rows.map(([k, n, bg]) => `<div class="fn"><span class="k">${k}</span><span class="b"><i style="background:${bg};width:${n == null ? 0 : Math.max(n ? 1.5 : 0, n / max * 100)}%"></i></span><span class="p">—</span><span class="n">${n == null ? "—" : fix ? n.toLocaleString() : "…"}</span></div>`).join("")
+    + `<div class="fnote">Open problems on orders placed ${RLABEL[range].toLowerCase()}${carrier !== "All" ? " · " + carrier : ""}. Bars compare problems to each other. Percentages, shipped, on time and lost need total shipments (ShipHero).</div>`;
+
+  // KPI tiles
+  const flaggedLabel = cOk.filter(p => p.col === "w_label" && p.flagged).length, hold = fix?.onHold?.count || 0;
+  const road = cnt(cOk, "t_delay") + cnt(cOk, "t_stuck");
+  const fixCases = cases.filter(c => c.source === "fix" && inPeriod(c.at) && c.did !== "Checked, no action needed");
+  $("tiles").innerHTML = [
+    { k: "Stuck in the warehouse", v: fix ? (flaggedLabel + hold).toLocaleString() : "…", s: `${flaggedLabel.toLocaleString()} label${flaggedLabel === 1 ? "" : "s"} with no scan (24+ warehouse hours) + ${hold.toLocaleString()} on hold. "Not at ShipHero" comes with ShipHero.`, c: "var(--bad2)", b: "var(--badb)" },
+    { k: "Late or stuck on the road", v: fix ? road.toLocaleString() : "…", s: "Open now. Share of shipped needs total shipments.", c: "var(--amb2)", nd: 1 },
+    { k: "Fixed before they asked", v: fixCases.length.toLocaleString(), s: `Reshipped or told first from the Service Hub, ${RLABEL[range].toLowerCase()}`, c: "var(--good2)", b: "var(--goodb)" },
+    { k: "Something looks off", v: "—", s: "Shopify, ShipHero and the carrier disagree. Needs ShipHero.", c: "var(--dis)", nd: 1 }
+  ].map(t => `<div class="kpi" style="${t.b ? "border-color:" + t.b : ""}"><span class="k">${esc(t.k)}</span><span class="v" style="color:${t.c}">${esc(t.v)}</span><span class="s">${esc(t.s)}</span>${t.nd ? ND : ""}</div>`).join("");
+
+  // filters
+  $("chips").innerHTML = [["all", "Everything", cOk.length], ["urgent", "Needs you", cOk.filter(urgentX).length], ["late", "Running late", cOk.filter(lateX).length]]
+    .map(([k, l, n]) => `<button class="chp ${chip === k ? "on" : ""}" data-chip="${k}">${l}<span>${n.toLocaleString()}</span></button>`).join("");
+  $("chips").querySelectorAll("[data-chip]").forEach(b => b.onclick = () => { chip = b.dataset.chip; render(); });
+  const delayed = cOk.filter(lateX);
+  $("bulk").innerHTML = delayed.length ? `<button class="bulk" id="headsall">Email heads-up to all delayed (${delayed.length.toLocaleString()})</button>` : "";
+  if (delayed.length) $("headsall").onclick = notLive;
+
+  // boards
+  $("board1").innerHTML = COLS1.map(c => renderCol(c, all)).join("");
+  $("board2").innerHTML = COLS2.map(c => renderCol(c, all)).join("");
+  const told = fixCases.filter(c => /told/i.test(c.did || "")).length, reshipped = fixCases.filter(c => c.reshipOrder).length;
+  $("road").innerHTML = [["—", "On time", "var(--dis)", 1], [told.toLocaleString(), `Told first · ${RLABEL[range].toLowerCase()}`, "var(--ind2)"], [reshipped.toLocaleString(), `Reshipped · ${RLABEL[range].toLowerCase()}`, "var(--ink)"], ["—", "Lost per 1,000", "var(--dis)", 1]]
+    .map(([v, k, c, nd]) => `<div><b style="color:${c}">${v}</b><span>${k}</span>${nd ? ND : ""}</div>`).join("");
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => openDrawer(b.dataset.open));
+  document.querySelectorAll("[data-all]").forEach(b => b.onclick = () => viewAll(b.dataset.all));
+
+  renderCarrier(all); renderStock();
+  if (sel) renderDrawer();
+}
+
+// ---------- carrier report (ignores the carrier filter, it compares both) ----------
+function renderCarrier(all) {
+  const inR = all.filter(p => inPeriod(p.ordered)), by = (c, f) => inR.filter(p => p.cname === c && f(p)).length;
+  const counts = [["Open problems", () => true], ["Running late", p => p.col === "t_delay"], ["No scan 5+ days", p => p.col === "t_stuck"], ["Exceptions + return to sender", p => p.col === "t_exc" || p.col === "t_rts"], ["Label, never picked up", p => p.col === "w_label"]];
+  const row = (k, a, b, color) => `<div class="crg"><span>${esc(k)}</span><span><b style="color:${color && a > b ? "var(--bad2)" : "inherit"}">${esc(a)}</b></span><span><b style="color:${color && b > a ? "var(--bad2)" : "inherit"}">${esc(b)}</b></span></div>`;
+  const ups = by("UPS", () => true), usps = by("USPS", () => true), stuckU = by("UPS", p => p.col === "t_stuck"), stuckS = by("USPS", p => p.col === "t_stuck");
+  const note = !fix ? "Waiting for the Shopify scan…" : !inR.length ? `No open shipping problems on orders placed ${RLABEL[range].toLowerCase()}.`
+    : (stuckU + stuckS) ? `${(stuckS >= stuckU ? "USPS" : "UPS")} has ${Math.max(stuckU, stuckS)} of the ${stuckU + stuckS} packages with no scan for 5+ days.` : `UPS ${ups} vs USPS ${usps} open problems. Rates per 1,000 need total shipments.`;
+  $("carrier").innerHTML = `<div class="crg h"><span>COUNT, ORDERS PLACED ${RLABEL[range]}</span><span>UPS</span><span>USPS</span></div>`
+    + counts.map(([k, f]) => row(k, fix ? by("UPS", f) : "…", fix ? by("USPS", f) : "…", true)).join("")
+    + `<div class="crg h"><span>RATES</span><span></span><span></span></div>`
+    + ["On time", "Avg days to deliver", "Stuck per 1,000", "Lost per 1,000", "Damaged per 1,000"].map(k => `<div class="crg"><span>${k} ${ND}</span><span style="color:var(--dis)">—</span><span style="color:var(--dis)">—</span></div>`).join("")
+    + `<div class="gnote">${esc(note)}</div>`;
+}
+
+// ---------- out of stock (svc_fix/latest.notShipped) ----------
+function renderStock() {
+  const ns = fix?.notShipped;
+  if (!fix) { $("stock").innerHTML = `<div class="vempty">Scanning Shopify…</div>`; return; }
+  if (!ns?.count) { $("stock").innerHTML = `<div class="vempty" style="color:var(--good2);font-weight:600">Nothing waiting. Every paid order from the last 30 days has shipped or is under 5 days old.</div>`; return; }
+  const top = Object.entries(ns.byProduct || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  $("stock").innerHTML = top.map(([t, n]) => `<div class="sr"><span class="t"><b>${esc(t)}</b><span>Next PO + ETA: comes with ShipHero</span></span>
+      <span class="v"><b>${(+n).toLocaleString()} unit${+n === 1 ? "" : "s"}</b><span>waiting</span></span><button class="sbtn" data-nl>Email waiting</button></div>`).join("")
+    + `<div class="olist"><small>${ns.count.toLocaleString()} ORDER${ns.count === 1 ? "" : "S"} NOT SHIPPED · OLDEST FIRST</small>${(ns.oldest || []).slice(0, 5).map(o => `<div><b>${esc(o.order)}</b><span>${esc(o.customer || o.email || "")}${o.product ? " · " + esc(o.product) : ""}</span><em>${esc(o.days)} days</em></div>`).join("")}</div>`;
+  $("stock").querySelectorAll("[data-nl]").forEach(b => b.onclick = notLive);
+}
+
+// ---------- view all ----------
+function viewAll(k) {
+  const c = [...COLS1, ...COLS2].find(x => x.k === k), list = lists[k] || [];
+  const m = shell(`<h3>${esc(c.label)} · ${list.length.toLocaleString()}</h3><div class="vall">${list.map(card).join("")}</div>
+    <div class="cft"><button class="alt" data-x>Close</button></div>`, true);
+  m.querySelector("[data-x]").onclick = () => m.remove();
+  m.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { m.remove(); openDrawer(b.dataset.open); });
+}
+
+// ---------- drawer ----------
+const TRACK = ["Paid", "ShipHero", "Packed", "Label", "Scanned", "In transit", "Out for delivery", "Delivered"];
+function planOf(p) {
+  const c = p.cname || "the carrier";
+  switch (p.col) {
+    case "w_label": return p.flagged ? `Ask ShipHero to find it and hand it to ${c} today. Send a heads-up so they're not left wondering.` : `Not late yet: under 24 warehouse hours since the label. Check again after the next warehouse day.`;
+    case "t_delay": return "Email a heads-up before they ask. If it stalls, reship express.";
+    case "t_stuck": return `Reship express now and tell them first. Open a ${c} claim for the first package.`;
+    case "t_rts": return "Confirm the address, then reship. Don't wait for it to come back.";
+    default: return p.type === "attempted" ? `Tell them first: check the note ${c} left, or reply and we sort it out today.` : `Reship express today. Don't wait for ${c}.`;
+  }
+}
+const ACT = { w_label: "Chase ShipHero", t_delay: "Email a heads-up", t_stuck: "Reship express", t_rts: "Confirm + reship" };
+function closeDrawer() { sel = null; $("drawer").innerHTML = ""; document.querySelectorAll(".kc.sel").forEach(e => e.classList.remove("sel")); }
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sel && !document.querySelector(".cfm")) closeDrawer(); });
+function openDrawer(key) { sel = key; document.querySelectorAll(".kc").forEach(e => e.classList.toggle("sel", e.dataset.open === key)); renderDrawer(); }
+function renderDrawer() {
+  const p = cards.get(sel);
+  if (!p) { closeDrawer(); return; }
+  const pl = pillOf(p), red = urgentX(p), t = timeOf(p);
+  const idx = p.col === "w_label" ? 4 : 5; // label made, waiting on the first scan / on the road
+  const T = FT[p.type] || FT.late, msg = `Hi ${first(p.customer)},\n\n${T.tell(p.cname || "The carrier")}\n\nTalk soon,\nElla · CO36`;
+  const events = [
+    p.type !== "notscanned" && p.since ? [p.what, whenStr(p.since), true] : null,
+    p.firstScanAt ? [`First carrier scan${p.cname ? " · " + p.cname : ""}`, whenStr(p.firstScanAt)] : null,
+    p.labelAt ? [p.type === "notscanned" ? `Label made · no carrier scan since (${Math.floor(p.wh)} warehouse hours)` : "Label made", whenStr(p.labelAt), p.type === "notscanned"] : null,
+    p.ordered ? ["Paid · Shopify", whenStr(p.ordered)] : null
+  ].filter(Boolean);
+  const primary = ACT[p.col] || (p.type === "attempted" ? "Email a heads-up" : "Reship express");
+  const alts = [];
+  if (p.trackingUrl && /^https?:\/\//i.test(p.trackingUrl)) alts.push(`<a class="alt" href="${esc(p.trackingUrl)}" target="_blank" rel="noopener">Track</a>`);
+  if (primary !== "Email a heads-up") alts.push(`<button class="alt" data-nl>Email a heads-up</button>`);
+  else if (p.col !== "w_label") alts.push(`<button class="alt" data-nl>Reship express</button>`);
+  $("drawer").innerHTML = `<div class="ovl" id="d-ovl"></div><aside class="drw"><div class="dh"><div class="t"><div class="n"><b>${esc(p.customer || p.email || "Customer")}</b><span class="pp ${pl[1]}" style="font-size:11px;padding:3px 8px">${esc(pl[0])}</span></div>
+      <span class="m">${esc([p.order, [p.cname, p.tracking].filter(Boolean).join(" ")].filter(Boolean).join(" · "))}</span></div><button class="x" id="d-x" aria-label="Close">×</button></div>
+    <div class="db">
+      <div class="trk">${TRACK.map((l, i) => `<div><i class="${i < idx ? "done" : i === idx ? "now" + (red ? " red" : "") : ""}"></i><span class="${i <= idx ? "on" : ""}">${esc(l)}</span></div>`).join("")}</div>
+      <div class="wrong${red ? " red" : ""}"><i>!</i><span><b>What's wrong:</b> ${esc(p.what || T.label)}</span></div>
+      <div class="plan"><i>E</i><span><b>Ella suggests:</b> ${esc(planOf(p))}</span></div>
+      <div class="evs"><span class="dl" style="padding-bottom:6px">TRACKING + WAREHOUSE</span>${events.map(([tx, w, hot]) => `<div class="ev${hot ? "" : " dim"}"><i style="${hot ? "background:" + (red ? "#EF4444" : "#F59E0B") : ""}"></i><span><b>${esc(tx)}</b><small>${esc(w)}</small></span></div>`).join("")}</div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span class="dl">WHAT WE'D TELL THEM (DRAFT)</span><div class="dmsg">${esc(msg)}</div></div>
+      <div class="facts">${[["ITEMS", p.product], ["CARRIER", p.cname || p.carrier], ["STATUS", pl[0]], [p.col === "w_label" ? "WAREHOUSE HOURS" : "WAITING", t.text], ["ORDERED", dayStr(p.ordered)], ["CARRIER DATE", p.eta ? dayStr(p.eta) : ""], ["TRACKING", p.tracking], ["EMAIL", p.email]].map(([k, v]) => `<div><small>${esc(k)}</small><span>${esc(v || "—")}</span></div>`).join("")}</div>
+      <div class="dnote">Preview: actions are switched off for now. Nothing here sends an email or creates an order.</div>
+    </div><div class="df">${alts.join("")}<button class="pri" data-nl>${esc(primary)}</button></div></aside>`;
+  const D = $("drawer");
+  D.querySelector("#d-ovl").onclick = closeDrawer; D.querySelector("#d-x").onclick = closeDrawer;
+  D.querySelectorAll("[data-nl]").forEach(b => b.onclick = notLive);
+}
+
+// ---------- Sunday toggle (read-only in preview) ----------
+$("wh").onclick = notLive;
+
+// ---------- Shopify scan (read-only, same as index.html) ----------
+let checking = null;
+async function startScan() {
+  try { scan = await api.post("service", { op: "scanStart" }); setSync(); if (!checking) checking = setInterval(checkScan, 8000); }
+  catch (e) { setSync(e.text || e.message); }
+}
+async function checkScan() {
+  try { scan = await api.post("service", { op: "scanCheck" }); setSync();
+    if (scan.status !== "running") { clearInterval(checking); checking = null; } }
+  catch (e) { setSync(e.text || e.message); clearInterval(checking); checking = null; }
+}
+
+// ---------- live data ----------
+db.doc("svc_meta/warehouse").onSnapshot(s => { const d = s.exists ? s.data() : {}; meta = { sundayOpen: !!d.sundayOpen, at: tsOf(d.at) || 0, by: d.by || "" }; render(); });
+db.doc("svc_fix/latest").onSnapshot(s => { fix = s.exists ? s.data() : null; render(); });
+db.doc("svc_fix/scan").onSnapshot(s => { scan = s.exists ? s.data() : null; setSync();
+  if (scan?.status === "running" && !checking) checking = setInterval(checkScan, 8000); });
+db.collection("svc_cases").onSnapshot(s => { cases = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
+render();
+
+// Rescan when the last one is over 30 minutes old (shared, so one person's scan updates everyone).
+const latest = await db.doc("svc_fix/latest").get(), sc = await db.doc("svc_fix/scan").get();
+if (!(sc.exists && sc.data().status === "running") && (!latest.exists || Date.now() - tsOf(latest.data().at) > 30 * 6e4)) startScan();
+setInterval(() => { if (!document.querySelector(".cfm")) render(); }, 30000);
+})();
+</script>
+</body>
+</html>

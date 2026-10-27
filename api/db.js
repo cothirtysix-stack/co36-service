@@ -2,7 +2,7 @@ import { db, init, wrap } from "../lib/server.js";
 const CAP = 3_000_000;
 const ok = s => typeof s === "string" && /^[A-Za-z0-9_\-.~:@+\/]{1,300}$/.test(s);
 // The Service Hub shares a database with CO36 HQ: only service collections (svc_*) are reachable from here.
-const svc = c => ok(c) && /^svc_/.test(c);
+const svc = c => ok(c) && /^svc_/.test(c) && c !== "svc_users"; // logins are only reachable through /api/team
 export default wrap(async (req, res) => {
   await init();
   const s = db(), b = req.body || {};

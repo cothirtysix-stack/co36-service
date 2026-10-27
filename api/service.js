@@ -144,5 +144,8 @@ const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSch
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });
+  // Teammates only get the actions of the pages David gave them.
+  const need = { giftCard: "home", reship: "fulfillment", scanStart: "fulfillment", scanCheck: "fulfillment" }[op];
+  if (who.role === "member" && need && !(who.pages || []).includes(need)) return res.status(403).json({ error: "You don't have access to that." });
   res.json(await OPS[op](args, who));
 });
