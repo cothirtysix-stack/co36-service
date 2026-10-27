@@ -204,7 +204,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
   <div class="band">
     <div class="bandlbl"><span>STAGE 2 · BACK AT THE WAREHOUSE</span></div>
     <section class="s2h">
-      <div class="t"><b>After it's scanned in</b><span>Exchanges ship right away and close. Bought 2 sizes or said no before? One last friendly ask. Every refund needs David's OK; nothing is refunded automatically.</span></div>
+      <div class="t"><b>After it's scanned in</b><span>Exchanges ship right away and close. Bought 2 sizes or said no before? One last friendly ask, then the team is told who to refund (tag "refundrequired" in Richpanel). Nothing is refunded automatically.</span></div>
       <div class="after" id="after"></div>
     </section>
     <section class="bwrap"><div class="board s2" id="board2"></div></section>
@@ -412,7 +412,7 @@ const COLS2 = [
   { k: "p_ex", label: "Exchange → ship now", dot: "#5B5BF6", sub: "Out the door today, then close", empty: "All exchanges shipped.", red: true },
   { k: "p_two", label: "Bought 2 sizes → rush another?", dot: "#F59E0B", sub: "Ella drafts the offer once it passes quality check", empty: "None right now." },
   { k: "p_dec", label: "Refund → one last ask", dot: "#F59E0B", sub: "Passed quality check · Ella's one last offer (credit +10%)", empty: "None right now." },
-  { k: "p_wait", label: "Waiting on their answer", dot: "#6E6E7A", sub: "Refund needs David's OK · nothing goes out on its own", empty: "No one waiting." },
+  { k: "p_wait", label: "Refunds to do", dot: "#EF4444", sub: "Passed quality check · team refunds in Richpanel Returns", empty: "No refunds waiting.", red: true },
   { k: "p_credit", label: "Took store credit → send code", dot: "#5B5BF6", sub: "Credit + 10%, code emailed today", empty: "All codes sent." },
   { k: "p_check", label: "Check back · did it fit?", dot: "#0B0B0F", sub: "3 days after the new one lands", soon: "Coming soon: needs exchange delivery data" },
   { k: "p_closed", label: "Closed", dot: "#16A34A", sub: "Exchange shipped, switched, or refunded", empty: "—" }

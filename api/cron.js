@@ -2,7 +2,7 @@
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
 import { loadTicket, isOp, isNoise } from "../lib/ella.js";
-import { pollAfterQc } from "../lib/afterqc.js";
+import { pollAfterQc, notifyRefunds } from "../lib/afterqc.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
@@ -31,6 +31,7 @@ export default async function handler(req, res) {
   if (qc.error || qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true).catch(() => {});
   await postNotes().catch(() => {});
   const off = await getDoc("svc_meta", "autopilot");
+  await notifyRefunds(off || {}).catch(e => putDoc("svc_meta", "afterqc", { notifyError: String(e.message || e).slice(0, 200), at: Date.now() }, true).catch(() => {}));
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
   if (!live) return res.json({ ok: true, live: false });
   await init();
