@@ -3,7 +3,7 @@
 import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { putDoc, getDoc } from "../lib/server.js";
-import { draftFor } from "../lib/ella.js";
+import { draftFor, isNoise } from "../lib/ella.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -68,14 +68,14 @@ async function inner(req, res) {
     if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
       await ourReply(id, cur); return res.json({ ok: true, kept: false });
     }
-    const comments = looked?.ticket?.comments || [], isOp = c => !!(c.is_operator ?? c.isOperator);
+    const comments = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), isOp = c => !!(c.is_operator ?? c.isOperator);
     // Richpanel's "Things are busy" auto-reply lands seconds after every customer email, so "last message is ours" is not enough.
     // Work from the newest customer message and only handle each one once.
     const lastCust = comments.filter(c => !isOp(c)).pop();
     const seen = await getDoc("svc_seen", id);
     if (!pick(b, "ticketMessage", "message")) {
       if (!lastCust || seen?.last === lastCust.id) {
-        if (comments.length && isOp(comments[comments.length - 1]) && !/things are a bit busy|received your message/i.test(comments[comments.length - 1].plain_body || "")) await ourReply(id, cur);
+        if (comments.length && isOp(comments[comments.length - 1])) await ourReply(id, cur);
         return res.json({ ok: true, kept: false });
       }
       await putDoc("svc_seen", id, { last: lastCust.id, at: Date.now() });

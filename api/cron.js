@@ -1,7 +1,7 @@
 // Runs every minute (vercel.json). Sends Ella's due, safe return/exchange replies while autopilot is on.
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
-import { loadTicket, isOp } from "../lib/ella.js";
+import { loadTicket, isOp, isNoise } from "../lib/ella.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = id => { // stable 10–20 min per conversation, so it doesn't look automatic
@@ -35,8 +35,8 @@ export default async function handler(req, res) {
     if (!SAFE_INTENTS.includes(r.intent) || (r.flags || []).length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
     if (Date.now() < (r.receivedAt || 0) + delayMs(id)) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
-    const t = r.number ? await loadTicket(r.number) : null, last = t?.comments?.[t.comments.length - 1];
-    if (!t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last) && !/things are a bit busy/i.test(last.plain_body || ""))) {
+    const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
+    if (!t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last))) {
       await putDoc("svc_returns", id, { sarahAt: Date.now(), autoSkipped: "someone already replied or it was closed" }, true); continue;
     }
     const r2 = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
