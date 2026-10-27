@@ -29,13 +29,14 @@ export default async function handler(req, res) {
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
   if (!live) return res.json({ ok: true, live: false });
   await init();
-  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' order by seq limit 50`;
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} order by seq limit 50`;
   const sent = [], held = [];
   for (const { id, data: r } of rows) {
     // "no_order" is safe: that reply just asks for the order number.
     const blocking = (r.flags || []).filter(f => f !== "no_order");
     if (!SAFE_INTENTS.includes(r.intent) || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
-    if (Date.now() < (r.receivedAt || 0) + delayMs(id)) continue;
+    if (Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id)) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
     const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
     if (!t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last))) {
