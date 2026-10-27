@@ -2,6 +2,7 @@
 import { db, SB_URL, SB_ANON } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
+import { findOrders } from "../lib/ella.js";
 
 const NEED_SCOPES = ["read_orders", "read_fulfillments", "read_customers", "write_orders", "write_draft_orders", "write_gift_cards"];
 const run = async fn => { try { return await Promise.race([fn(), new Promise((_, no) => setTimeout(() => no(new Error("timed out after 8s")), 8000))]); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 160) }; } };
@@ -44,5 +45,7 @@ export default async function handler(req, res) {
     return { ok: true, notes: nt, byStatus: Object.fromEntries(rows.map(r => [r.st, r.n])), lastAt: rows.reduce((m, r) => Math.max(m, Number(r.last) || 0), 0) || null }; });
   const ap = await run(async () => { const r = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'autopilot'`;
     return { ok: true, on: AUTOPILOT.on, until: AUTOPILOT.until, pausedOnBoard: !!r[0]?.data?.off, live: AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !r[0]?.data?.off }; });
-  res.json({ autopilot: ap, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // Ella's order lookup on a known recent order (result: found or the error, no customer data).
+  const lookup = await run(async () => { const o = await findOrders("order 134648", null); return { ok: o.length > 0, found: o.length, hasItems: !!o[0]?.lineItems?.nodes?.length }; });
+  res.json({ ellaLookup: lookup, autopilot: ap, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
