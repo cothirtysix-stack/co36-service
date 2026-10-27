@@ -105,7 +105,27 @@ async function redraft({ id, note }) {
   return { ok: true };
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft };
+// Richpanel Returns (read): field list for building the board, and a page of returns.
+async function returnsGql(query, variables) {
+  const r = await fetch("https://returns-api.richpanel.com/graphql", { method: "POST",
+    headers: { "content-type": "application/json", "x-api-key": need("RICHPANEL_RETURNS_API_KEY") }, body: JSON.stringify({ query, variables }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.errors) fail(`Returns ${r.status}: ${JSON.stringify(j.errors || j).slice(0, 300)}`, 502);
+  return j.data;
+}
+async function returnsSchema({ type }) {
+  const d = await returnsGql(`query($t:String!){ __type(name:$t){ name fields { name type { name kind ofType { name kind ofType { name kind } } } } inputFields { name type { name kind ofType { name } } } enumValues { name } } }`, { t: String(type || "ReturnsListResponse") });
+  return d.__type;
+}
+async function returnsList({ statuses, startDate, endDate, limit = 100, skip = 0, fields }) {
+  const f = String(fields || "_id name status createdAt orderNumber outcome customer { name email }");
+  if (/[^A-Za-z0-9_{}\s]/.test(f)) fail("bad fields");
+  const d = await returnsGql(`query($q: ReturnsQueryInput){ getAllReturns(query: $q){ returns { ${f} } count { OPEN MANUAL_REVIEW PENDING_LABEL_GENERATION PROCESSED CANCELLED } } }`,
+    { q: { ...(statuses ? { statuses } : {}), ...(startDate ? { startDate } : {}), ...(endDate ? { endDate } : {}), limit: Math.min(+limit || 100, 200), skip: +skip || 0 } });
+  return d.getAllReturns;
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });
