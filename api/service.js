@@ -125,7 +125,22 @@ async function returnsList({ statuses, startDate, endDate, limit = 100, skip = 0
   return d.getAllReturns;
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList };
+// Order count and lifetime spend for a few customers (VIP = 5+ orders or $500+ spent).
+async function customers({ emails }) {
+  const list = [...new Set((emails || []).map(e => String(e || "").trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+$/.test(e)))].slice(0, 50);
+  const out = {};
+  for (let i = 0; i < list.length; i += 10) {
+    const chunk = list.slice(i, i + 10);
+    const j = await shopify(`query($q:String){ customers(first: 20, query: $q){ nodes { email numberOfOrders amountSpent { amount } lastOrder { name createdAt } } } }`,
+      { q: chunk.map(e => `email:${e}`).join(" OR ") });
+    (j.data?.customers?.nodes || []).forEach(c => { const e = String(c.email || "").toLowerCase(); if (!e) return;
+      const orders = Number(c.numberOfOrders || 0), spent = Number(c.amountSpent?.amount || 0);
+      out[e] = { orders, spent, vip: orders >= 5 || spent >= 500, lastOrder: c.lastOrder?.name || null, lastOrderAt: c.lastOrder?.createdAt || null }; });
+  }
+  return out;
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });
