@@ -175,7 +175,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
     <div class="ttl"><b>Returns &amp; exchanges</b><span id="sub">Loading… · exchanges go fast, returns get one honest offer</span></div>
     <div style="flex:1"></div>
     <div class="seg" id="ranges"></div>
-    <button class="ella" id="autopilot" title="Ella sends simple return and exchange replies by herself, 10–20 minutes after the email. Never refunds. Click to pause." style="border:0;cursor:pointer"><i>E</i><span id="ap-t">Ella is on</span></button>
+    <button class="ella" id="autopilot" title="Ella sends simple return and exchange replies by herself, 8–12 minutes after the email. Never refunds. Click to pause." style="border:0;cursor:pointer"><i>E</i><span id="ap-t">Ella is on</span></button>
     <a class="hlink" href="/">Service Hub ›</a>
   </header>
 
@@ -656,7 +656,7 @@ function renderDrawer() {
         ${r.status === "drafting" ? `<div class="dnote">Ella is writing…</div>` : r.status === "error" ? `<div class="dflag">Ella couldn't draft this one: ${esc(r.error)}</div>` : ""}
         ${r.status === "draft" ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">ELLA'S DRAFT · EDIT BEFORE SENDING</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[k] ?? r.draft ?? "")}</textarea></div>` : ""}
         ${r.status === "sent" ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">WHAT WE SENT</span><div class="dmsg" style="background:var(--surface);border:1px solid var(--line2)">${esc(r.sentText || r.draft || "")}</div></div>` : ""}
-        ${facts([["ASKED FOR", r.intent === "exchange" ? "Exchange" : r.intent === "question" ? "Question" : "Return"], ["CUSTOMER", r.email], ["RECEIVED", r.receivedAt ? new Date(r.receivedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""], [r.status === "sent" ? "SENT" : "STATUS", r.status === "sent" ? short(r.sentAt) : r.status]])}
+        ${facts([["ASKED FOR", r.intent === "exchange" ? "Exchange" : r.intent === "question" ? "Question" : "Return"], ["CUSTOMER", r.email], ["RECEIVED", r.receivedAt ? new Date(r.receivedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""], [r.status === "sent" ? "SENT" : "STATUS", r.status === "sent" ? short(r.sentAt) : r.status], ...(r.status === "sent" ? [["SENT BY", /autopilot/i.test(r.sentBy || "") ? "Ella (on her own)" : r.sentBy || ""]] : [])])}
       </div><div class="df">${isOpen ? `<button class="alt" id="d-skip">Skip</button><button class="alt" id="d-re">Rewrite…</button><button class="pri" id="d-send" ${r.status !== "draft" ? "disabled" : ""}>Send</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
   } else {
     const r = c.d, idx = r.status === "PROCESSED" ? 5 : r.shipment === "DELIVERED" ? 4 : r.shipment === "IN_TRANSIT" || r.shipment === "EXCEPTION" ? 3 : r.shipment === "LABEL_CREATED" ? 2 : 1;
@@ -741,7 +741,7 @@ async function loadReturns() {
 const apLive = await fetch("/api/config").then(r => r.json()).then(c => !!c.autopilot).catch(() => false);
 db.doc("svc_meta/autopilot").onSnapshot(d => { const off = d.exists && d.data().off; document.getElementById("ap-t").textContent = !apLive ? "Ella drafts · autopilot off" : off ? "Autopilot paused · click to resume" : "Ella is on · autopilot"; document.getElementById("autopilot").dataset.off = off ? "1" : ""; });
 document.getElementById("autopilot").onclick = async () => { if (!apLive) return toast("Autopilot is off. Ella only drafts; nothing is sent by itself."); const off = !!document.getElementById("autopilot").dataset.off;
-  if (!(await ask(off ? "Resume Ella's autopilot?" : "Pause Ella's autopilot?", off ? ["Ella sends simple return and exchange replies by herself again, 10–20 minutes after each email", "Flagged, VIP and refund cases still wait for a person"] : ["Ella stops sending by herself right away", "Drafts keep appearing; you can still send them by hand"], off ? "Resume" : "Pause"))) return;
+  if (!(await ask(off ? "Resume Ella's autopilot?" : "Pause Ella's autopilot?", off ? ["Ella sends simple return and exchange replies by herself again, 8–12 minutes after each email", "Flagged, VIP and refund cases still wait for a person"] : ["Ella stops sending by herself right away", "Drafts keep appearing; you can still send them by hand"], off ? "Resume" : "Pause"))) return;
   await db.doc("svc_meta/autopilot").set({ off: !off, by: me, at: Date.now() }); toast(off ? "Autopilot on" : "Autopilot paused"); };
 db.collection("svc_returns").onSnapshot(s => { rets = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); if (sel && sel.startsWith("s:")) renderDrawer(); });
 db.collection("svc_experiments").onSnapshot(s => { exps = s.docs.map(d => ({ id: d.id, ...d.data() })); renderVariants(); renderLab(); });
