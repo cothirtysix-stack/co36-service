@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { putDoc, getDoc } from "../lib/server.js";
 import { draftFor, isNoise } from "../lib/ella.js";
+import { recordReply } from "../lib/learn.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -100,6 +101,8 @@ async function inner(req, res) {
       .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/[ \t]+/g, " ").trim();
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     const mood = await read(message, subject);
+    // Learning: how did they react to what we (Ella, Sarah or the team) said last?
+    await recordReply({ id, comments, lastCust, mood, isOp, isNoise }).catch(() => {});
     // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
     const ret = await getDoc("svc_returns", id);
     if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {

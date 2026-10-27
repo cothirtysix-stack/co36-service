@@ -48,6 +48,12 @@ h3.sec{font:800 13px Inter;letter-spacing:.06em;color:var(--muted);margin:10px 0
     <div class="msg" id="setMsg"></div>
   </div>
 
+  <h3 class="sec">WHAT ELLA IS LEARNING</h3>
+  <div class="card">
+    <p class="sub">Every customer reply is scored against what we said right before it (Ella, Sarah or the team). Once a day these turn into lessons Ella reads before every email. Your rules always come first.</p>
+    <div id="learn"><div class="empty">Collecting replies… the first lessons appear after about 10 replies.</div></div>
+  </div>
+
   <h3 class="sec">TEAM</h3>
   <div class="card">
     <h2>Add a person</h2>
@@ -125,6 +131,13 @@ $("apSw").onclick = () => { if (!cfg.autopilot) return sayS("Ella's autopilot is
   if (confirm(off ? "Pause Ella? She stops sending by herself right away. Drafts keep coming." : "Turn Ella back on? She sends simple return and exchange replies by herself.")) save({ off }, off ? "Ella paused." : "Ella is on."); };
 $("qcSw").onclick = () => { const on = !ap.afterQcAuto;
   if (confirm(on ? "Let Ella send her after-quality-check follow-ups by herself? (Never refunds.)" : "Back to drafts only for after-quality-check follow-ups?")) save({ afterQcAuto: on }, on ? "She'll send them by herself." : "Drafts only."); };
+const L = d => { if (!d?.at) return;
+  const sc = (w, k) => { const x = d.scores?.[k] || {}; return x.n ? `<div><b>${w}</b> <span class="sub">${x.n} replies · ${Math.round(100 * x.happy / x.n)}% happy · ${Math.round(100 * x.upset / x.n)}% upset</span></div>` : ""; };
+  const list = (t, a) => a?.length ? `<div style="margin-top:10px"><b>${t}</b><ul style="margin:6px 0 0;padding-left:18px">${a.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : "";
+  $("learn").innerHTML = `<div class="sub">Updated ${new Date(d.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} · from ${d.from} replies</div>
+    <div style="display:grid;gap:4px;margin-top:8px">${sc("Ella", "ella")}${sc("Sarah", "sarah")}${sc("Team", "team")}</div>
+    ${list("Customers love it when we…", d.happy)}${list("Customers get upset when we…", d.upset)}${list("Ella's new habits", d.tips)}`; };
+db.doc("svc_meta/lessons").onSnapshot(d => L(d.exists ? d.data() : null));
 $("dSave").onclick = () => { const a = Math.round(+$("dMin").value), b = Math.round(+$("dMax").value);
   if (!(a >= 1 && b >= a && b <= 120)) return sayS("Pick a range like 8 to 12."); save({ minDelay: a, maxDelay: b }, `Ella waits ${a}–${b} minutes.`); };
 </script>
