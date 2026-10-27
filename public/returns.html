@@ -267,7 +267,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
 // things (RETURN_FIELDS + mapReturn) and the whole board follows.
 // ============================================================================
 // Field names checked against the live Richpanel Returns API (Oct 27). shipmentStatus is JSON: { shipmentId: "LABEL_CREATED" | "IN_TRANSIT" | "DELIVERED" … }.
-const RETURN_FIELDS = "_id name status createdAt updatedAt orderNumber outcome type returnMethod customer { name email } total { amount refund } shipmentStatus exchangeOrderNumber statusPageUrl";
+const RETURN_FIELDS = "_id name status createdAt updatedAt qcCompletedAt orderNumber outcome type returnMethod customer { name email } total { amount refund } shipmentStatus exchangeOrderNumber statusPageUrl";
 
 function mapReturn(r) {
   r = r || {};
@@ -295,7 +295,7 @@ function mapReturn(r) {
     email: r.customer?.email || "",
     order: num == null || num === "" ? "" : (String(num).startsWith("#") ? String(num) : "#" + num),
     items, outcome, status: up(r.status), shipment,
-    createdAt: ts(r.createdAt),
+    createdAt: ts(r.createdAt), updatedAt: ts(r.updatedAt), qcAt: ts(r.qcCompletedAt),
     exchangeOrder: r.exchangeOrderNumber || "",
     statusPageUrl: r.statusPageUrl || "",
     total: amt == null || amt === "" || !Number.isFinite(+amt) ? null : +amt
@@ -345,7 +345,8 @@ const OPEN = s => s !== "PROCESSED" && s !== "CANCELLED";
 const rpOf = f => rp.filter(f);
 const rpLabel = r => r.shipment === "LABEL_CREATED" && OPEN(r.status);
 const rpTransit = r => (r.shipment === "IN_TRANSIT" || r.shipment === "EXCEPTION") && OPEN(r.status);
-const rpRecv = r => r.shipment === "DELIVERED" && r.status === "OPEN";
+const rpRecv = r => r.shipment === "DELIVERED" && r.status === "OPEN" && !r.qcAt;
+const doneAt = r => r.qcAt || r.updatedAt || r.createdAt;
 const rpLate = r => rpLabel(r) && r.createdAt && Date.now() - r.createdAt > 7 * DAY;
 const OUTL = { EXCHANGE: ["Exchange", "p-ind"], REFUND: ["Refund", "p-grey"], STORE_CREDIT: ["Store credit", "p-ind"] };
 
@@ -416,7 +417,7 @@ const COLS2 = [
   { k: "p_check", label: "Check back · did it fit?", dot: "#0B0B0F", sub: "3 days after the new one lands", soon: "Coming soon: needs exchange delivery data" },
   { k: "p_closed", label: "Closed", dot: "#16A34A", sub: "Exchange shipped, switched, or refunded", empty: "—" }
 ];
-const byOld = (a, b) => (a.createdAt || 0) - (b.createdAt || 0), byNew = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+const byOld = (a, b) => (a.createdAt || 0) - (b.createdAt || 0), byNew = (a, b) => (doneAt(b) || 0) - (doneAt(a) || 0);
 function colItems(k) {
   const S = list => list.map(d => ({ kind: "svc", d, col: k })), R = (f, s = byOld) => rpOf(f).sort(s).map(d => ({ kind: "rp", d, col: k }));
   switch (k) {
@@ -425,13 +426,13 @@ function colItems(k) {
     case "label": return R(rpLabel);
     case "transit": return R(rpTransit);
     case "recv": return R(rpRecv);
-    case "done": return R(r => r.status === "PROCESSED", byNew);
+    case "done": return R(r => r.status === "PROCESSED" && inPeriod(doneAt(r)), byNew);
     case "p_two": return S(afterQc("two_sizes"));
     case "p_dec": return S(afterQc("last_ask"));
-    case "p_ex": return R(r => r.shipment === "DELIVERED" && r.outcome === "EXCHANGE" && OPEN(r.status));
-    case "p_wait": return R(r => r.shipment === "DELIVERED" && r.outcome === "REFUND" && OPEN(r.status));
+    case "p_ex": return R(r => (r.shipment === "DELIVERED" || r.qcAt) && r.outcome === "EXCHANGE" && OPEN(r.status));
+    case "p_wait": return R(r => (r.shipment === "DELIVERED" || r.qcAt) && r.outcome === "REFUND" && OPEN(r.status));
     case "p_credit": return R(r => r.outcome === "STORE_CREDIT" && OPEN(r.status));
-    case "p_closed": return R(r => r.status === "PROCESSED", byNew);
+    case "p_closed": return R(r => r.status === "PROCESSED" && inPeriod(doneAt(r)), byNew);
   }
   return [];
 }
@@ -456,7 +457,7 @@ function seg(el, opts, cur, pick) {
 }
 function render() {
   cards.clear();
-  seg($("ranges"), RANGES, range, k => { if (k !== range) { range = k; loadReturns(); render(); } });
+  seg($("ranges"), RANGES, range, k => { if (k !== range) { range = k; render(); } });
   seg($("lanes"), [["all", "All"], ["exchange", "Exchanges"], ["return", "Returns"]], lane, k => { lane = k; render(); });
   document.querySelectorAll(".rl").forEach(e => e.textContent = RLABEL[range]);
   $("lane-ex").classList.toggle("on", lane === "exchange"); $("lane-rt").classList.toggle("on", lane === "return");
@@ -722,21 +723,23 @@ async function sendSafe(list) {
 // ---------- load Richpanel returns (pages of 100) ----------
 // quiet = the 5-minute background refresh: keep the board on screen and swap the new list in at the end.
 async function loadReturns(quiet) {
-  const token = ++loadToken, start = periodStart(); let acc = [];
+  // Open returns can be weeks old (label sent last week, checked in today), so always load the full 45-day window;
+  // the Today / week / 30 days switch filters the counts and the Resolved columns instead.
+  const token = ++loadToken, start = Date.now() - 45 * DAY; let acc = [];
   if (!quiet) { rp = []; rpCount = null; rpErr = ""; rpLoading = true; render(); }
   let fields = RETURN_FIELDS, skip = 0;
   try {
     for (let page = 0; page < 40; page++) {
       let res;
-      try { res = await api.post("service", { op: "returnsList", startDate: new Date(start).toISOString(), limit: 100, skip, fields }); }
-      catch (e) { if (page === 0 && fields) { console.warn("returnsList failed with RETURN_FIELDS, retrying with the server defaults:", e.text || e.message); fields = undefined; res = await api.post("service", { op: "returnsList", startDate: new Date(start).toISOString(), limit: 100, skip }); rpNote = "Some return fields didn't load."; } else throw e; }
+      try { res = await api.post("service", { op: "returnsList", startDate: new Date(start).toISOString(), limit: 200, skip, fields }); }
+      catch (e) { if (page === 0 && fields) { console.warn("returnsList failed with RETURN_FIELDS, retrying with the server defaults:", e.text || e.message); fields = undefined; res = await api.post("service", { op: "returnsList", startDate: new Date(start).toISOString(), limit: 200, skip }); rpNote = "Some return fields didn't load."; } else throw e; }
       if (token !== loadToken) return;
       const got = Array.isArray(res?.returns) ? res.returns : [];
       rpCount = res?.count || rpCount;
       acc = acc.concat(got.map(mapReturn).filter(r => !r.createdAt || r.createdAt >= start));
       if (!quiet) { rp = acc; render(); }
-      if (got.length < 100) break;
-      skip += 100;
+      if (got.length < 200) break;
+      skip += 200;
     }
   } catch (e) { if (token !== loadToken || quiet) return; rpErr = e.text || e.message || "Unknown error"; console.warn("returnsList:", rpErr); }
   if (token !== loadToken) return;
