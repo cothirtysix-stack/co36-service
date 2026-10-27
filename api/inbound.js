@@ -84,7 +84,8 @@ async function inner(req, res) {
     const cp = looked?.ticket?.customer_profile || {};
     const rpName = cp.name || [cp.firstName || cp.first_name, cp.lastName || cp.last_name].filter(Boolean).join(" ") || null;
     const rpEmail = cp.email || looked?.ticket?.via?.source?.from?.address || null;
-    const message = String(pick(b, "ticketMessage", "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "").trim();
+    const message = String(pick(b, "ticketMessage", "message", "last_message", "message_body", "body") || lastCustomer?.plain_body || lastCustomer?.body || "")
+      .replace(/<a\b[^>]*>(.*?)<\/a>/gi, "$1").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/[ \t]+/g, " ").trim();
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     const mood = await read(message, subject);
     // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
