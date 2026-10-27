@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CO36 Returns</title>
+<link rel="icon" href="/apps/service.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apps/service.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--dis:#B5B5BE;--line:#ECECF0;--line2:#E2E2E8;--line3:#F1F1F4;--page:#F7F7F9;--surface:#fff;--col:#EFEFF3;--soft:#FBFBFC;--seg:#ECECF0;
+--ind:#5B5BF6;--ind2:#4343D9;--indt:#EEEEFE;--indb:#DCDCFB;--good:#16A34A;--good2:#15803D;--goodt:#E8F6EE;--goodb:#BFE5CD;--goodrow:#F3FBF6;--bad:#EF4444;--bad2:#B91C1C;--badt:#FEECEC;--badb:#F8C9C9;--badsoft:#FEF5F5;--amb:#F59E0B;--amb2:#B45309;--ambt:#FEF3E2;
+--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--dis:#5C5C66;--line:#26262E;--line2:#30303A;--line3:#1E1E25;--page:#0E0E12;--surface:#16161C;--col:#1B1B22;--soft:#121217;--seg:#24242C;
+--indt:#23234A;--indb:#33335E;--goodt:#12301F;--goodb:#1E4A30;--goodrow:#10241A;--badt:#3A1616;--badb:#5A2424;--badsoft:#2A1414;--ambt:#3A2A10;--ind2:#9B9BFF;--good2:#4ADE80;--bad2:#F87171;--amb2:#FBBF24;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,textarea,input{font-family:inherit}button{cursor:pointer}
+a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoration:underline}
+.page{min-height:100vh;display:flex;flex-direction:column}
+/* header */
+.hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tile{width:34px;height:34px;border-radius:9px;background:#0B0B0F;color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px Inter;flex:none}
+.ttl{display:flex;flex-direction:column;gap:1px;min-width:0}.ttl b{font:800 18px Inter;letter-spacing:-.02em}.ttl span{font:500 12px Inter;color:var(--muted)}
+.seg{display:flex;gap:2px;background:var(--seg);padding:3px;border-radius:10px}
+.seg button{border:0;height:30px;padding:0 12px;border-radius:8px;font:600 12px Inter;background:transparent;color:var(--muted);box-shadow:none}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.ella{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;background:var(--indt)}
+.ella i{width:26px;height:26px;border-radius:50%;background:var(--ind);color:#fff;font:700 12px Inter;font-style:normal;display:flex;align-items:center;justify-content:center}.ella span{font:600 12px Inter;color:var(--ind2)}
+.hlink{font:600 12px Inter}
+/* top cards */
+.top{padding:18px 24px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:12px}
+.lane{text-align:left;cursor:pointer;border-radius:18px;padding:18px 22px;display:flex;flex-direction:column;gap:12px;font:inherit}
+.lane.ex{background:var(--surface);border:1.5px solid var(--line);color:var(--ink);box-shadow:var(--shadow)}.lane.ex.on{border-color:#5B5BF6}
+.lane.rt{background:#0B0B0F;border:1.5px solid #0B0B0F;color:#fff;gap:10px}.lane.rt.on{border-color:#F59E0B}
+.lh{display:flex;align-items:center;gap:8px;width:100%}.lh i{width:10px;height:10px;border-radius:50%;flex:none}.lh b{font:800 16px Inter;flex:1}.lh small{font:600 11px Inter;color:var(--muted)}.lane.rt .lh small{color:#A5A5F9}
+.exs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%}
+.exs div{display:flex;flex-direction:column;gap:2px}.exs b{font:800 26px Inter;letter-spacing:-.02em}.exs span{font:600 12px Inter}.exs small{font:500 11px Inter;color:var(--muted)}
+.fn{display:flex;align-items:center;gap:10px;width:100%}
+.fn .k{font:600 12px Inter;width:160px;flex:none;color:#E2E2E8}
+.fn .b{flex:1;height:18px;border-radius:5px;background:#1E1E26;overflow:hidden}.fn .b i{display:block;height:100%;border-radius:5px}
+.fn .p{font:800 14px Inter;width:46px;text-align:right}.fn .n{font:500 11px Inter;width:52px;text-align:right;color:#B5B5BE}
+.fnote{font:500 11px Inter;color:#B5B5BE}
+.nd{font:500 10.5px Inter;color:var(--dis)}.lane.rt .nd{color:#8A8A96}
+.tiles{padding:12px 24px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.kpi .k{font:600 12px Inter;color:var(--muted)}.kpi .v{font:800 28px Inter;letter-spacing:-.02em}.kpi .s{font:500 12px/1.4 Inter;color:var(--body)}
+/* filters */
+.flt{padding:16px 24px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.flt .seg{margin-right:6px}
+.chp{height:34px;padding:0 14px;border-radius:999px;font:600 13px Inter;border:1px solid var(--line2);background:var(--surface);color:var(--body);display:flex;align-items:center;gap:6px}
+.chp span{font:700 11px Inter;opacity:.75}.chp.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.bulk{height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--ink);color:var(--surface);font:600 13px Inter;white-space:nowrap}
+/* board */
+.bwrap{padding:14px 24px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.board{display:flex;gap:12px;align-items:flex-start;min-width:1180px}.board.s2{min-width:1560px}
+.col{flex:1 1 0;min-width:186px;background:var(--col);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}.s2 .col{background:var(--line3)}
+.chd{display:flex;align-items:center;gap:8px;padding:4px 4px 2px}.chd i{width:8px;height:8px;border-radius:50%;flex:none}.chd b{font:700 13px Inter;flex:1}.chd em{font:800 18px Inter;font-style:normal;letter-spacing:-.02em}.chd em.red{color:var(--bad2)}
+.csub{font:500 11px/1.4 Inter;color:var(--muted);padding:0 4px 4px}
+.cempty{padding:16px 6px;text-align:center;font:600 12px Inter;color:var(--good2)}
+.csoon{padding:16px 8px;text-align:center;font:500 12px/1.45 Inter;color:var(--muted)}
+.cerr{padding:12px 8px;font:500 12px/1.45 Inter;color:var(--bad2)}
+.more{border:0;background:var(--surface);border-radius:10px;height:34px;font:600 12px Inter;color:var(--ind)}
+.kc{text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:6px;color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.04);width:100%;font:inherit}
+.kc.urg{border-color:var(--badb)}.kc.sel{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}
+.kt{display:flex;align-items:center;gap:6px;width:100%}.kt b{font:700 13px Inter;flex:1;min-width:0;overflow-wrap:anywhere}
+.tp{font:700 10px Inter;padding:2px 6px;border-radius:5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t-green{background:var(--goodt);color:var(--good2)}.t-amb{background:var(--ambt);color:var(--amb2)}.t-red{background:#EF4444;color:#fff}.t-grey{background:var(--line3);color:var(--muted)}
+.ki{font:500 12px/1.35 Inter;color:var(--body);overflow-wrap:anywhere}
+.kp{display:flex;gap:4px;flex-wrap:wrap}
+.pp{font:600 10px Inter;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.p-red{background:var(--badt);color:var(--bad2)}.p-amb{background:var(--ambt);color:var(--amb2)}.p-ind{background:var(--indt);color:var(--ind2)}.p-grey{background:var(--line3);color:var(--body)}.p-mute{background:var(--line3);color:var(--muted)}.p-good{background:var(--goodt);color:var(--good2)}
+/* stage 2 */
+.band{margin-top:36px;background:var(--surface);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:8px 0 24px}
+.bandlbl{display:flex;justify-content:center;margin-top:-22px}.bandlbl span{font:700 11px Inter;letter-spacing:.06em;color:#fff;background:#0B0B0F;padding:6px 14px;border-radius:999px}
+.s2h{padding:14px 24px 0;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.s2h .t{flex:1;min-width:260px;display:flex;flex-direction:column;gap:4px}.s2h .t b{font:800 20px Inter;letter-spacing:-.02em}.s2h .t span{font:500 13px/1.5 Inter;color:var(--muted)}
+.after{display:flex;gap:10px;flex-wrap:wrap}
+.after div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:130px}.after b{font:800 20px Inter;letter-spacing:-.02em}.after span{font:500 11px Inter;color:var(--muted)}
+/* lower */
+.low{padding:24px 24px 48px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;min-width:0}
+.bh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bh .t{flex:1;min-width:240px;display:flex;flex-direction:column;gap:2px}.bh .t b{font:800 16px Inter}.bh .t span{font:500 12px/1.45 Inter;color:var(--muted)}
+.obtn{height:36px;padding:0 12px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--ink);font:600 12px Inter}
+.vg{display:grid;grid-template-columns:34px 1.8fr 60px 1.4fr 70px 70px 90px 46px;gap:12px;padding:12px 20px;align-items:center;border-bottom:1px solid var(--line3)}
+.vg.h{padding:10px 20px;font:600 11px Inter;color:var(--muted)}
+.badge{width:28px;height:28px;border-radius:8px;background:var(--line3);color:var(--body);font:800 13px Inter;display:flex;align-items:center;justify-content:center}.badge.lead{background:#16A34A;color:#fff}
+.vl{display:flex;flex-direction:column;gap:2px;min-width:0}.vl b{font:600 13px/1.4 Inter}.vl span{font:500 11px Inter;color:var(--muted)}
+.vbar{display:flex;align-items:center;gap:8px}.vbar span.tr{flex:1;height:8px;border-radius:999px;background:var(--line3);overflow:hidden;display:flex}.vbar i{display:block;height:100%}.vbar b{font:800 14px Inter;width:40px;text-align:right}
+.r{text-align:right;font:600 13px Inter}
+.sw{border:0;background:none;padding:0}.sw span{width:34px;height:20px;border-radius:999px;background:#D4D4DA;display:flex;align-items:center;justify-content:flex-start;padding:2px}.sw.on span{background:#16A34A;justify-content:flex-end}.sw span i{width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.legend{padding:12px 20px;display:flex;gap:14px;flex-wrap:wrap;font:500 12px Inter;color:var(--body)}.legend span{display:flex;align-items:center;gap:6px}.legend i{width:10px;height:10px;border-radius:3px}
+.vempty{padding:28px 20px;text-align:center;font:500 13px Inter;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:10px}
+.gr{padding:12px 20px;border-bottom:1px solid var(--line3);display:flex;gap:12px;align-items:center}
+.gr .t{flex:1;display:flex;flex-direction:column;gap:2px}.gr .t b{font:600 13px Inter}.gr .t span{font:500 11px Inter;color:var(--muted)}
+.gr .tr{width:90px;height:6px;border-radius:999px;background:var(--line3);overflow:hidden}.gr .tr i{display:block;height:100%;border-radius:999px}.gr .v{font:800 15px Inter;width:46px;text-align:right}
+.gnote{padding:12px 20px;font:500 12px/1.5 Inter;color:var(--body);background:var(--soft)}
+/* lab */
+.labw{padding:0 24px 24px}
+.lab{display:flex;flex-wrap:wrap}
+.labl{flex:3 1 520px;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--line)}
+.labh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.labh .w{display:flex;align-items:center;gap:10px}.av{width:30px;height:30px;border-radius:50%;background:var(--ind);color:#fff;font:700 13px Inter;display:flex;align-items:center;justify-content:center;flex:none}
+.labh .w div{flex:1;display:flex;flex-direction:column;gap:1px}.labh .w b{font:800 16px Inter}.labh .w span{font:500 12px Inter;color:var(--muted)}
+.ctxs{display:flex;gap:6px;flex-wrap:wrap}.ctx{height:30px;padding:0 12px;border-radius:999px;font:600 12px Inter;border:1px solid var(--line2);background:var(--surface);color:var(--body)}.ctx.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.msgs{padding:16px 20px;display:flex;flex-direction:column;gap:12px;background:var(--soft);min-height:280px;max-height:520px;overflow-y:auto}
+.mrow{display:flex}.mrow.me{justify-content:flex-end}
+.mcol{max-width:86%;display:flex;flex-direction:column;gap:8px}
+.bub{padding:11px 14px;border-radius:14px;font:500 14px/1.55 Inter;white-space:pre-wrap;background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.me .bub{background:#0B0B0F;color:#fff;border-color:#0B0B0F}
+.ver{background:var(--surface);border:1px solid var(--indb);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.ver .a{display:flex;gap:8px;align-items:center}.ver .a span{font:600 10px Inter;letter-spacing:.04em;padding:2px 8px;border-radius:999px;background:var(--indt);color:var(--ind2)}.ver .a small{font:500 11px Inter;color:var(--muted);flex:1}
+.ver q{font:500 14px/1.5 Inter;color:var(--ink)}
+.ver .bs{display:flex;gap:6px;flex-wrap:wrap}
+.vadd{height:32px;padding:0 12px;border:0;border-radius:8px;background:#0B0B0F;color:#fff;font:600 12px Inter}.vadd.done{background:#16A34A}
+.vtw{height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);color:var(--ink);font:600 12px Inter}
+.labf{padding:12px 20px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.sugs{display:flex;gap:6px;flex-wrap:wrap}.sug{border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:5px 11px;font:500 12px Inter;color:var(--body)}
+.lin{display:flex;gap:8px}.lin input{flex:1;min-width:0;height:44px;border:1px solid var(--line2);border-radius:12px;padding:0 14px;font:500 14px Inter;outline:none;color:var(--ink);background:var(--surface)}
+.lsend{height:44px;padding:0 18px;border:0;border-radius:12px;background:var(--ind);color:#fff;font:600 13px Inter}.lsend[disabled]{opacity:.55;cursor:progress}
+.labr{flex:2 1 300px;min-width:0;padding:16px 20px;display:flex;flex-direction:column;gap:12px;background:var(--surface)}
+.labr>b{font:700 14px Inter}
+.fact{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line3)}.fact b{font:800 15px Inter;width:54px;flex:none}.fact span{font:500 13px/1.45 Inter;color:var(--body)}
+.rules{margin-top:4px;background:var(--page);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.rules small{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}.rules span{font:500 12px/1.45 Inter;color:var(--body)}
+/* return rules */
+.rrw{padding:0 24px 56px}
+.rrg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;padding:16px 20px}
+.rr{background:var(--page);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}.rr b{font:700 13px Inter}.rr span{font:500 12px/1.45 Inter;color:var(--body)}
+/* drawer */
+.ovl{position:fixed;inset:0;background:rgba(11,11,15,.25);z-index:40}
+.drw{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--surface);z-index:41;box-shadow:-10px 0 40px rgba(11,11,15,.18);display:flex;flex-direction:column}
+.dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dh .t{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}.dh .n{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.dh .n b{font:800 20px Inter;letter-spacing:-.02em;overflow-wrap:anywhere}
+.dh .n span{font:600 11px Inter;padding:3px 8px;border-radius:999px}.dh .m{font:500 12px Inter;color:var(--muted)}
+.x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line2);background:var(--surface);color:var(--ink);font:600 15px Inter;flex:none}
+.db{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.trk{display:flex;gap:4px}.trk div{flex:1;display:flex;flex-direction:column;gap:4px}.trk i{height:5px;border-radius:999px;background:var(--line)}.trk i.done{background:#16A34A}.trk i.now{background:#5B5BF6}.trk span{font:600 10px Inter;color:var(--dis)}.trk span.on{color:var(--ink)}
+.dmsg{background:var(--page);border-radius:12px;padding:12px 14px;font:400 14px/1.55 Inter;white-space:pre-wrap;overflow-wrap:anywhere}
+.dtags{display:flex;gap:6px;flex-wrap:wrap}.dtags span{font:600 12px Inter;padding:4px 10px;border-radius:8px;background:var(--line3)}
+.plan{display:flex;gap:10px;align-items:flex-start;background:var(--indt);border-radius:12px;padding:10px 12px}.plan i{width:22px;height:22px;border-radius:50%;background:var(--ind);color:#fff;font:700 11px Inter;font-style:normal;display:flex;align-items:center;justify-content:center;flex:none}.plan span{font:500 13px/1.45 Inter}.plan b{font-weight:700}
+.dflag{font:600 12px Inter;color:var(--bad2);background:var(--badsoft);border-radius:10px;padding:8px 12px}
+.dnote{font:500 12px/1.5 Inter;color:var(--muted);background:var(--page);border-radius:10px;padding:8px 12px}
+.dl{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}
+.dta{width:100%;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;font:400 14px/1.6 Inter;resize:vertical;outline:none;color:var(--ink);background:var(--surface)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.facts div{background:var(--page);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}.facts small{font:600 10px Inter;color:var(--muted);letter-spacing:.05em}.facts span{font:600 13px Inter;overflow-wrap:anywhere}
+.df{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.alt{height:44px;padding:0 14px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--ink);font:600 13px Inter;display:inline-flex;align-items:center}
+.pri{height:44px;padding:0 18px;border:0;border-radius:10px;background:#0B0B0F;color:#fff;font:600 13px Inter}
+.pri[disabled],.alt[disabled]{opacity:.55;cursor:not-allowed}
+/* confirm + modal + toast */
+.cfm{position:fixed;inset:0;background:rgba(11,11,15,.4);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+.cbox{width:min(440px,100%);background:var(--surface);border-radius:18px;box-shadow:0 20px 60px rgba(11,11,15,.3);padding:22px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto}
+.cbox.wide{width:min(720px,100%)}
+.cbox h3{margin:0;font:800 18px Inter}.cbox small{font:600 11px Inter;color:var(--muted);letter-spacing:.04em}
+.cl{display:flex;gap:10px;font:500 14px/1.45 Inter}.cl i{color:var(--ind);font-weight:700;font-style:normal}
+.cft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.cbox input,.cbox textarea{width:100%;border:1px solid var(--line2);border-radius:12px;padding:10px 12px;font:14px/1.5 Inter;background:var(--page);color:var(--ink)}
+.cbox textarea{min-height:110px;resize:vertical}
+.vall{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.err{color:var(--bad2);font-size:13px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
+@media (max-width:640px){.hdr,.top,.tiles,.flt,.bwrap,.s2h,.low,.labw,.rrw{padding-left:16px;padding-right:16px}.hdr{gap:10px}
+.fn .k{width:112px}.fn .n{width:40px}.exs b{font-size:22px}.lane{padding:16px}.labl{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hdr">
+    <div class="tile">CO36</div>
+    <div class="ttl"><b>Returns &amp; exchanges</b><span id="sub">Loading… · exchanges go fast, returns get one honest offer</span></div>
+    <div style="flex:1"></div>
+    <div class="seg" id="ranges"></div>
+    <div class="ella"><i>E</i><span>Ella is on</span></div>
+    <a class="hlink" href="/">Service Hub ›</a>
+  </header>
+
+  <section class="top">
+    <button class="lane ex" id="lane-ex">
+      <div class="lh"><i style="background:#5B5BF6"></i><b>Exchanges · get it to them fast</b><small class="rl"></small></div>
+      <div class="exs" id="ex-stats"></div>
+    </button>
+    <button class="lane rt" id="lane-rt">
+      <div class="lh"><i style="background:#F59E0B"></i><b>Returns · one honest exchange offer</b><small>THE ONE WE MEASURE</small></div>
+      <div id="funnel" style="display:flex;flex-direction:column;gap:10px;width:100%"></div>
+    </button>
+  </section>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="flt">
+    <div class="seg" id="lanes"></div>
+    <span id="chips" style="display:contents"></span>
+    <span style="flex:1"></span>
+    <span id="bulk"></span>
+  </section>
+
+  <section class="bwrap"><div class="board" id="board1"></div></section>
+
+  <div class="band">
+    <div class="bandlbl"><span>STAGE 2 · BACK AT THE WAREHOUSE</span></div>
+    <section class="s2h">
+      <div class="t"><b>After it's scanned in</b><span>Exchanges ship right away and close. Bought 2 sizes or said no before? One last friendly ask. The refund goes out on its own after 48h. We never hold the money.</span></div>
+      <div class="after" id="after"></div>
+    </section>
+    <section class="bwrap"><div class="board s2" id="board2"></div></section>
+  </div>
+
+  <section class="low">
+    <div class="box" style="flex:3 1 560px">
+      <div class="bh"><div class="t"><b>Save-offer test · returns only</b><span>Every return gets one honest offer. Ella splits them evenly between the live versions. Winner = most exchanges + store credit, with no rise in complaints.</span></div>
+        <button class="obtn" id="addv">+ Add a version</button></div>
+      <div id="variants"></div>
+      <div class="legend"><span><i style="background:#16A34A"></i>Took an exchange</span><span><i style="background:#5B5BF6"></i>Took store credit +10%</span><span style="color:var(--muted)">Needs about 200 sends per version before we call a winner.</span></div>
+    </div>
+    <div class="box" style="flex:2 1 340px">
+      <div class="bh" style="flex-direction:column;align-items:stretch;gap:2px"><b style="font:800 16px Inter">Labels sent, never shipped back</b><span style="font:500 12px Inter;color:var(--muted)">Labels 30+ days old with no UPS scan · <span class="rl"></span></span></div>
+      <div id="ghost"></div>
+      <div class="gnote">Exchanges who forget never get their new size. Ella sends a nudge at day 7, and at day 21 offers to ship the exchange first for repeat customers.</div>
+    </div>
+  </section>
+
+  <section class="labw">
+    <div class="box lab">
+      <div class="labl">
+        <div class="labh">
+          <div class="w"><span class="av">C</span><div><b>Wording lab</b><span>Talk through what Ella should say. Claude knows every test result so far.</span></div></div>
+          <div class="ctxs" id="ctxs"></div>
+        </div>
+        <div class="msgs" id="msgs"></div>
+        <div class="labf">
+          <div class="sugs" id="sugs"></div>
+          <div class="lin"><input id="lab-in" placeholder="e.g. write 3 ways to ask a 'bought 2 sizes' customer without sounding pushy"><button class="lsend" id="lab-go">Send</button></div>
+        </div>
+      </div>
+      <div class="labr">
+        <b id="facts-h">What we know so far</b>
+        <div id="facts"></div>
+        <div class="rules"><small>ELLA'S RULES FOR WORDING</small><div id="lab-rules" style="display:flex;flex-direction:column;gap:6px"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="rrw">
+    <div class="box">
+      <div class="bh"><div class="t"><b>Return rules</b><span>What Ella offers, and when a person takes over.</span></div></div>
+      <div class="rrg">
+        <div class="rr"><b>Size</b><span>Always offer a different size, or the better style (Mock Neck → Crew Neck, 5-Pocket → Chinos). The customer pays any price difference.</span></div>
+        <div class="rr"><b>Material</b><span>Kind refund, no push.</span></div>
+        <div class="rr"><b>3+ past orders</b><span>Store credit +10%.</span></div>
+        <div class="rr"><b>Bought 2 sizes</b><span>Send the label, no questions. Offer another of the size they kept after it's scanned in.</span></div>
+        <div class="rr"><b>Missing or damaged</b><span>Believe them, a person handles it.</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="drawer"></div>
+
+<script src="/shim.js"></script>
+<script>
+// ============================================================================
+// Richpanel Returns adapter. Field names are not confirmed yet: change these two
+// things (RETURN_FIELDS + mapReturn) and the whole board follows.
+// ============================================================================
+const RETURN_FIELDS = "_id name status createdAt orderNumber outcome type customer { name email } total { amount refund } aggregatedShipmentStatus exchangeOrderNumber statusPageUrl";
+
+function mapReturn(r) {
+  r = r || {};
+  const up = v => String(v ?? "").trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const ts = v => { if (v == null || v === "") return null; if (typeof v === "number") return v < 1e12 ? v * 1000 : v; const n = Number(v); if (Number.isFinite(n)) return n < 1e12 ? n * 1000 : n; const p = Date.parse(v); return Number.isFinite(p) ? p : null; };
+  const o = up(r.outcome || r.type || r.resolution);
+  const outcome = /EXCH/.test(o) ? "EXCHANGE" : /CREDIT|GIFT/.test(o) ? "STORE_CREDIT" : /REFUND/.test(o) ? "REFUND" : (o || "UNKNOWN");
+  const s = up(r.aggregatedShipmentStatus || r.shipmentStatus || r.shipment?.status);
+  const shipment = !s ? "NONE"
+    : /DELIVER/.test(s) && !/OUT_FOR/.test(s) ? "DELIVERED"
+    : /TRANSIT|OUT_FOR|PICKED|ACCEPTED|SHIPPED|AVAILABLE/.test(s) ? "IN_TRANSIT"
+    : /LABEL|PRE_TRANSIT|CREATED|INFO_RECEIVED|UNKNOWN/.test(s) ? "LABEL_CREATED"
+    : /EXCEPT|FAIL|RETURN_TO/.test(s) ? "EXCEPTION" : s;
+  const itemsRaw = r.items || r.lineItems || r.products || [];
+  const items = (Array.isArray(itemsRaw) ? itemsRaw : []).map(i => ({ name: i?.name || i?.title || i?.productName || "", size: i?.size || "", color: i?.color || "", variant: i?.variantTitle || i?.variant || "" }));
+  const num = r.orderNumber ?? r.order?.name ?? r.order;
+  const amt = r.total?.amount ?? r.total?.refund ?? (typeof r.total === "number" ? r.total : null);
+  return {
+    id: String(r._id ?? r.id ?? r.name ?? Math.random()),
+    rma: r.name || r.rma || "",
+    customer: r.customer?.name || r.customer?.email || r.customerName || "",
+    email: r.customer?.email || "",
+    order: num == null || num === "" ? "" : (String(num).startsWith("#") ? String(num) : "#" + num),
+    items, outcome, status: up(r.status), shipment,
+    createdAt: ts(r.createdAt),
+    exchangeOrder: r.exchangeOrderNumber || "",
+    statusPageUrl: r.statusPageUrl || "",
+    total: amt == null || amt === "" || !Number.isFinite(+amt) ? null : +amt
+  };
+}
+
+(async () => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toast = t => { document.querySelectorAll(".toast").forEach(x => x.remove()); const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const isToday = t => t && new Date(t).toDateString() === new Date().toDateString();
+const mmss = ms => { const m = Math.floor(ms / 6e4); return m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`; };
+const fmt = s => { s = Math.max(0, Math.floor(s)); return s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const money = n => n == null ? "" : "$" + (+n).toFixed(2).replace(/\.00$/, "");
+const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+const short = t => { if (!t) return "—"; const d = Date.now() - t; if (isToday(t)) return new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase(); const days = Math.floor(d / 864e5); return days < 1 ? Math.max(1, Math.round(d / 36e5)) + "h" : days + "d"; };
+const ND = `<span class="nd">needs data</span>`;
+const DAY = 864e5;
+
+const db = await window.claude.use("db"), api = await window.claude.use("api"), sample = await window.claude.use("sample");
+let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
+
+// ---------- state ----------
+let range = "today", lane = "all", chip = "all";
+let rets = [], exps = [];
+let rp = [], rpCount = null, rpErr = "", rpLoading = false, rpNote = "", loadToken = 0;
+let sel = null; const edits = {};
+const lab = { ctx: "save", msgs: [], busy: false, added: {} };
+
+const RANGES = [["today", "Today"], ["week", "This week"], ["d30", "30 days"]];
+const RLABEL = { today: "TODAY", week: "THIS WEEK", d30: "30 DAYS" };
+const periodStart = () => { if (range === "today") { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); } return Date.now() - (range === "week" ? 7 : 30) * DAY; };
+const inPeriod = t => t && t >= periodStart();
+
+// ---------- svc_returns (Ella's conversations) ----------
+const FLAG = { needs_human: "Needs a person", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" };
+const justAsked = () => rets.filter(r => r.status === "drafting" || r.status === "draft" || r.status === "error").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
+const offerOut = () => rets.filter(r => r.status === "sent" && inPeriod(r.sentAt)).sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0));
+const svcNeeds = r => (r.flags || []).includes("needs_human");
+const svcLate = r => (r.status === "draft" || r.status === "drafting" || r.status === "error") && Date.now() - (r.receivedAt || Date.now()) >= 5 * 6e4;
+const safeDrafts = () => justAsked().filter(r => r.status === "draft" && !(r.flags || []).length && !r.sarahAt && (r.draft || "").trim());
+
+// ---------- mapped Richpanel returns ----------
+const OPEN = s => s !== "PROCESSED" && s !== "CANCELLED";
+const rpOf = f => rp.filter(f);
+const rpLabel = r => r.shipment === "LABEL_CREATED" && OPEN(r.status);
+const rpTransit = r => (r.shipment === "IN_TRANSIT" || r.shipment === "EXCEPTION") && OPEN(r.status);
+const rpRecv = r => r.shipment === "DELIVERED" && r.status === "OPEN";
+const rpLate = r => rpLabel(r) && r.createdAt && Date.now() - r.createdAt > 7 * DAY;
+const OUTL = { EXCHANGE: ["Exchange", "p-ind"], REFUND: ["Refund", "p-grey"], STORE_CREDIT: ["Store credit", "p-ind"] };
+
+// ---------- filters ----------
+const isEx = x => x.kind === "svc" ? x.d.intent === "exchange" : x.d.outcome === "EXCHANGE";
+const laneOk = x => lane === "all" || (lane === "exchange" ? isEx(x) : !isEx(x));
+const needsX = x => x.kind === "svc" ? svcNeeds(x.d) && x.col === "new" : x.d.status === "MANUAL_REVIEW";
+const lateX = x => x.kind === "svc" ? x.col === "new" && svcLate(x.d) : rpLate(x.d);
+const pass = x => laneOk(x) && (chip === "all" || (chip === "needs" && needsX(x)) || (chip === "late" && lateX(x)));
+
+// ---------- cards ----------
+const cards = new Map();
+function timer(recv) {
+  const e = (Date.now() - (recv || Date.now())) / 1000;
+  if (e >= 300) return { text: "Over by " + fmt(e - 300), cls: "t-red", urgent: true };
+  return { text: fmt(e), cls: e < 180 ? "t-green" : "t-amb", urgent: false };
+}
+function svcCard(r, col) {
+  const key = "s:" + r.docId; cards.set(key, { kind: "svc", d: r, col });
+  const needs = svcNeeds(r);
+  let time, tcls, urgent = needs, recvAttr = "";
+  if (col === "new") { const t = timer(r.receivedAt); time = t.text; tcls = t.cls; urgent = urgent || t.urgent; recvAttr = ` data-recv="${+r.receivedAt || 0}"`; }
+  else { time = short(r.sentAt); tcls = "t-grey"; }
+  const pill = needs ? ["Needs you", "p-red"] : r.status === "drafting" ? ["Ella is writing", "p-mute"] : r.status === "error" ? ["Couldn't draft", "p-red"]
+    : col === "new" && r.status === "draft" ? ["Draft ready", "p-amb"] : r.intent === "exchange" ? ["Exchange", "p-ind"] : ["Return", "p-grey"];
+  const extra = (r.sarahAt ? `<span class="pp p-amb">Sarah answered</span>` : "") + (r.flags || []).filter(f => f !== "needs_human").map(f => `<span class="pp p-red">${esc(FLAG[f] || f)}</span>`).join("");
+  const item = (r.items || []).join(" · ") || r.subject || (r.orders || []).join(", ") || "";
+  return cardHtml({ key, name: r.customer || r.email || "Customer", time, tcls, item, pill, extra, urgent, recvAttr });
+}
+function rpCard(r, col) {
+  const key = "r:" + r.id; cards.set(key, { kind: "rp", d: r, col });
+  const late = rpLate(r);
+  const items = r.items.map(i => [i.name, i.color, i.size || i.variant].filter(Boolean).join(" · ")).filter(Boolean).join(", ");
+  const item = items || [r.order, r.rma].filter(Boolean).join(" · ");
+  let pill = OUTL[r.outcome] || [r.outcome === "UNKNOWN" ? "Return" : r.outcome.replace(/_/g, " ").toLowerCase(), "p-grey"];
+  if (col === "label" && late) pill = ["Nudge", "p-amb"];
+  else if (col === "transit" && r.shipment === "EXCEPTION") pill = ["Carrier exception", "p-amb"];
+  else if (col === "p_ex") pill = ["Ship today", "p-ind"];
+  else if (col === "p_wait") pill = ["Refund on its own", "p-grey"];
+  else if (col === "p_credit") pill = ["Credit" + (r.total != null ? " " + money(r.total * 1.1) : ""), "p-ind"];
+  else if (r.status === "MANUAL_REVIEW") pill = ["Needs you", "p-red"];
+  const value = r.total != null && r.outcome !== "REFUND" && col !== "p_credit" ? money(r.total) : "";
+  return cardHtml({ key, name: r.customer || r.email || r.rma || "Customer", time: short(r.createdAt), tcls: late ? "t-amb" : "t-grey", item, pill, value, urgent: r.status === "MANUAL_REVIEW" });
+}
+function cardHtml(c) {
+  return `<button class="kc${c.urgent ? " urg" : ""}${sel === c.key ? " sel" : ""}" data-open="${esc(c.key)}">
+    <div class="kt"><b>${esc(c.name)}</b><span class="tp ${c.tcls}"${c.recvAttr || ""}>${esc(c.time)}</span></div>
+    ${c.item ? `<span class="ki">${esc(c.item)}</span>` : ""}
+    <div class="kp"><span class="pp ${c.pill[1]}">${esc(c.pill[0])}</span>${c.value ? `<span class="pp p-good">${esc(c.value)}</span>` : ""}${c.extra || ""}</div></button>`;
+}
+
+// ---------- columns ----------
+const COLS = [
+  { k: "new", label: "Just asked", dot: "#EF4444", sub: "Ella replies in under 5 min", empty: "Inbox zero.", red: true },
+  { k: "offer", label: "Offer out", dot: "#F59E0B", sub: "Waiting on the customer", empty: "No open offers." },
+  { k: "label", label: "Label sent", dot: "#5B5BF6", sub: "Nudge after 7 days", empty: "—", rp: true },
+  { k: "transit", label: "In transit", dot: "#6E6E7A", sub: "Flag if no scan for 5 days", empty: "—", rp: true },
+  { k: "recv", label: "Received → act today", dot: "#0B0B0F", sub: "Moves to \"After it's scanned in\" below", empty: "All shipped. Nice.", red: true, rp: true },
+  { k: "done", label: "Resolved", dot: "#16A34A", sub: "Check back in 3 days", empty: "—", rp: true }
+];
+const COLS2 = [
+  { k: "p_issue", label: "Came back wrong → needs you", dot: "#EF4444", sub: "Worn, damaged, wrong item or missing pieces", soon: "Coming soon: needs warehouse inspection data" },
+  { k: "p_ex", label: "Exchange → ship now", dot: "#5B5BF6", sub: "Out the door today, then close", empty: "All exchanges shipped.", red: true },
+  { k: "p_two", label: "Bought 2 sizes → rush another?", dot: "#F59E0B", sub: "Offer one more of the size that fit", soon: "Coming soon: needs order line data (which size they kept)" },
+  { k: "p_dec", label: "Said no before → one last ask", dot: "#F59E0B", sub: "Now it feels free. Ask once, kindly", soon: "Coming soon: needs the offer history per return" },
+  { k: "p_wait", label: "Waiting on their answer", dot: "#6E6E7A", sub: "Refund goes out on its own after 48h", empty: "No one waiting." },
+  { k: "p_credit", label: "Took store credit → send code", dot: "#5B5BF6", sub: "Credit + 10%, code emailed today", empty: "All codes sent." },
+  { k: "p_check", label: "Check back · did it fit?", dot: "#0B0B0F", sub: "3 days after the new one lands", soon: "Coming soon: needs exchange delivery data" },
+  { k: "p_closed", label: "Closed", dot: "#16A34A", sub: "Exchange shipped, switched, or refunded", empty: "—" }
+];
+const byOld = (a, b) => (a.createdAt || 0) - (b.createdAt || 0), byNew = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+function colItems(k) {
+  const S = list => list.map(d => ({ kind: "svc", d, col: k })), R = (f, s = byOld) => rpOf(f).sort(s).map(d => ({ kind: "rp", d, col: k }));
+  switch (k) {
+    case "new": return S(justAsked()).sort((a, b) => (svcNeeds(b.d) ? 1 : 0) - (svcNeeds(a.d) ? 1 : 0));
+    case "offer": return S(offerOut());
+    case "label": return R(rpLabel);
+    case "transit": return R(rpTransit);
+    case "recv": return R(rpRecv);
+    case "done": return R(r => r.status === "PROCESSED", byNew);
+    case "p_ex": return R(r => r.shipment === "DELIVERED" && r.outcome === "EXCHANGE" && OPEN(r.status));
+    case "p_wait": return R(r => r.shipment === "DELIVERED" && r.outcome === "REFUND" && OPEN(r.status));
+    case "p_credit": return R(r => r.outcome === "STORE_CREDIT" && OPEN(r.status));
+    case "p_closed": return R(r => r.status === "PROCESSED", byNew);
+  }
+  return [];
+}
+const lists = {};
+function renderCol(c) {
+  if (c.soon) return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em style="color:var(--dis)">—</em></div><span class="csub">${esc(c.sub)}</span><div class="csoon">${esc(c.soon)}</div></div>`;
+  const usesRp = c.rp || c.k.startsWith("p_");
+  const vis = colItems(c.k).filter(pass); lists[c.k] = vis;
+  const n = vis.length, waiting = usesRp && (rpLoading && !rp.length);
+  let body;
+  if (usesRp && rpErr && !rp.length) body = `<div class="cerr">Couldn't load Richpanel Returns. ${esc(rpErr)}</div>`;
+  else if (waiting) body = `<div class="csoon">Loading returns…</div>`;
+  else body = vis.slice(0, 6).map(x => x.kind === "svc" ? svcCard(x.d, c.k) : rpCard(x.d, c.k)).join("") || `<div class="cempty">${esc(c.empty)}</div>`;
+  return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em class="${c.red && n ? "red" : ""}">${waiting ? "…" : n.toLocaleString()}</em></div>
+    <span class="csub">${esc(c.sub)}</span>${body}${n > 6 ? `<button class="more" data-all="${c.k}">View all ${n.toLocaleString()}</button>` : ""}</div>`;
+}
+
+// ---------- render ----------
+function seg(el, opts, cur, pick) {
+  el.innerHTML = opts.map(([k, l]) => `<button class="${cur === k ? "on" : ""}" data-k="${k}">${l}</button>`).join("");
+  el.querySelectorAll("button").forEach(b => b.onclick = e => { e.stopPropagation(); pick(b.dataset.k); });
+}
+function render() {
+  cards.clear();
+  seg($("ranges"), RANGES, range, k => { if (k !== range) { range = k; loadReturns(); render(); } });
+  seg($("lanes"), [["all", "All"], ["exchange", "Exchanges"], ["return", "Returns"]], lane, k => { lane = k; render(); });
+  document.querySelectorAll(".rl").forEach(e => e.textContent = RLABEL[range]);
+  $("lane-ex").classList.toggle("on", lane === "exchange"); $("lane-rt").classList.toggle("on", lane === "return");
+
+  const ja = justAsked(), openRp = rpOf(r => OPEN(r.status)).length;
+  $("sub").textContent = `${(ja.length + openRp).toLocaleString()}${rpLoading ? "+" : ""} open · exchanges go fast, returns get one honest offer · ${new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`;
+
+  // Exchanges lane
+  const pRets = rets.filter(r => inPeriod(r.receivedAt)), pRp = rpOf(r => inPeriod(r.createdAt));
+  const exAsk = pRets.filter(r => r.intent === "exchange").length + pRp.filter(r => r.outcome === "EXCHANGE").length;
+  $("ex-stats").innerHTML = [[exAsk.toLocaleString(), "Asked to exchange", "No convincing needed", "var(--ink)"], ["—", "Back → shipped", "Goal: same day", "var(--ind2)", 1], ["—", "Shipped same day", "once it's received", "var(--good2)", 1]]
+    .map(([v, k, s, c, nd]) => `<div><b style="color:${c}">${v}</b><span>${k}</span><small>${s}</small>${nd ? ND : ""}</div>`).join("");
+
+  // Returns funnel
+  const asked = pRets.filter(r => r.intent !== "question").length + pRp.length;
+  const offered = rets.filter(r => r.status === "sent" && r.intent !== "question" && inPeriod(r.sentAt)).length;
+  const exch = pRp.filter(r => r.outcome === "EXCHANGE").length, credit = pRp.filter(r => r.outcome === "STORE_CREDIT").length, refund = pRp.filter(r => r.outcome === "REFUND").length;
+  $("funnel").innerHTML = [["Asked to return", asked, "#3F3F4A"], ["Got one honest offer", offered, "#6E6E7A"], ["Took an exchange", exch, "#16A34A"], ["Took store credit +10%", credit, "#5B5BF6"], ["Refunded", refund, "#B5B5BE"]]
+    .map(([k, n, bg]) => `<div class="fn"><span class="k">${k}</span><span class="b"><i style="background:${bg};width:${asked ? Math.min(100, n / asked * 100) : 0}%"></i></span><span class="p">${pct(n, asked)}</span><span class="n">${n.toLocaleString()}</span></div>`).join("")
+    + `<div class="fnote">Asked = Ella's return emails + Richpanel returns created ${RLABEL[range].toLowerCase()}. Offers = Ella's replies sent.${rpErr ? " Richpanel Returns didn't load." : rpLoading ? " Still loading returns…" : ""}${rpNote ? " " + rpNote : ""}</div>`;
+
+  // KPI tiles
+  const outN = exch + credit + refund;
+  const labels = rpOf(r => r.shipment !== "NONE"), ghost = labels.filter(r => r.shipment === "LABEL_CREATED" && r.createdAt && Date.now() - r.createdAt > 30 * DAY);
+  const needN = ja.filter(svcNeeds).length + rpOf(r => r.status === "MANUAL_REVIEW").length;
+  $("tiles").innerHTML = [
+    { k: "Returns saved", v: pct(exch + credit, outN), s: outN ? `${(exch + credit).toLocaleString()} of ${outN.toLocaleString()} with an outcome took an exchange or credit` : `No outcomes yet ${RLABEL[range].toLowerCase()}`, c: "var(--good2)", b: "var(--goodb)" },
+    { k: "Store credit +10% accepted", v: "—", s: "Needs a record of who was offered credit", c: "var(--ind2)", nd: 1 },
+    { k: "Labels never sent back", v: labels.length ? pct(ghost.length, labels.length) : "—", s: labels.length ? `${ghost.length.toLocaleString()} of ${labels.length.toLocaleString()} labels are 30+ days old with no scan` : "No labels loaded for this period", c: "var(--amb2)" },
+    { k: "Need you right now", v: String(needN), s: "Missing items, partial refunds, angry customers", c: "var(--bad2)", b: needN ? "var(--badb)" : "" }
+  ].map(t => `<div class="kpi" style="${t.b ? "border-color:" + t.b : ""}"><span class="k">${t.k}</span><span class="v" style="color:${t.c}">${t.v}</span><span class="s">${esc(t.s)}</span>${t.nd ? ND : ""}</div>`).join("");
+
+  // filters
+  const all1 = COLS.flatMap(c => colItems(c.k)).filter(x => x.col !== "done" && laneOk(x));
+  $("chips").innerHTML = [["all", "Everything", all1.length], ["needs", "Needs you", all1.filter(needsX).length], ["late", "Running late", all1.filter(lateX).length]]
+    .map(([k, l, n]) => `<button class="chp ${chip === k ? "on" : ""}" data-chip="${k}">${l}<span>${n.toLocaleString()}</span></button>`).join("");
+  $("chips").querySelectorAll("[data-chip]").forEach(b => b.onclick = () => { chip = b.dataset.chip; render(); });
+  const safe = safeDrafts().filter(r => laneOk({ kind: "svc", d: r }));
+  $("bulk").innerHTML = safe.length ? `<button class="bulk" id="safe">Send all safe drafts (${safe.length})</button>` : "";
+  if (safe.length) $("safe").onclick = () => sendSafe(safe);
+
+  // boards
+  $("board1").innerHTML = COLS.map(renderCol).join("");
+  $("board2").innerHTML = COLS2.map(renderCol).join("");
+  $("after").innerHTML = ["Came back wrong", "Exchanges shipped same day", "Fit on check back", "Bought 2 sizes → took another", "Said no, then yes on last ask", "Refunds sent on time"]
+    .map(k => `<div><b style="color:var(--dis)">—</b><span>${k}</span>${ND}</div>`).join("");
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => openDrawer(b.dataset.open));
+  document.querySelectorAll("[data-all]").forEach(b => b.onclick = () => viewAll(b.dataset.all));
+
+  renderGhost(labels, ghost); renderVariants(); renderLab();
+}
+function tick() { // timers only, every second
+  document.querySelectorAll("[data-recv]").forEach(el => { const t = timer(+el.dataset.recv || Date.now()); el.textContent = t.text; el.className = "tp " + t.cls;
+    const k = el.closest(".kc"); if (k && t.urgent) k.classList.add("urg"); });
+}
+
+function renderGhost(labels, ghost) {
+  const ex = labels.filter(r => r.outcome === "EXCHANGE"), rt = labels.filter(r => r.outcome !== "EXCHANGE");
+  const g = l => l.filter(r => ghost.includes(r)).length;
+  const row = (k, sub, n, d, bg) => { const v = d ? n / d * 100 : null;
+    return `<div class="gr"><span class="t"><b>${k}</b><span>${sub}</span></span><span class="tr"><i style="background:${bg};width:${v == null ? 0 : Math.min(100, v / 40 * 100)}%"></i></span><span class="v">${v == null ? "—" : Math.round(v) + "%"}</span></div>`; };
+  $("ghost").innerHTML = row("All labels", "Of every label we sent", ghost.length, labels.length, "#F59E0B") + row("Exchanges", "They wanted the new one… then forgot", g(ex), ex.length, "#F59E0B")
+    + row("Returns", "No refund owed, they kept it", g(rt), rt.length, "#F59E0B")
+    + `<div class="gr"><span class="t"><b>After Ella's day-7 nudge</b><span>Needs nudge tracking first</span></span><span class="tr"><i style="width:0"></i></span><span class="v">—</span></div>`;
+}
+
+// ---------- save-offer test (svc_experiments) ----------
+function renderVariants() {
+  const box = $("variants");
+  const list = [...exps].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (!list.length) { box.innerHTML = `<div class="vempty">No test running yet<button class="obtn" id="addv2">+ Add a version</button></div>`; $("addv2").onclick = addVersion; return; }
+  const stat = v => { const sent = +v.sent || 0, ex = sent ? (+v.exchanges || 0) / sent * 100 : 0, cr = sent ? (+v.credits || 0) / sent * 100 : 0; return { sent, ex, cr, kept: ex + cr }; };
+  const best = Math.max(-1, ...list.filter(v => v.on && stat(v).sent >= 200).map(v => stat(v).kept));
+  box.innerHTML = `<div style="overflow-x:auto"><div style="min-width:680px"><div class="vg h"><span></span><span>WHAT ELLA SAYS</span><span class="r" style="font:inherit">SENT</span><span>KEPT THE SALE</span><span class="r" style="font:inherit">CREDIT</span><span class="r" style="font:inherit">REFUND</span><span></span><span></span></div>`
+    + list.map((v, i) => { const s = stat(v), k = String.fromCharCode(65 + i % 26);
+      const status = !v.on ? "Off" : s.sent < 200 ? "Learning" : s.kept === best ? "Leading" : "Testing";
+      const stc = status === "Leading" ? "p-good" : status === "Learning" ? "p-ind" : "p-mute";
+      const ctx = v.context && v.context !== "save" ? (CTX[v.context]?.label || v.context) + " · " : "";
+      return `<div class="vg" style="opacity:${v.on ? 1 : .5};${status === "Leading" ? "background:var(--goodrow)" : ""}">
+        <span class="badge ${status === "Leading" ? "lead" : ""}">${k}</span>
+        <span class="vl"><b>“${esc(v.text)}”</b><span>${esc(ctx + (v.name || ""))}</span></span>
+        <span class="r">${s.sent.toLocaleString()}</span>
+        <span class="vbar"><span class="tr"><i style="background:#16A34A;width:${s.ex}%"></i><i style="background:#5B5BF6;width:${s.cr}%"></i></span><b>${s.sent ? Math.round(s.kept) + "%" : "—"}</b></span>
+        <span class="r" style="color:var(--ind2)">${s.sent ? Math.round(s.cr) + "%" : "—"}</span>
+        <span class="r" style="color:var(--muted)">${s.sent ? Math.round(100 - s.kept) + "%" : "—"}</span>
+        <span><span class="pp ${stc}" style="font-size:11px;padding:3px 8px">${status}</span></span>
+        <button class="sw ${v.on ? "on" : ""}" data-tog="${esc(v.id)}" title="${v.on ? "Pause" : "Turn on"}"><span><i></i></span></button></div>`; }).join("") + `</div></div>`;
+  box.querySelectorAll("[data-tog]").forEach(b => b.onclick = async () => { const v = exps.find(x => x.id === b.dataset.tog); if (!v) return;
+    try { await db.doc(`svc_experiments/${v.id}`).update({ on: !v.on }); toast(v.on ? "Version paused." : "Version is live again."); } catch (e) { toast(e.text || e.message); } });
+}
+const saveVersion = (name, text, context) => db.doc(`svc_experiments/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`).set({ name, text, on: true, createdAt: Date.now(), context: context || "save", by: me });
+function addVersion() {
+  const m = shell(`<h3>Add a version</h3><p style="margin:0;color:var(--muted);font-size:13px">What Ella says in the save offer. It goes live with a small share of returns.</p>
+    <input id="v-name" placeholder="Angle, e.g. Social proof"><textarea id="v-text" placeholder="What Ella says"></textarea><div class="err" id="v-err"></div>
+    <div class="cft"><button class="alt" id="v-x">Cancel</button><button class="pri" id="v-go">Add version</button></div>`);
+  m.querySelector("#v-x").onclick = () => m.remove();
+  m.querySelector("#v-go").onclick = async e => { const name = m.querySelector("#v-name").value.trim(), text = m.querySelector("#v-text").value.trim();
+    if (!text) { m.querySelector("#v-err").textContent = "Write what Ella says first."; return; }
+    e.target.disabled = true; try { await saveVersion(name || "New idea", text, "save"); m.remove(); toast("Version added. It starts with a small share of returns."); } catch (err) { m.querySelector("#v-err").textContent = err.text || err.message; e.target.disabled = false; } };
+}
+$("addv").onclick = addVersion;
+$("lane-ex").onclick = () => { lane = lane === "exchange" ? "all" : "exchange"; render(); };
+$("lane-rt").onclick = () => { lane = lane === "return" ? "all" : "return"; render(); };
+
+// ---------- wording lab ----------
+const CTX = { save: { label: "Return save offer" }, two: { label: "Bought 2 sizes → rush another" }, last: { label: "Said no → last ask" }, nudge: { label: "Label not sent → nudge" }, credit: { label: "Store credit +10%" } };
+const LAB_RULES = ["One honest try, never two in a row", "Never push on material complaints", "Name the size or product, never \"would you like an exchange?\"", "Short. Under 40 words before the sign-off"];
+const SUGS = ["Write 3 new versions", "Why is the winner winning?", "Make them more casual", "Are any of these too pushy?"];
+function renderLab() {
+  $("ctxs").innerHTML = Object.entries(CTX).map(([k, v]) => `<button class="ctx ${lab.ctx === k ? "on" : ""}" data-ctx="${k}">${esc(v.label)}</button>`).join("");
+  $("ctxs").querySelectorAll("[data-ctx]").forEach(b => b.onclick = () => { lab.ctx = b.dataset.ctx; renderLab(); });
+  $("sugs").innerHTML = SUGS.map(t => `<button class="sug" data-sug="${esc(t)}">${esc(t)}</button>`).join("");
+  $("sugs").querySelectorAll("[data-sug]").forEach(b => b.onclick = () => labAsk(b.dataset.sug));
+  $("lab-go").disabled = lab.busy;
+  const thread = lab.msgs.filter(m => m.ctx === lab.ctx);
+  const msgs = [{ who: "c", t: "What do you want Ella to say? Ask for new wording, ask why something works, or say \"make it shorter\"." }, ...thread];
+  $("msgs").innerHTML = msgs.map((m, mi) => `<div class="mrow ${m.who === "me" ? "me" : ""}"><div class="mcol"><div class="bub">${esc(m.t)}</div>
+    ${(m.versions || []).map((v, vi) => { const key = lab.ctx + "|" + v.text, done = !!lab.added[key];
+      return `<div class="ver"><div class="a"><span>${esc(v.angle || "Version")}</span><small>${esc(v.note || "")}</small></div><q>“${esc(v.text)}”</q>
+        <div class="bs"><button class="vadd ${done ? "done" : ""}" data-add="${mi - 1}:${vi}">${done ? "In the test ✓" : lab.ctx === "save" ? "Add to the save-offer test" : "Add to the " + esc(CTX[lab.ctx].label) + " test"}</button><button class="vtw" data-short="${mi - 1}:${vi}">Make it shorter</button></div></div>`; }).join("")}</div></div>`).join("");
+  const at = s => { const [a, b] = s.split(":").map(Number); return thread[a]?.versions?.[b]; };
+  $("msgs").querySelectorAll("[data-add]").forEach(b => b.onclick = async () => { const v = at(b.dataset.add); if (!v) return; const key = lab.ctx + "|" + v.text; if (lab.added[key]) return;
+    try { await saveVersion(v.angle || "Wording lab", v.text, lab.ctx); lab.added[key] = true; renderLab(); toast(lab.ctx === "save" ? "Added to the save-offer test. It starts with a small share." : `Added to the "${CTX[lab.ctx].label}" test.`); } catch (e) { toast(e.text || e.message); } });
+  $("msgs").querySelectorAll("[data-short]").forEach(b => b.onclick = () => { const v = at(b.dataset.short); if (v) labAsk(`Make this shorter: "${v.text}"`); });
+  $("msgs").scrollTop = $("msgs").scrollHeight;
+  // facts: only real results
+  $("facts-h").textContent = "What we know so far · " + CTX[lab.ctx].label;
+  const res = exps.filter(v => (v.context || "save") === lab.ctx && +v.sent > 0);
+  $("facts").innerHTML = res.length ? res.map(v => { const k = Math.round(((+v.exchanges || 0) + (+v.credits || 0)) / v.sent * 100);
+    return `<div class="fact"><b style="color:var(--good2)">${k}%</b><span>“${esc(v.text)}” kept the sale (${(+v.sent).toLocaleString()} sent).</span></div>`; }).join("")
+    : `<div class="fact"><b style="color:var(--dis)">—</b><span>No results yet for this message. Add a version to the test and results show up here.</span></div>`;
+  $("lab-rules").innerHTML = LAB_RULES.map(t => `<span>· ${esc(t)}</span>`).join("");
+}
+async function labAsk(q) {
+  q = String(q || "").trim(); if (!q || lab.busy) return;
+  const ctx = lab.ctx; $("lab-in").value = "";
+  lab.msgs.push({ who: "me", t: q, ctx }); const pending = { who: "c", t: "Thinking…", ctx, versions: [] }; lab.msgs.push(pending); lab.busy = true; renderLab();
+  const results = exps.filter(v => (v.context || "save") === ctx).map(v => `- "${v.text}" (${v.name || ""}): ${+v.sent || 0} sent, ${+v.exchanges || 0} exchanges, ${+v.credits || 0} store credit, ${v.on ? "live" : "off"}`).join("\n") || "No test results yet.";
+  const history = lab.msgs.filter(m => m.ctx === ctx && m !== pending).slice(-8).map(m => `${m.who === "me" ? "Manager" : "You"}: ${m.t}${(m.versions || []).length ? "\nVersions: " + m.versions.map(v => `"${v.text}"`).join(" | ") : ""}`).join("\n");
+  try {
+    const r = await sample(`You help CO36 (a men's clothing brand) word what Ella, its AI concierge, says to customers about returns and exchanges.
+Message type: ${CTX[ctx].label}
+Ella's rules for wording:
+${LAB_RULES.map(t => "- " + t).join("\n")}
+Current test results (real data, do not invent numbers):
+${results}
+Conversation so far:
+${history}
+Answer the manager's last message. If they want wording, give up to 3 versions. Never invent customer names, results or statistics.
+Return only JSON: {"reply":"short answer, plain text","versions":[{"angle":"one or two words","text":"what Ella says","note":"short note"}]}`);
+    const text = String(r?.text || "").trim(); let out = null;
+    try { const m = text.match(/\{[\s\S]*\}/); out = JSON.parse(m ? m[0] : text); } catch (_) {}
+    pending.t = out?.reply || text || "No answer came back.";
+    pending.versions = Array.isArray(out?.versions) ? out.versions.filter(v => v && v.text).slice(0, 3).map(v => ({ angle: String(v.angle || ""), text: String(v.text), note: String(v.note || "") })) : [];
+  } catch (e) { pending.t = "Claude couldn't answer that one: " + (e.text || e.message); }
+  lab.busy = false; renderLab();
+}
+$("lab-go").onclick = () => labAsk($("lab-in").value);
+$("lab-in").onkeydown = e => { if (e.key === "Enter") labAsk($("lab-in").value); };
+
+// ---------- modals ----------
+function shell(html, wide) { const m = document.createElement("div"); m.className = "cfm"; m.innerHTML = `<div class="cbox${wide ? " wide" : ""}">${html}</div>`;
+  m.onclick = e => { if (e.target === m) m.remove(); }; document.body.appendChild(m); return m; }
+function ask(title, lines, btn) { return new Promise(res => {
+  const m = shell(`<h3>${esc(title)}</h3><div style="display:flex;flex-direction:column;gap:8px"><small>THIS WILL</small>${lines.map(l => `<div class="cl"><i>→</i><span>${esc(l)}</span></div>`).join("")}</div>
+    <div class="cft"><button class="alt" data-c="0">Cancel</button><button class="pri" data-c="1">${esc(btn)}</button></div>`);
+  m.onclick = e => { const c = e.target.closest("[data-c]"); if (e.target === m || c) { m.remove(); res(!!(c && c.dataset.c === "1")); } }; }); }
+function viewAll(k) {
+  const c = [...COLS, ...COLS2].find(x => x.k === k), list = lists[k] || [];
+  const m = shell(`<h3>${esc(c.label)} · ${list.length.toLocaleString()}</h3><div class="vall">${list.map(x => x.kind === "svc" ? svcCard(x.d, k) : rpCard(x.d, k)).join("")}</div>
+    <div class="cft"><button class="alt" id="va-x">Close</button></div>`, true);
+  m.querySelector("#va-x").onclick = () => m.remove();
+  m.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { m.remove(); openDrawer(b.dataset.open); });
+}
+
+// ---------- drawer ----------
+const logCase = c => db.doc(`svc_cases/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`).set({ at: Date.now(), by: me, ...c });
+function closeDrawer() { sel = null; $("drawer").innerHTML = ""; document.querySelectorAll(".kc.sel").forEach(e => e.classList.remove("sel")); }
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sel && !document.querySelector(".cfm")) closeDrawer(); });
+function openDrawer(key) { sel = key; document.querySelectorAll(".kc").forEach(e => e.classList.toggle("sel", e.dataset.open === key)); renderDrawer(); }
+function track(labels, idx) { return `<div class="trk">${labels.map((l, i) => `<div><i class="${i < idx ? "done" : i === idx ? "now" : ""}"></i><span class="${i <= idx ? "on" : ""}">${esc(l)}</span></div>`).join("")}</div>`; }
+const facts = list => `<div class="facts">${list.map(([k, v]) => `<div><small>${esc(k)}</small><span>${esc(v || "—")}</span></div>`).join("")}</div>`;
+function head(name, pill, pcls, meta) { return `<div class="ovl" id="d-ovl"></div><aside class="drw"><div class="dh"><div class="t"><div class="n"><b>${esc(name)}</b><span class="pp ${pcls}" style="font-size:11px;padding:3px 8px">${esc(pill)}</span></div><span class="m">${esc(meta)}</span></div><button class="x" id="d-x">×</button></div>`; }
+function renderDrawer() {
+  if (!sel) return;
+  const c = cards.get(sel) || (() => { const [t, id] = [sel.slice(0, 1), sel.slice(2)]; if (t === "s") { const d = rets.find(r => r.docId === id); return d && { kind: "svc", d, col: d.status === "sent" ? "offer" : "new" }; } const d = rp.find(r => r.id === id); return d && { kind: "rp", d, col: "" }; })();
+  if (!c) { closeDrawer(); return; }
+  const focus = document.activeElement?.id === "d-ta", caret = focus ? document.activeElement.selectionStart : null;
+  let html;
+  if (c.kind === "svc") {
+    const r = c.d, k = r.docId + ":" + (r.draftedAt || 0), isOpen = r.status !== "sent" && r.status !== "skipped";
+    const flags = (r.flags || []).map(f => FLAG[f] || f);
+    const meta = [(r.orders || []).join(", ") || "No order", r.email, r.number ? "Richpanel #" + r.number : ""].filter(Boolean).join(" · ");
+    html = head(r.customer || r.email || "Customer", r.intent === "exchange" ? "Exchange" : r.intent === "question" ? "Question" : "Return", r.intent === "exchange" ? "p-ind" : "p-grey", meta)
+      + `<div class="db">${track(["Asked", "Offer", "Label", "Transit", "Received", "Resolved"], isOpen ? 0 : 1)}
+        <div class="dmsg">“${esc(String(r.message || "").slice(0, 2000))}”</div>
+        ${(r.items || []).length ? `<div class="dtags">${r.items.map(i => `<span>${esc(i)}</span>`).join("")}</div>` : ""}
+        ${r.plan ? `<div class="plan"><i>E</i><span><b>Ella's plan:</b> ${esc(r.plan)}</span></div>` : ""}
+        ${flags.length ? `<div class="dflag">${esc(flags.join(" · "))}</div>` : ""}
+        ${r.sarahAt ? `<div class="dflag" style="color:var(--amb2);background:var(--ambt)">Sarah answered ${esc(mmss(r.sarahAt - (r.receivedAt || r.sarahAt)))} after the email came in.</div>` : ""}
+        ${r.status === "drafting" ? `<div class="dnote">Ella is writing…</div>` : r.status === "error" ? `<div class="dflag">Ella couldn't draft this one: ${esc(r.error)}</div>` : ""}
+        ${r.status === "draft" ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">ELLA'S DRAFT · EDIT BEFORE SENDING</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[k] ?? r.draft ?? "")}</textarea></div>` : ""}
+        ${r.status === "sent" ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">WHAT WE SENT</span><div class="dmsg" style="background:var(--surface);border:1px solid var(--line2)">${esc(r.sentText || r.draft || "")}</div></div>` : ""}
+        ${facts([["ASKED FOR", r.intent === "exchange" ? "Exchange" : r.intent === "question" ? "Question" : "Return"], ["CUSTOMER", r.email], ["RECEIVED", r.receivedAt ? new Date(r.receivedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""], [r.status === "sent" ? "SENT" : "STATUS", r.status === "sent" ? short(r.sentAt) : r.status]])}
+      </div><div class="df">${isOpen ? `<button class="alt" id="d-skip">Skip</button><button class="alt" id="d-re">Rewrite…</button><button class="pri" id="d-send" ${r.status !== "draft" ? "disabled" : ""}>Send</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
+  } else {
+    const r = c.d, idx = r.status === "PROCESSED" ? 5 : r.shipment === "DELIVERED" ? 4 : r.shipment === "IN_TRANSIT" || r.shipment === "EXCEPTION" ? 3 : r.shipment === "LABEL_CREATED" ? 2 : 1;
+    const ol = OUTL[r.outcome] || [r.outcome === "UNKNOWN" ? "Return" : r.outcome.replace(/_/g, " ").toLowerCase(), "p-grey"];
+    const items = r.items.map(i => [i.name, i.color, i.size || i.variant].filter(Boolean).join(" · ")).filter(Boolean);
+    html = head(r.customer || r.email || "Customer", ol[0], ol[1], [r.order || "No order", r.rma, r.email].filter(Boolean).join(" · "))
+      + `<div class="db">${track(["Asked", "Offer", "Label", "Transit", "Received", "Resolved"], idx)}
+        ${items.length ? `<div class="dtags">${items.map(i => `<span>${esc(i)}</span>`).join("")}</div>` : ""}
+        ${rpLate(r) ? `<div class="dflag" style="color:var(--amb2);background:var(--ambt)">Label made ${esc(short(r.createdAt))} ago and not used yet. Time for a gentle nudge.</div>` : ""}
+        ${r.status === "MANUAL_REVIEW" ? `<div class="dflag">Waiting on a manual review in Richpanel Returns.</div>` : ""}
+        ${facts([["RMA", r.rma], ["STATUS", r.status.replace(/_/g, " ").toLowerCase()], ["SHIPMENT", r.shipment.replace(/_/g, " ").toLowerCase()], ["OUTCOME", ol[0]], ["AT STAKE", r.total != null ? money(r.total) : ""], ["CREATED", r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""], ...(r.exchangeOrder ? [["EXCHANGE ORDER", r.exchangeOrder]] : [])])}
+        <div class="dnote">Actions on returns (ship the exchange, refund, send the code) come once the hub can write to Richpanel Returns. For now, open it there.</div>
+      </div><div class="df">${r.statusPageUrl && /^https?:\/\//i.test(r.statusPageUrl) ? `<a class="alt" href="${esc(r.statusPageUrl)}" target="_blank" rel="noopener">Open status page</a>` : ""}<button class="pri" id="d-close">Close</button></div></aside>`;
+  }
+  $("drawer").innerHTML = html;
+  const D = $("drawer");
+  D.querySelector("#d-ovl").onclick = closeDrawer; D.querySelector("#d-x").onclick = closeDrawer;
+  D.querySelector("#d-close") && (D.querySelector("#d-close").onclick = closeDrawer);
+  if (c.kind !== "svc") return;
+  const r = c.d, k = r.docId + ":" + (r.draftedAt || 0), ta = D.querySelector("#d-ta");
+  if (ta) { ta.oninput = () => { edits[k] = ta.value; }; if (focus) { ta.focus(); try { ta.setSelectionRange(caret, caret); } catch (_) {} } }
+  const send = D.querySelector("#d-send"); if (send) send.onclick = () => sendRet(r, send);
+  const sk = D.querySelector("#d-skip"); if (sk) sk.onclick = async () => { try { await db.doc(`svc_returns/${r.docId}`).update({ status: "skipped", skippedAt: Date.now(), skippedBy: me }); toast("Skipped"); closeDrawer(); } catch (e) { toast(e.text || e.message); } };
+  const re = D.querySelector("#d-re"); if (re) re.onclick = async () => {
+    const note = prompt("What should Ella change? (leave empty to just rewrite)\nFor example: offer store credit instead, shorter, ask which shirt", "");
+    if (note === null) return; re.disabled = true; re.textContent = "Rewriting…";
+    try { await api.post("service", { op: "redraft", id: r.docId, note }); } catch (e) { toast(e.text || e.message); re.disabled = false; re.textContent = "Rewrite…"; } };
+}
+
+// Copied from index.html sendRet, with a confirm that says exactly what happens.
+async function sendRet(r, b, opts = {}) {
+  const k = r.docId + ":" + (r.draftedAt || 0), ta = document.getElementById("d-ta"), body = (opts.body ?? (ta?.value || edits[k] || r.draft || "")).trim();
+  if (!body) { toast("The reply is empty"); return false; }
+  if (!opts.skipConfirm) {
+    const who = r.customer || r.email || "the customer";
+    const lines = [`Email ${who}${r.email && r.customer ? " (" + r.email + ")" : ""} this reply, inside their Richpanel thread${r.number ? " #" + r.number : ""}`, "Mark the conversation as sent here, and move it to \"Offer out\"", "Save it to the case log"];
+    if (r.sarahAt) lines.unshift("Sarah already answered this customer. They'll get Ella's reply too");
+    if (!(await ask(`Send to ${who}?`, lines, "Send"))) return false;
+  }
+  if (b) { b.disabled = true; b.textContent = "Sending…"; }
+  try {
+    await api.post("service", { op: "reply", ticketId: r.ticketId, body });
+    await db.doc(`svc_returns/${r.docId}`).update({ status: "sent", sentAt: Date.now(), sentBy: me, sentText: body, edited: body !== (r.draft || "").trim() });
+    await logCase({ source: "returns", ref: r.docId, customer: r.customer || r.email, email: r.email, order: (r.orders || [])[0], product: (r.items || [])[0], type: r.intent, what: r.intent === "exchange" ? "Exchange request" : "Return request", did: `Ella: ${r.plan || "replied"}`, message: body });
+    if (!opts.quiet) toast(r.sarahAt ? "Sent" : `Sent in ${mmss(Date.now() - r.receivedAt)}, before Sarah`);
+    if (!opts.quiet && sel === "s:" + r.docId) closeDrawer();
+    return true;
+  } catch (e) { toast(e.text || e.message); if (b) { b.disabled = false; b.textContent = "Send"; } return false; }
+}
+async function sendSafe(list) {
+  const lines = list.map(r => `${r.customer || r.email}: ${r.plan || "reply with Ella's draft"}`);
+  lines.push("Each reply goes into that customer's Richpanel thread", "Each one moves to \"Offer out\" and is saved to the case log");
+  if (!(await ask(`Send ${list.length} safe draft${list.length === 1 ? "" : "s"}?`, lines, `Send ${list.length}`))) return;
+  const b = $("safe"); if (b) { b.disabled = true; b.textContent = "Sending…"; }
+  let ok = 0; for (const r of list) { if (await sendRet(r, null, { skipConfirm: true, quiet: true, body: edits[r.docId + ":" + (r.draftedAt || 0)] ?? r.draft })) ok++; }
+  toast(`${ok} of ${list.length} replies sent.`);
+}
+
+// ---------- load Richpanel returns (pages of 100) ----------
+async function loadReturns() {
+  const token = ++loadToken, start = periodStart(); rp = []; rpCount = null; rpErr = ""; rpLoading = true; render();
+  let fields = RETURN_FIELDS, skip = 0;
+  try {
+    for (let page = 0; page < 40; page++) {
+      let res;
+      try { res = await api.post("service", { op: "returnsList", startDate: new Date(start).toISOString(), limit: 100, skip, fields }); }
+      catch (e) { if (page === 0 && fields) { console.warn("returnsList failed with RETURN_FIELDS, retrying with the server defaults:", e.text || e.message); fields = undefined; res = await api.post("service", { op: "returnsList", startDate: new Date(start).toISOString(), limit: 100, skip }); rpNote = "Some return fields didn't load."; } else throw e; }
+      if (token !== loadToken) return;
+      const got = Array.isArray(res?.returns) ? res.returns : [];
+      rpCount = res?.count || rpCount;
+      rp = rp.concat(got.map(mapReturn).filter(r => !r.createdAt || r.createdAt >= start));
+      render();
+      if (got.length < 100) break;
+      skip += 100;
+    }
+  } catch (e) { if (token !== loadToken) return; rpErr = e.text || e.message || "Unknown error"; console.warn("returnsList:", rpErr); }
+  if (token !== loadToken) return;
+  rpLoading = false; render(); if (sel) renderDrawer();
+}
+
+// ---------- live data ----------
+db.collection("svc_returns").onSnapshot(s => { rets = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); if (sel && sel.startsWith("s:")) renderDrawer(); });
+db.collection("svc_experiments").onSnapshot(s => { exps = s.docs.map(d => ({ id: d.id, ...d.data() })); renderVariants(); renderLab(); });
+render(); loadReturns();
+setInterval(tick, 1000);
+setInterval(() => { if (!document.querySelector(".cfm")) render(); }, 30000);
+})();
+</script>
+</body>
+</html>
