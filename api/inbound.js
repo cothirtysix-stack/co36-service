@@ -73,6 +73,9 @@ async function inner(req, res) {
     const cur = await getDoc("svc_inbox", id);
     const status = String(pick(b, "ticketConversationStatus", "status") || looked?.ticket?.status || "").toUpperCase();
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }
+    // Richpanel Returns' "Quality Check Completed for your return - Order #123" email: remember its thread for Ella's follow-up.
+    const qcm = String(pick(b, "ticketSubject", "subject") || looked?.ticket?.subject || "").match(/quality check completed.*?#\s*(\d+)/i);
+    if (qcm) { await putDoc("svc_qcthread", qcm[1], { ticketId, number, at: Date.now() }); return res.json({ ok: true, kept: false, qc: true }); }
     // Our own replies (Sarah or an agent) restart nothing; they count as answering.
     if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
       await ourReply(id, cur, (looked?.ticket?.comments || []).filter(c => !isNoise(c)).pop()); return res.json({ ok: true, kept: false });

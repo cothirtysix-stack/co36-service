@@ -331,9 +331,10 @@ const periodStart = () => { if (range === "today") { const d = new Date(); d.set
 const inPeriod = t => t && t >= periodStart();
 
 // ---------- svc_returns (Ella's conversations) ----------
-const FLAG = { needs_human: "Needs a person", asked_if_bot: "Asked if a person · reply yourself", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" };
-const justAsked = () => rets.filter(r => r.status === "drafting" || r.status === "draft" || r.status === "error").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
-const offerOut = () => rets.filter(r => r.status === "sent" && inPeriod(r.sentAt)).sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0));
+const FLAG = { no_thread: "No email thread found · reply yourself", needs_human: "Needs a person", asked_if_bot: "Asked if a person · reply yourself", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" };
+const afterQc = (kind, sent) => rets.filter(r => r.stage === "after_qc" && r.kind === kind && (sent ? r.status === "sent" : r.status === "draft")).sort((a, b) => (a.qcAt || 0) - (b.qcAt || 0));
+const justAsked = () => rets.filter(r => r.stage !== "after_qc").filter(r => r.status === "drafting" || r.status === "draft" || r.status === "error").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
+const offerOut = () => rets.filter(r => r.stage !== "after_qc" && r.status === "sent" && inPeriod(r.sentAt)).sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0));
 const svcNeeds = r => (r.flags || []).includes("needs_human");
 const svcLate = r => (r.status === "draft" || r.status === "drafting" || r.status === "error") && Date.now() - (r.receivedAt || Date.now()) >= 5 * 6e4;
 const safeDrafts = () => justAsked().filter(r => r.status === "draft" && !(r.flags || []).length && !r.sarahAt && (r.draft || "").trim());
@@ -407,8 +408,8 @@ const COLS = [
 const COLS2 = [
   { k: "p_issue", label: "Came back wrong → needs you", dot: "#EF4444", sub: "Worn, damaged, wrong item or missing pieces", soon: "Coming soon: needs warehouse inspection data" },
   { k: "p_ex", label: "Exchange → ship now", dot: "#5B5BF6", sub: "Out the door today, then close", empty: "All exchanges shipped.", red: true },
-  { k: "p_two", label: "Bought 2 sizes → rush another?", dot: "#F59E0B", sub: "Offer one more of the size that fit", soon: "Coming soon: needs order line data (which size they kept)" },
-  { k: "p_dec", label: "Said no before → one last ask", dot: "#F59E0B", sub: "Now it feels free. Ask once, kindly", soon: "Coming soon: needs the offer history per return" },
+  { k: "p_two", label: "Bought 2 sizes → rush another?", dot: "#F59E0B", sub: "Ella drafts the offer once it passes quality check", empty: "None right now." },
+  { k: "p_dec", label: "Refund → one last ask", dot: "#F59E0B", sub: "Passed quality check · Ella's one last offer (credit +10%)", empty: "None right now." },
   { k: "p_wait", label: "Waiting on their answer", dot: "#6E6E7A", sub: "Refund goes out on its own after 48h", empty: "No one waiting." },
   { k: "p_credit", label: "Took store credit → send code", dot: "#5B5BF6", sub: "Credit + 10%, code emailed today", empty: "All codes sent." },
   { k: "p_check", label: "Check back · did it fit?", dot: "#0B0B0F", sub: "3 days after the new one lands", soon: "Coming soon: needs exchange delivery data" },
@@ -424,6 +425,8 @@ function colItems(k) {
     case "transit": return R(rpTransit);
     case "recv": return R(rpRecv);
     case "done": return R(r => r.status === "PROCESSED", byNew);
+    case "p_two": return S(afterQc("two_sizes"));
+    case "p_dec": return S(afterQc("last_ask"));
     case "p_ex": return R(r => r.shipment === "DELIVERED" && r.outcome === "EXCHANGE" && OPEN(r.status));
     case "p_wait": return R(r => r.shipment === "DELIVERED" && r.outcome === "REFUND" && OPEN(r.status));
     case "p_credit": return R(r => r.outcome === "STORE_CREDIT" && OPEN(r.status));

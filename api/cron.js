@@ -2,6 +2,7 @@
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
 import { loadTicket, isOp, isNoise } from "../lib/ella.js";
+import { pollAfterQc } from "../lib/afterqc.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = id => { // stable 10–20 min per conversation, so it doesn't look automatic
@@ -13,7 +14,7 @@ const delayMs = id => { // stable 10–20 min per conversation, so it doesn't lo
 // so the team and Claude can compare Ella with Sarah.
 async function postNotes() {
   await init();
-  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and (data->>'notedAt') is null order by seq desc limit 10`;
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and (data->>'notedAt') is null and data->>'ticketId' is not null order by seq desc limit 10`;
   for (const { id, data: r } of rows) {
     const body = `ELLA'S DRAFT · NOT SENT (private note, customer can't see this)\nPlan: ${r.plan || "-"}${(r.flags || []).length ? `\nFlags: ${r.flags.join(", ")}` : ""}\n\n${r.draft}`;
     const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
@@ -24,6 +25,9 @@ async function postNotes() {
 }
 
 export default async function handler(req, res) {
+  // After-return follow-ups: draft only (intent "after_qc" is never auto-sent below).
+  const qc = await pollAfterQc().catch(e => ({ error: String(e.message || e).slice(0, 200) }));
+  if (qc.error || qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true).catch(() => {});
   await postNotes().catch(() => {});
   const off = await getDoc("svc_meta", "autopilot");
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
