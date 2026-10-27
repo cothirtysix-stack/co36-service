@@ -47,5 +47,14 @@ export default async function handler(req, res) {
     return { ok: true, on: AUTOPILOT.on, until: AUTOPILOT.until, pausedOnBoard: !!r[0]?.data?.off, live: AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !r[0]?.data?.off }; });
   // Ella's order lookup on a known recent order (result: found or the error, no customer data).
   const lookup = await run(async () => { const o = await findOrders("order 134648", null); return { ok: o.length > 0, found: o.length, hasItems: !!o[0]?.lineItems?.nodes?.length }; });
-  res.json({ ellaLookup: lookup, autopilot: ap, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // Richpanel Returns field names (schema only, no customer data) — used to map the Returns board.
+  const returnsSchema = req.query?.schema ? await run(async () => {
+    const q = async t => { const r = await fetch("https://returns-api.richpanel.com/graphql", { method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.RICHPANEL_RETURNS_API_KEY || "" },
+      body: JSON.stringify({ query: `query($t:String!){ __type(name:$t){ name fields { name type { name kind ofType { name kind ofType { name kind } } } } enumValues { name } } }`, variables: { t } }) });
+      const j = await r.json().catch(() => ({})); const T = j.data?.__type; if (!T) return j.errors ? JSON.stringify(j.errors).slice(0, 120) : null;
+      return T.enumValues ? T.enumValues.map(e => e.name) : T.fields.map(f => `${f.name}:${f.type.name || f.type.ofType?.name || f.type.ofType?.ofType?.name}`); };
+    const names = String(req.query.schema).split(",").slice(0, 8);
+    return Object.fromEntries(await Promise.all(names.map(async n => [n, await q(n)])));
+  }) : undefined;
+  res.json({ returnsSchema, ellaLookup: lookup, autopilot: ap, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
