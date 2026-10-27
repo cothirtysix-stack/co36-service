@@ -56,5 +56,14 @@ export default async function handler(req, res) {
     const names = String(req.query.schema).split(",").slice(0, 8);
     return Object.fromEntries(await Promise.all(names.map(async n => [n, await q(n)])));
   }) : undefined;
-  res.json({ returnsSchema, ellaLookup: lookup, autopilot: ap, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // Which return fields exist (introspection is off): try each one, report ok / error text only.
+  const returnsProbe = req.query?.probe ? await run(async () => {
+    const fields = String(req.query.probe).split(",").slice(0, 25).filter(f => /^[A-Za-z_][\w{} ]*$/.test(f));
+    const out = {};
+    await Promise.all(fields.map(async f => { const r = await fetch("https://returns-api.richpanel.com/graphql", { method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.RICHPANEL_RETURNS_API_KEY || "" },
+      body: JSON.stringify({ query: `query{ getAllReturns(query:{ limit: 1 }){ returns { ${f} } } }` }) });
+      const j = await r.json().catch(() => ({})); out[f] = j.errors ? String(j.errors[0]?.message || "error").slice(0, 140) : "ok"; }));
+    return out;
+  }) : undefined;
+  res.json({ returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
