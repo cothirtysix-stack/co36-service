@@ -327,7 +327,7 @@ const periodStart = () => { if (range === "today") { const d = new Date(); d.set
 const inPeriod = t => t && t >= periodStart();
 
 // ---------- svc_returns (Ella's conversations) ----------
-const FLAG = { needs_human: "Needs a person", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" };
+const FLAG = { needs_human: "Needs a person", asked_if_bot: "Asked if a person · reply yourself", past_window: "Past 40 days", out_of_stock: "Sold out", no_order: "No order found" };
 const justAsked = () => rets.filter(r => r.status === "drafting" || r.status === "draft" || r.status === "error").sort((a, b) => (a.receivedAt || 0) - (b.receivedAt || 0));
 const offerOut = () => rets.filter(r => r.status === "sent" && inPeriod(r.sentAt)).sort((a, b) => (a.sentAt || 0) - (b.sentAt || 0));
 const svcNeeds = r => (r.flags || []).includes("needs_human");
