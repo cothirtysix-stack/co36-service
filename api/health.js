@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       from hub.docs d where d.coll = 'svc_returns' and d.id like 'qc-%' and not d.deleted and d.data->>'ticketId' is null and d.data->>'status' = 'draft'`;
     return { last: r?.data || null, docs: n.c, kinds: k, scan: q?.data || null, threads: t.c, missing: miss.map(m => ({ order: String(m.o || "").slice(0, 3) + "…", has: m.has, at: m.at })) }; });
   const ap = await run(async () => { const r = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'autopilot'`;
-    return { ok: true, on: AUTOPILOT.on, until: AUTOPILOT.until, pausedOnBoard: !!r[0]?.data?.off, live: AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !r[0]?.data?.off }; });
+    return { ok: true, on: AUTOPILOT.on, until: AUTOPILOT.until, pausedOnBoard: !!r[0]?.data?.off, afterQcAuto: !!r[0]?.data?.afterQcAuto, setBy: r[0]?.data?.by ? "someone" : null, setAt: r[0]?.data?.at || null, live: AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !r[0]?.data?.off }; });
   // Ella's order lookup on a known recent order (result: found or the error, no customer data).
   const lookup = await run(async () => { const o = await findOrders("order 134648", null); return { ok: o.length > 0, found: o.length, hasItems: !!o[0]?.lineItems?.nodes?.length }; });
   // Richpanel Returns field names (schema only, no customer data) — used to map the Returns board.
