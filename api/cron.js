@@ -98,7 +98,7 @@ export default async function handler(req, res) {
   for (const { id, data: r } of rows) {
     // "no_order" is safe: that reply just asks for the order number.
     const blocking = (r.flags || []).filter(f => f !== "no_order");
-    const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && off?.afterQcAuto);
+    const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && off?.afterQcAuto && r.v3); // v3 = written with their history
     if (!safe || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
     if (Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
