@@ -58,7 +58,6 @@ export default async function handler(req, res) {
   if (live) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 40`;
-  const sent = [], held = [];
   for (const { id, data: r } of rows) {
     if (left() < 8000) break;
     // "no_order" is safe: that reply just asks for the order number.
