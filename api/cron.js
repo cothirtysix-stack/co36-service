@@ -46,56 +46,21 @@ async function handOff(since) {
   }
 }
 
+// Runs every minute with a 60s limit. Sending Ella's due replies comes FIRST (Oct 28: the extra jobs ran first and the
+// function timed out before anything was sent); everything else only runs while there's time left.
 export default async function handler(req, res) {
-  // After-return follow-ups: draft only (intent "after_qc" is never auto-sent below).
-  await scanQcThreads().catch(() => {});
-  if (new Date().getUTCMinutes() === 7) await buildLessons().catch(() => {}); // checks hourly, rebuilds once a day
-  const qc = await pollAfterQc().catch(e => ({ error: String(e.message || e).slice(0, 200) }));
-  if (qc.error || qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true).catch(() => {});
-  await postNotes().catch(() => {});
+  const t0 = Date.now(), left = () => 50000 - (Date.now() - t0);
+  await init();
   const off = await getDoc("svc_meta", "autopilot");
-  await init();
-  await handOff(Date.parse(AUTOPILOT.since || 0) || 0).catch(() => {});
-  await notifyRefunds(off || {}).catch(e => putDoc("svc_meta", "afterqc", { notifyError: String(e.message || e).slice(0, 200), at: Date.now() }, true).catch(() => {}));
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
-  if (!live) return res.json({ ok: true, live: false });
-  await init();
-  // Repair (Oct 27): Sarah's private hand-off notes were mistaken for replies, so some drafts were marked "Sarah answered".
-  // Re-check those against the real thread: if the customer is still the last to speak, put them back in line.
   const since = Date.parse(AUTOPILOT.since || 0) || 0;
-  const fix = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and data->>'sarahAt' is not null
-    and data->>'repairedAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 5`;
-  for (const { id, data: r } of fix) {
-    const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
-    await putDoc("svc_returns", id, last && !isOp(last) && String(t?.status).toUpperCase() !== "CLOSED" ? { sarahAt: null, answeredBy: null, repairedAt: Date.now() } : { repairedAt: Date.now() }, true);
-  }
-  // Redo (Oct 27 rules): replies held since go-live for "needs a person" / "sold out" get one fresh draft under the new
-  // never-stall rules (real stock for pre-order items, believe "I received it", order found by email).
-  const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
-    and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
-    and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 2`;
-  // Drafts that errored (busy API) get retried once.
-  const errs = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
-    and data->>'retryAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 2`;
-  for (const { id, data: r } of errs) {
-    await putDoc("svc_returns", id, { retryAt: Date.now() }, true);
-    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
-    const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
-    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
-  }
-  for (const { id, data: r } of stuck) {
-    await putDoc("svc_returns", id, { redraft2At: Date.now() }, true);
-    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
-    const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
-    if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") continue; // someone answered meanwhile
-    const cust = comments.filter(c => !isOp(c)).pop();
-    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
-    await putDoc("svc_returns", id, { lastAt: Date.now() - 6e5 }, true); // already waited long enough: send on the next pass if clean
-  }
+  const sent = [], held = [];
+  if (live) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
-    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} order by seq limit 50`;
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 40`;
   const sent = [], held = [];
   for (const { id, data: r } of rows) {
+    if (left() < 8000) break;
     // "no_order" is safe: that reply just asks for the order number.
     const blocking = (r.flags || []).filter(f => f !== "no_order");
     const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && off?.afterQcAuto && r.v3); // v3 = written with their history
@@ -117,5 +82,47 @@ export default async function handler(req, res) {
       order: (r.orders || [])[0], product: (r.items || [])[0], type: r.intent, what: r.intent === "exchange" ? "Exchange request" : "Return request", did: `Ella: ${r.plan || "replied"}`, message: r.draft });
     sent.push(id);
   }
-  res.json({ ok: true, live: true, sent, held: held.length });
+  }
+  // Then the rest, each only if there's time.
+  const step = async (ms, fn) => { if (left() > ms) await fn().catch(() => {}); };
+  await step(15000, () => handOff(since));
+  await step(15000, () => postNotes());
+  await step(15000, () => notifyRefunds(off || {}));
+  await step(20000, () => scanQcThreads());
+  await step(25000, async () => { const qc = await pollAfterQc(); if (qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true); });
+  if (live) await step(25000, async () => {
+  // Repair (Oct 27): Sarah's private hand-off notes were mistaken for replies, so some drafts were marked "Sarah answered".
+  // Re-check those against the real thread: if the customer is still the last to speak, put them back in line.
+  const fix = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and data->>'sarahAt' is not null
+    and data->>'repairedAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 5`;
+  for (const { id, data: r } of fix) {
+    const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
+    await putDoc("svc_returns", id, last && !isOp(last) && String(t?.status).toUpperCase() !== "CLOSED" ? { sarahAt: null, answeredBy: null, repairedAt: Date.now() } : { repairedAt: Date.now() }, true);
+  }
+  // Redo (Oct 27 rules): replies held since go-live for "needs a person" / "sold out" get one fresh draft under the new
+  // never-stall rules (real stock for pre-order items, believe "I received it", order found by email).
+  const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
+    and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
+    and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
+  // Drafts that errored (busy API) get retried once.
+  const errs = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
+    and data->>'retryAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
+  for (const { id, data: r } of errs) {
+    await putDoc("svc_returns", id, { retryAt: Date.now() }, true);
+    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+    const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
+    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+  }
+  for (const { id, data: r } of stuck) {
+    await putDoc("svc_returns", id, { redraft2At: Date.now() }, true);
+    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+    const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
+    if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") continue; // someone answered meanwhile
+    const cust = comments.filter(c => !isOp(c)).pop();
+    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+    await putDoc("svc_returns", id, { lastAt: Date.now() - 6e5 }, true); // already waited long enough: send on the next pass if clean
+  }
+  });
+  if (new Date().getUTCMinutes() === 7) await step(30000, () => buildLessons()); // checks hourly, rebuilds once a day
+  res.json({ ok: true, live, sent, held: held.length });
 }
