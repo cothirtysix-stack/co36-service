@@ -3,7 +3,7 @@
 import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { putDoc, getDoc } from "../lib/server.js";
-import { draftFor, isNoise, RETURN_WORDS } from "../lib/ella.js";
+import { draftFor, isNoise, RETURN_WORDS, RETURNS_TEMPLATE } from "../lib/ella.js";
 import { recordReply } from "../lib/learn.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
@@ -104,7 +104,8 @@ async function inner(req, res) {
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     let mood = await read(message, subject).catch(() => null);
     // Safety net: if the reader failed or missed an obvious return/exchange ("too big for a medium, may I exchange for a small?"), use the words.
-    if (RETURN_WORDS.test(`${subject || ""} ${message}`) && (!mood || mood.intent === "none")) mood = { ...(mood || { mood: "neutral", type: "other" }), intent: /exchange|swap|another size|size (up|down)/i.test(message) ? "exchange" : "return" };
+    if (!RETURNS_TEMPLATE.test(String(subject || "")) && RETURN_WORDS.test(`${subject || ""} ${message}`) && (!mood || mood.intent === "none")) mood = { ...(mood || { mood: "neutral", type: "other" }), intent: /exchange|swap|another size|size (up|down)/i.test(message) ? "exchange" : "return" };
+    await putDoc("svc_seen", id, { read: mood ? `${mood.intent}/${mood.mood}` : "failed", msgLen: message.length }, true).catch(() => {});
     // Learning: how did they react to what we (Ella, Sarah or the team) said last?
     await recordReply({ id, comments, lastCust, mood, isOp, isNoise }).catch(() => {});
     // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
