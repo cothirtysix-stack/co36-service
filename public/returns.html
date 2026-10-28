@@ -166,6 +166,10 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
 @media (max-width:640px){.hdr,.top,.tiles,.flt,.bwrap,.s2h,.low,.labw,.rrw{padding-left:16px;padding-right:16px}.hdr{gap:10px}
 .fn .k{width:112px}.fn .n{width:40px}.exs b{font-size:22px}.lane{padding:16px}.labl{border-right:0;border-bottom:1px solid var(--line)}}
+.pnav{display:flex;gap:4px;background:var(--line3);padding:3px;border-radius:10px}
+.pnav a,.pnav span{height:30px;padding:0 12px;border-radius:8px;font:600 12px/30px Inter;color:var(--muted)}
+.pnav span{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.pnav a:hover{color:var(--ink);text-decoration:none}
 </style>
 </head>
 <body>
@@ -176,7 +180,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
     <div style="flex:1"></div>
     <div class="seg" id="ranges"></div>
     <button class="ella" id="autopilot" title="Ella sends simple return and exchange replies by herself, 8–12 minutes after the email. Never refunds. Click to pause." style="border:0;cursor:pointer"><i>E</i><span id="ap-t">Ella is on</span></button>
-    <a class="hlink" href="/">Service Hub ›</a>
+    <nav class="pnav"><a href="/home.html">Home</a><span>Returns</span><a href="/fulfillment.html">Fulfillment</a></nav>
   </header>
 
   <section class="top">
