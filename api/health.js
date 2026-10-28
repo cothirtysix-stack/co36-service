@@ -76,7 +76,7 @@ export default async function handler(req, res) {
   const conv = /^\d{3,7}$/.test(String(req.query?.conv || "")) ? await run(async () => {
     const id = "n" + req.query.conv, g = async c => (await db()`select data from hub.docs where coll = ${c} and id = ${id}`)[0]?.data || null;
     const r = await g("svc_returns"), seen = await g("svc_seen"), inb = await g("svc_inbox");
-    return { returns: r && { status: r.status, intent: r.intent, flags: r.flags, error: r.error, sarahAt: !!r.sarahAt, answeredBy: r.answeredBy, sentBy: r.sentBy, receivedAt: r.receivedAt, notedAt: r.notedAt, autoSkipped: r.autoSkipped, autoError: r.autoError }, seen: !!seen, read: seen?.read || null, inbox: inb && { mood: inb.mood } };
+    return { returns: r && { status: r.status, intent: r.intent, flags: r.flags, error: r.error, sarahAt: !!r.sarahAt, answeredBy: r.answeredBy, sentBy: r.sentBy, receivedAt: r.receivedAt, notedAt: r.notedAt, autoSkipped: r.autoSkipped, autoError: r.autoError, handedAt: r.handedAt, handedOk: r.handedOk, lastAt: r.lastAt }, seen: !!seen, read: seen?.read || null, inbox: inb && { mood: inb.mood } };
   }) : undefined;
   // ?reader=1 → one tiny call to the fast model the inbox reader uses, error text only.
   const reader = req.query?.reader ? await run(async () => {
