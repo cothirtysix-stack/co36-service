@@ -78,5 +78,11 @@ export default async function handler(req, res) {
     const r = await g("svc_returns"), seen = await g("svc_seen"), inb = await g("svc_inbox");
     return { returns: r && { status: r.status, intent: r.intent, flags: r.flags, error: r.error, sarahAt: !!r.sarahAt, answeredBy: r.answeredBy, sentBy: r.sentBy, receivedAt: r.receivedAt, notedAt: r.notedAt, autoSkipped: r.autoSkipped, autoError: r.autoError }, seen: !!seen, read: seen?.read || null, inbox: inb && { mood: inb.mood } };
   }) : undefined;
-  res.json({ conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // ?reader=1 → one tiny call to the fast model the inbox reader uses, error text only.
+  const reader = req.query?.reader ? await run(async () => {
+    const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY || "", "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 20, messages: [{ role: "user", content: "Say ok" }] }) });
+    const j = await r.json().catch(() => ({})); return { status: r.status, model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", error: j.error?.message?.slice(0, 200) || null, text: (j.content || []).map(b => b.text).join("").slice(0, 40) };
+  }) : undefined;
+  res.json({ reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
