@@ -1,7 +1,7 @@
 // Runs every minute (vercel.json). Sends Ella's due, safe return/exchange replies while autopilot is on.
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
-import { loadTicket, isOp, isNoise } from "../lib/ella.js";
+import { loadTicket, isOp, isNoise, draftFor } from "../lib/ella.js";
 import { pollAfterQc, notifyRefunds, scanQcThreads } from "../lib/afterqc.js";
 import { buildLessons } from "../lib/learn.js";
 
@@ -46,6 +46,20 @@ export default async function handler(req, res) {
   for (const { id, data: r } of fix) {
     const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
     await putDoc("svc_returns", id, last && !isOp(last) && String(t?.status).toUpperCase() !== "CLOSED" ? { sarahAt: null, answeredBy: null, repairedAt: Date.now() } : { repairedAt: Date.now() }, true);
+  }
+  // Redo (Oct 27 rules): replies held since go-live for "needs a person" / "sold out" get one fresh draft under the new
+  // never-stall rules (real stock for pre-order items, believe "I received it", order found by email).
+  const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
+    and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
+    and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 2`;
+  for (const { id, data: r } of stuck) {
+    await putDoc("svc_returns", id, { redraft2At: Date.now() }, true);
+    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+    const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
+    if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") continue; // someone answered meanwhile
+    const cust = comments.filter(c => !isOp(c)).pop();
+    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+    await putDoc("svc_returns", id, { lastAt: Date.now() - 6e5 }, true); // already waited long enough: send on the next pass if clean
   }
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} order by seq limit 50`;
