@@ -32,7 +32,7 @@ const HANDOFF_TO = () => process.env.SERVICE_HANDOFF_TO || "d50e81de-edcc-49f3-b
 const WHY = { needs_human: "needs a person (our mistake, a refund they insist on, or an upset customer)", out_of_stock: "what they want is sold out",
   past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply" };
 async function handOff(since) {
-  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
     and data->>'handedAt' is null and data->>'sarahAt' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${since} order by seq limit 5`;
   for (const { id, data: r } of rows) {
     const why = (r.flags || []).filter(f => WHY[f]).map(f => WHY[f]);
@@ -64,11 +64,14 @@ export default async function handler(req, res) {
     const blocking = (r.flags || []).filter(f => f !== "no_order");
     const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && off?.afterQcAuto && r.v3); // v3 = written with their history
     if (!safe || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
-    if (Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
+    // Follow-ups after a return is checked in go right away (nobody is waiting, and the team may refund soon).
+    if (r.intent !== "after_qc" && Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
     const t = r.number ? await loadTicket(r.number) : null, real = (t?.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
     // After-QC follow-ups are ours to start, so "our message is last" is expected there; only a newer customer message stops them.
-    const stale = r.intent === "after_qc" ? !t : !t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last));
+    // For after-QC, stop if a teammate wrote to the customer after Ella drafted (e.g. "we've processed the refund").
+    const newer = last && isOp(last) && Date.parse(last.created_at || last.createdAt || 0) > (r.draftedAt || 0);
+    const stale = r.intent === "after_qc" ? !t || newer : !t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last));
     if (stale) {
       await putDoc("svc_returns", id, { sarahAt: Date.now(), autoSkipped: "someone already replied or it was closed" }, true); continue;
     }
