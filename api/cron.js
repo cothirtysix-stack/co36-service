@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     if (left() < 8000) break;
     // "no_order" is safe: that reply just asks for the order number.
     const blocking = (r.flags || []).filter(f => f !== "no_order");
-    const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && off?.afterQcAuto && r.v3); // v3 = written with their history
+    const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && AUTOPILOT.afterQcSend && off?.afterQcAuto && r.v3); // v3 = written with their history
     if (!safe || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
     // Follow-ups after a return is checked in go right away (nobody is waiting, and the team may refund soon).
     if (r.intent !== "after_qc" && Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
