@@ -10,7 +10,12 @@ const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(Strin
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
 const TYPES = ["damaged", "wrong", "late", "service", "sarah", "other"];
 
+// The reader sometimes fails (busy API, odd JSON). Try up to 3 times before falling back to keywords.
 async function read(text, subject) {
+  for (let i = 0; i < 3; i++) { const o = await readOnce(text, subject).catch(() => null); if (o) return o; await new Promise(r => setTimeout(r, 800 * (i + 1))); }
+  return null;
+}
+async function readOnce(text, subject) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) return null;
   const prompt = `A customer emailed CO36, a men's clothing brand. Read their message and answer with JSON only:
 {"mood":"upset"|"happy"|"neutral","intent":"return"|"exchange"|"none","type":"damaged"|"wrong"|"late"|"service"|"sarah"|"other","summary":"what happened, under 12 words","quote":"their most telling sentence, under 140 characters","order":"order number like #12345 or null"}
