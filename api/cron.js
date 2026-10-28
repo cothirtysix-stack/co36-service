@@ -26,6 +26,26 @@ async function postNotes() {
   }
 }
 
+// Held drafts go to a person (David, Oct 28: "assign the ticket to Michelle"): assign the Richpanel conversation,
+// reopen it, and leave a private note with why it's held, what Ella suggests, and her draft to send or edit.
+const HANDOFF_TO = () => process.env.SERVICE_HANDOFF_TO || "d50e81de-edcc-49f3-bbb9-bbe4b6dc3fe6"; // Michelle Aguinalde
+const WHY = { needs_human: "needs a person (our mistake, a refund they insist on, or an upset customer)", out_of_stock: "what they want is sold out",
+  past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply" };
+async function handOff(since) {
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
+    and data->>'handedAt' is null and data->>'sarahAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} order by seq limit 5`;
+  for (const { id, data: r } of rows) {
+    const why = (r.flags || []).filter(f => WHY[f]).map(f => WHY[f]);
+    if (r.vip && !why.includes(WHY.vip)) why.push(WHY.vip);
+    if (!why.length || !r.ticketId) continue; // not held: autopilot answers it
+    const body = `FOR MICHELLE · Ella held this one\nWhy: ${why.join("; ")}.\nElla suggests: ${r.plan || "-"}\n\nHer draft (edit and send, or reply your own way):\n${r.draft || "-"}`;
+    const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
+      headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
+      body: JSON.stringify({ ticket: { status: "OPEN", assignee_id: HANDOFF_TO(), comment: { body, sender_type: "operator", public: false, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });
+    await putDoc("svc_returns", id, { handedAt: Date.now(), handedTo: "Michelle", handedOk: x.ok }, true);
+  }
+}
+
 export default async function handler(req, res) {
   // After-return follow-ups: draft only (intent "after_qc" is never auto-sent below).
   await scanQcThreads().catch(() => {});
@@ -34,6 +54,8 @@ export default async function handler(req, res) {
   if (qc.error || qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true).catch(() => {});
   await postNotes().catch(() => {});
   const off = await getDoc("svc_meta", "autopilot");
+  await init();
+  await handOff(Date.parse(AUTOPILOT.since || 0) || 0).catch(() => {});
   await notifyRefunds(off || {}).catch(e => putDoc("svc_meta", "afterqc", { notifyError: String(e.message || e).slice(0, 200), at: Date.now() }, true).catch(() => {}));
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
   if (!live) return res.json({ ok: true, live: false });
