@@ -86,10 +86,10 @@ export default async function handler(req, res) {
   }
   // Then the rest, each only if there's time.
   const step = async (ms, fn) => { if (left() > ms) await fn().catch(() => {}); };
+  await step(12000, () => scanQcThreads()); // the safety net: every new conversation is checked
   await step(15000, () => handOff(since));
   await step(15000, () => postNotes());
   await step(15000, () => notifyRefunds(off || {}));
-  await step(20000, () => scanQcThreads());
   await step(25000, async () => { const qc = await pollAfterQc(); if (qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true); });
   if (live) await step(25000, async () => {
   // Repair (Oct 27): Sarah's private hand-off notes were mistaken for replies, so some drafts were marked "Sarah answered".
