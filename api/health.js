@@ -42,7 +42,11 @@ export default async function handler(req, res) {
   const returns_lane = await run(async () => { const rows = await db()`select data->>'status' as st, count(*)::int as n, max((data->>'receivedAt')::bigint) as last from hub.docs where coll = 'svc_returns' and not deleted group by 1`;
     const [nt] = await db()`select count(*) filter (where data->>'notedAt' is not null and data->>'noteError' is null)::int as noted, count(*) filter (where data->>'noteError' is not null)::int as failed, max(data->>'noteError') as err,
       count(*) filter (where data->>'number' is not null)::int as withNumber from hub.docs where coll = 'svc_returns' and not deleted`;
-    return { ok: true, notes: nt, byStatus: Object.fromEntries(rows.map(r => [r.st, r.n])), lastAt: rows.reduce((m, r) => Math.max(m, Number(r.last) || 0), 0) || null }; });
+    // Sent per day (New York time), split: replies to customer emails vs after-return follow-ups, and who sent.
+    const perDay = await db()`select to_char(to_timestamp((data->>'sentAt')::bigint / 1000) at time zone 'America/New_York', 'YYYY-MM-DD') as d,
+      case when id like 'qc-%' then 'followup' else 'reply' end as k, coalesce(data->>'sentBy', '?') as by, count(*)::int as n
+      from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'sent' and data->>'sentAt' is not null group by 1,2,3 order by 1`;
+    return { ok: true, perDay, notes: nt, byStatus: Object.fromEntries(rows.map(r => [r.st, r.n])), lastAt: rows.reduce((m, r) => Math.max(m, Number(r.last) || 0), 0) || null }; });
   const afterqc = await run(async () => { const [r] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'afterqc'`;
     const [n] = await db()`select count(*)::int as c from hub.docs where coll = 'svc_returns' and id like 'qc-%' and not deleted`; const k = await db()`select data->>'kind' as kind, data->>'status' as status, (data->>'ticketId' is not null) as thread, (data->>'refundNotifiedAt' is not null) as told, coalesce(data->>'refundNoted', '') as noted, count(*)::int as c from hub.docs where coll = 'svc_returns' and id like 'qc-%' and not deleted group by 1,2,3,4,5`;
     const [q] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'qcscan'`;
