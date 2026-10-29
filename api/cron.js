@@ -33,7 +33,7 @@ const WHY = { needs_human: "needs a person (our mistake, a refund they insist on
   past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply" };
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
-    and data->>'handedAt' is null and data->>'sarahAt' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${since} order by seq limit 5`;
+    and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 8`;
   for (const { id, data: r } of rows) {
     const why = (r.flags || []).filter(f => WHY[f]).map(f => WHY[f]);
     if (!why.length || !r.ticketId) continue; // not held: autopilot answers it
