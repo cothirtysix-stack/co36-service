@@ -36,7 +36,6 @@ async function handOff(since) {
     and data->>'handedAt' is null and data->>'sarahAt' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${since} order by seq limit 5`;
   for (const { id, data: r } of rows) {
     const why = (r.flags || []).filter(f => WHY[f]).map(f => WHY[f]);
-    if (r.vip && !why.includes(WHY.vip)) why.push(WHY.vip);
     if (!why.length || !r.ticketId) continue; // not held: autopilot answers it
     const body = `FOR MICHELLE · Ella held this one\nWhy: ${why.join("; ")}.\nElla suggests: ${r.plan || "-"}\n\nHer draft (edit and send, or reply your own way):\n${r.draft || "-"}`;
     const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
@@ -63,7 +62,7 @@ export default async function handler(req, res) {
     // "no_order" is safe: that reply just asks for the order number.
     const blocking = (r.flags || []).filter(f => f !== "no_order");
     const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && AUTOPILOT.afterQcSend && off?.afterQcAuto && r.v3); // v3 = written with their history
-    if (!safe || blocking.length || r.sarahAt || r.vip || !r.draft) { held.push(id); continue; }
+    if (!safe || blocking.length || r.sarahAt || !r.draft) { held.push(id); continue; }
     // Follow-ups after a return is checked in go right away (nobody is waiting, and the team may refund soon).
     if (r.intent !== "after_qc" && Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
@@ -124,6 +123,25 @@ export default async function handler(req, res) {
     await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
     await putDoc("svc_returns", id, { lastAt: Date.now() - 6e5 }, true); // already waited long enough: send on the next pass if clean
   }
+  });
+  // Redo (Oct 29): replies held in the last 2 days get one fresh draft under the fixed rules (calm VIPs, normal refund
+  // returns). They stay held (not sent) until David/Claude review; a private note shows the new draft in Richpanel.
+  if (live) await step(25000, async () => {
+    const redo = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
+      and data->>'redo3At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
+      and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 48 * 3600e3} order by seq desc limit 2`;
+    for (const { id, data: r } of redo) {
+      await putDoc("svc_returns", id, { redo3At: Date.now() }, true);
+      const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+      const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
+      if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") continue; // a teammate answered meanwhile
+      const cust = comments.filter(c => !isOp(c)).pop();
+      await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+      const d = await getDoc("svc_returns", id);
+      await putDoc("svc_returns", id, { redo3: true, redo3Clean: !(d?.flags || []).filter(f => f !== "no_order").length }, true);
+      await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT", headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
+        body: JSON.stringify({ ticket: { comment: { body: `ELLA'S DRAFT · REDO · NOT SENT (held for review)\nPlan: ${d?.plan || "-"}${(d?.flags || []).length ? `\nFlags: ${d.flags.join(", ")}` : ""}\n\n${d?.draft || ""}`, sender_type: "operator", public: false, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) }).catch(() => {});
+    }
   });
   if (new Date().getUTCMinutes() === 7) await step(30000, () => buildLessons()); // checks hourly, rebuilds once a day
   res.json({ ok: true, live, sent, held: held.length });
