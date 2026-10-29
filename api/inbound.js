@@ -75,7 +75,12 @@ async function inner(req, res) {
       ? await fetch(`https://api.richpanel.com/v1/tickets/number/${number}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
     ticketId ||= looked?.ticket?.id;
     const id = number ? "n" + number : String(ticketId || "").replace(/[^A-Za-z0-9_\-]/g, "").slice(0, 120);
-    if (!id || !ticketId) return res.status(400).json({ error: "no conversation number or ticket id" });
+    if (!id || !ticketId) {
+      // Trace the shape (field names + event type only, no customer data) so missed tickets can be fixed.
+      await putDoc("svc_meta", "inbound400", { at: Date.now(), keys: Object.keys(b).slice(0, 40), number: number || null, looked: !!looked, lookedStatus: looked ? "found" : number ? "lookup failed" : "no number",
+        from: String(pick(b, "ticketMessageFrom", "message_from") || ""), channel: String(pick(b, "ticketChannel", "channel") || "") }).catch(() => {});
+      return res.status(400).json({ error: "no conversation number or ticket id" });
+    }
     const cur = await getDoc("svc_inbox", id);
     const status = String(pick(b, "ticketConversationStatus", "status") || looked?.ticket?.status || "").toUpperCase();
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }

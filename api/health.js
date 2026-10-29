@@ -46,14 +46,24 @@ export default async function handler(req, res) {
     const perDay = await db()`select to_char(to_timestamp((data->>'sentAt')::bigint / 1000) at time zone 'America/New_York', 'YYYY-MM-DD') as d,
       case when id like 'qc-%' then 'followup' else 'reply' end as k, coalesce(data->>'sentBy', '?') as by, count(*)::int as n
       from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'sent' and data->>'sentAt' is not null group by 1,2,3 order by 1`;
-    return { ok: true, perDay, notes: nt, byStatus: Object.fromEntries(rows.map(r => [r.st, r.n])), lastAt: rows.reduce((m, r) => Math.max(m, Number(r.last) || 0), 0) || null }; });
+    // Why today's drafts didn't go out (counts only).
+    const why = await db()`select case when id like 'qc-%' then 'after-return follow-up (switched off)'
+        when data->>'handedAt' is not null then 'held → Michelle: ' || coalesce(data->'flags'->>0, 'vip')
+        when data->>'sarahAt' is not null then 'someone else answered: ' || coalesce(data->>'answeredBy', data->>'autoSkipped', '?')
+        when jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0 then 'flagged, not handed: ' || (data->'flags'->>0)
+        when data->>'intent' not in ('return', 'exchange') then 'intent: ' || coalesce(data->>'intent', '?')
+        when data->>'vip' = 'true' then 'vip'
+        else 'clean draft (should send)' end as reason, count(*)::int as n
+      from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' in ('draft', 'drafting', 'error')
+      and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 36 * 3600e3} group by 1 order by 2 desc`;
+    return { ok: true, why, perDay, notes: nt, byStatus: Object.fromEntries(rows.map(r => [r.st, r.n])), lastAt: rows.reduce((m, r) => Math.max(m, Number(r.last) || 0), 0) || null }; });
   const afterqc = await run(async () => { const [r] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'afterqc'`;
     const [n] = await db()`select count(*)::int as c from hub.docs where coll = 'svc_returns' and id like 'qc-%' and not deleted`; const k = await db()`select data->>'kind' as kind, data->>'status' as status, (data->>'ticketId' is not null) as thread, (data->>'refundNotifiedAt' is not null) as told, coalesce(data->>'refundNoted', '') as noted, count(*)::int as c from hub.docs where coll = 'svc_returns' and id like 'qc-%' and not deleted group by 1,2,3,4,5`;
-    const [q] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'qcscan'`;
+    const [q] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'qcscan'`; const [e4] = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'inbound400'`;
     const [t] = await db()`select count(*)::int as c from hub.docs where coll = 'svc_qcthread' and not deleted`;
     const miss = await db()`select d.data->'orders'->>0 as o, d.data->>'refundNotifiedAt' as at, exists(select 1 from hub.docs x where x.coll = 'svc_qcthread' and x.id = replace(d.data->'orders'->>0, '#', '')) as has
       from hub.docs d where d.coll = 'svc_returns' and d.id like 'qc-%' and not d.deleted and d.data->>'ticketId' is null and d.data->>'status' = 'draft'`;
-    return { last: r?.data || null, docs: n.c, kinds: k, scan: q?.data || null, threads: t.c, missing: miss.map(m => ({ order: String(m.o || "").slice(0, 3) + "…", has: m.has, at: m.at })) }; });
+    return { last: r?.data || null, docs: n.c, kinds: k, scan: q?.data || null, inbound400: e4?.data || null, threads: t.c, missing: miss.map(m => ({ order: String(m.o || "").slice(0, 3) + "…", has: m.has, at: m.at })) }; });
   const ap = await run(async () => { const r = await db()`select data from hub.docs where coll = 'svc_meta' and id = 'autopilot'`;
     return { ok: true, on: AUTOPILOT.on, until: AUTOPILOT.until, pausedOnBoard: !!r[0]?.data?.off, afterQcAuto: !!r[0]?.data?.afterQcAuto, setBy: r[0]?.data?.by ? "someone" : null, setAt: r[0]?.data?.at || null, live: AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !r[0]?.data?.off }; });
   // Ella's order lookup on a known recent order (result: found or the error, no customer data).
