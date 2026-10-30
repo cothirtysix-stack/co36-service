@@ -133,10 +133,10 @@ export default async function handler(req, res) {
   // returns). If the new draft is a normal answer it's released and sent; real problems stay with Michelle.
   if (live) await step(25000, async () => {
     const redo = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
-      and data->>'redo4At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
+      and data->>'redo5At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 48 * 3600e3} order by seq desc limit 4`;
     await Promise.all(redo.map(async ({ id, data: r }) => {
-      await putDoc("svc_returns", id, { redo4At: Date.now() }, true);
+      await putDoc("svc_returns", id, { redo5At: Date.now() }, true);
       const t = r.number ? await loadTicket(r.number) : null; if (!t) return;
       const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
       if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") return; // a teammate answered meanwhile
@@ -145,7 +145,7 @@ export default async function handler(req, res) {
       const d = await getDoc("svc_returns", id);
       // Oct 30 (David: "it should be sent, not a private note"): if the redo is a normal answer, release it to send now.
       const clean = !(d?.flags || []).filter(f => f !== "no_order").length;
-      await putDoc("svc_returns", id, clean ? { redo4: true, handedAt: null, lastAt: Date.now() - 6e5 } : { redo4: true }, true);
+      await putDoc("svc_returns", id, clean ? { redo5: true, handedAt: null, lastAt: Date.now() - 6e5 } : { redo5: true }, true);
     }));
   });
   if (new Date().getUTCMinutes() === 7) await step(30000, () => buildLessons()); // checks hourly, rebuilds once a day
