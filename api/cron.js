@@ -68,6 +68,7 @@ export default async function handler(req, res) {
     const blocking = (r.flags || []).filter(f => f !== "no_order");
     const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && AUTOPILOT.afterQcSend && off?.afterQcAuto && r.v3); // v3 = written with their history
     if (!safe || blocking.length || r.sarahAt || !r.draft) { held.push(id); continue; }
+    if (r.redo5 || r.releasedAt) { held.push(id); continue; } // Oct 30: released batch paused until reviewed
     // Follow-ups after a return is checked in go right away (nobody is waiting, and the team may refund soon).
     if (r.intent !== "after_qc" && Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
