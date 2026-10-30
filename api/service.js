@@ -46,6 +46,7 @@ async function scanCheck() {
 // Reply in the customer's Richpanel thread (an email reply to them).
 async function reply({ ticketId, body, close }) {
   if (!ticketId || !String(body || "").trim()) fail("Missing conversation or message");
+  if (/\{\{LABEL_LINK\}\}/.test(body)) fail("This reply needs the exchange to be set up first. Let Ella send it, or replace {{LABEL_LINK}}.");
   const r = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(ticketId)}`, { method: "PUT",
     headers: { "content-type": "application/json", "x-richpanel-key": need("RICHPANEL_API_KEY") },
     body: JSON.stringify({ ticket: { ...(close ? { status: "CLOSED" } : {}), comment: { body: String(body), sender_type: "operator", public: true, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });

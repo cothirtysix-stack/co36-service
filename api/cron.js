@@ -4,6 +4,7 @@ import { AUTOPILOT } from "../lib/autopilot.js";
 import { loadTicket, isOp, isNoise, draftFor } from "../lib/ella.js";
 import { pollAfterQc, notifyRefunds, scanQcThreads } from "../lib/afterqc.js";
 import { buildLessons } from "../lib/learn.js";
+import { createExchange } from "../lib/portal.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
@@ -30,7 +31,8 @@ async function postNotes() {
 // reopen it, and leave a private note with why it's held, what Ella suggests, and her draft to send or edit.
 const HANDOFF_TO = () => process.env.SERVICE_HANDOFF_TO || "d50e81de-edcc-49f3-bbb9-bbe4b6dc3fe6"; // Michelle Aguinalde
 const WHY = { needs_human: "needs a person (our mistake, a refund they insist on, or an upset customer)", out_of_stock: "what they want is sold out",
-  past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply" };
+  past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply",
+  restock_soon: "what they want is due back within 2 weeks: decide whether to wait or offer another color", exchange_failed: "Ella couldn't set up the exchange in the portal" };
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
     and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 8`;
@@ -84,11 +86,25 @@ export default async function handler(req, res) {
     if (stale) {
       await putDoc("svc_returns", id, { sarahAt: Date.now(), autoSkipped: "someone already replied or it was closed" }, true); continue;
     }
+    // Exchanges: Ella sets it up in the returns portal (like the team), then the reply carries the label link.
+    let body = r.draft;
+    if (r.exchange || /\{\{LABEL_LINK\}\}/.test(body)) {
+      let ex = r.exchangeMade || null;
+      if (!ex && r.exchange && !r.exchangeTriedAt) {
+        await putDoc("svc_returns", id, { exchangeTriedAt: Date.now() }, true); // never twice
+        ex = await createExchange({ orderNumber: r.exchange.order, zip: r.exchange.zip, swaps: r.exchange.swaps, reason: r.exchange.reason }).catch(e => ({ ok: false, why: String(e.message || e).slice(0, 200) }));
+        await putDoc("svc_returns", id, ex.ok ? { exchangeMade: { returnId: ex.returnId, url: ex.statusPageUrl, items: ex.items } } : { exchangeError: ex.why || "failed", flags: [...new Set([...(r.flags || []), "exchange_failed"])] }, true);
+        if (!ex.ok) { held.push(id); continue; }
+        ex = { returnId: ex.returnId, url: ex.statusPageUrl };
+      }
+      if (!ex?.url) { held.push(id); continue; }
+      body = body.replace(/\{\{LABEL_LINK\}\}/g, ex.url);
+    }
     const r2 = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
       headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
-      body: JSON.stringify({ ticket: { comment: { body: r.draft, sender_type: "operator", public: true, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });
+      body: JSON.stringify({ ticket: { comment: { body, sender_type: "operator", public: true, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });
     if (!r2.ok) { await putDoc("svc_returns", id, { autoError: `Richpanel ${r2.status}` }, true); continue; }
-    await putDoc("svc_returns", id, { status: "sent", sentAt: Date.now(), sentBy: "Ella (autopilot)", sentText: r.draft, edited: false }, true);
+    await putDoc("svc_returns", id, { status: "sent", sentAt: Date.now(), sentBy: "Ella (autopilot)", sentText: body, edited: false }, true);
     await putDoc("svc_cases", `auto-${id}-${Date.now().toString(36)}`, { at: Date.now(), by: "Ella (autopilot)", source: "returns", ref: id, customer: r.customer || r.email, email: r.email,
       order: (r.orders || [])[0], product: (r.items || [])[0], type: r.intent, what: r.intent === "exchange" ? "Exchange request" : "Return request", did: `Ella: ${r.plan || "replied"}`, message: r.draft });
     sent.push(id);
