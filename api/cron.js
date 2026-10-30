@@ -88,7 +88,7 @@ export default async function handler(req, res) {
   const step = async (ms, fn) => { if (left() > ms) await fn().catch(() => {}); };
   await step(12000, () => scanQcThreads()); // the safety net: every new conversation is checked
   await step(15000, () => handOff(since));
-  await step(15000, () => postNotes());
+  // (Shadow-mode "ELLA'S DRAFT" notes are off: clean drafts are sent, held ones get the single FOR MICHELLE note.)
   await step(15000, () => notifyRefunds(off || {}));
   await step(25000, async () => { const qc = await pollAfterQc(); if (qc.made) await putDoc("svc_meta", "afterqc", { ...qc, at: Date.now() }, true); });
   if (live) await step(25000, async () => {
@@ -139,8 +139,7 @@ export default async function handler(req, res) {
       await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
       const d = await getDoc("svc_returns", id);
       await putDoc("svc_returns", id, { redo3: true, redo3Clean: !(d?.flags || []).filter(f => f !== "no_order").length }, true);
-      await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT", headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
-        body: JSON.stringify({ ticket: { comment: { body: `ELLA'S DRAFT · REDO · NOT SENT (held for review)\nPlan: ${d?.plan || "-"}${(d?.flags || []).length ? `\nFlags: ${d.flags.join(", ")}` : ""}\n\n${d?.draft || ""}`, sender_type: "operator", public: false, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) }).catch(() => {});
+      // no extra note: one note per conversation
     }
   });
   if (new Date().getUTCMinutes() === 7) await step(30000, () => buildLessons()); // checks hourly, rebuilds once a day
