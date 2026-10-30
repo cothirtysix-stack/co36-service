@@ -56,7 +56,7 @@ export default async function handler(req, res) {
   const sent = [], held = [];
   if (live) {
   // Release: a held draft whose current version has no blocking flag is a normal answer → send it (e.g. Jordyn #37998).
-  await db()`update hub.docs set data = data || jsonb_build_object('handedAt', null, 'releasedAt', ${Date.now()}::bigint), seq = nextval('hub.docs_seq')
+  if (false) await db()`update hub.docs set data = data || jsonb_build_object('handedAt', null, 'releasedAt', ${Date.now()}::bigint), seq = nextval('hub.docs_seq')
     where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft' and data->>'handedAt' is not null
     and data->>'sarahAt' is null and coalesce(jsonb_array_length(data->'flags'), 0) = 0 and data->>'releasedAt' is null
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 72 * 3600e3}`;
@@ -131,7 +131,7 @@ export default async function handler(req, res) {
   });
   // Redo (Oct 29): replies held in the last 2 days get one fresh draft under the fixed rules (calm VIPs, normal refund
   // returns). If the new draft is a normal answer it's released and sent; real problems stay with Michelle.
-  if (live) await step(25000, async () => {
+  if (false) await step(25000, async () => { // paused Oct 30 2:50am: released non-return tickets
     const redo = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
       and data->>'redo5At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 48 * 3600e3} order by seq desc limit 4`;
