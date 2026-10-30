@@ -69,6 +69,7 @@ export default async function handler(req, res) {
     const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && AUTOPILOT.afterQcSend && off?.afterQcAuto && r.v3); // v3 = written with their history
     if (!safe || blocking.length || r.sarahAt || !r.draft) { held.push(id); continue; }
     if (r.redo5 || r.releasedAt) { held.push(id); continue; } // Oct 30: released batch paused until reviewed
+    if (r.channel && r.channel !== "email") { held.push(id); continue; }
     // Follow-ups after a return is checked in go right away (nobody is waiting, and the team may refund soon).
     if (r.intent !== "after_qc" && Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
     // Last check right before sending: still open, and the newest message is still the customer's.
@@ -76,6 +77,9 @@ export default async function handler(req, res) {
     // After-QC follow-ups are ours to start, so "our message is last" is expected there; only a newer customer message stops them.
     // For after-QC, stop if a teammate wrote to the customer after Ella drafted (e.g. "we've processed the refund").
     const newer = last && isOp(last) && Date.parse(last.created_at || last.createdAt || 0) > (r.draftedAt || 0);
+    // Email only: never post publicly on Instagram/Facebook comments (Oct 30).
+    if (t && t.via?.channel && !/email|gmail/i.test(String(t.via.channel))) { await putDoc("svc_returns", id, { channel: String(t.via.channel), sarahAt: Date.now(), autoSkipped: "not email" }, true); continue; }
+    if (t && /comment|facebook|instagram/i.test(String(t.channel || t.source || ""))) { await putDoc("svc_returns", id, { channel: String(t.channel || t.source), sarahAt: Date.now(), autoSkipped: "not email" }, true); continue; }
     const stale = r.intent === "after_qc" ? !t || newer : !t || String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last));
     if (stale) {
       await putDoc("svc_returns", id, { sarahAt: Date.now(), autoSkipped: "someone already replied or it was closed" }, true); continue;
