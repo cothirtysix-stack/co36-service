@@ -128,17 +128,19 @@ export default async function handler(req, res) {
   // returns). They stay held (not sent) until David/Claude review; a private note shows the new draft in Richpanel.
   if (live) await step(25000, async () => {
     const redo = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
-      and data->>'redo3At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
+      and data->>'redo4At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 48 * 3600e3} order by seq desc limit 2`;
     for (const { id, data: r } of redo) {
-      await putDoc("svc_returns", id, { redo3At: Date.now() }, true);
+      await putDoc("svc_returns", id, { redo4At: Date.now() }, true);
       const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
       const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
       if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") continue; // a teammate answered meanwhile
       const cust = comments.filter(c => !isOp(c)).pop();
       await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
       const d = await getDoc("svc_returns", id);
-      await putDoc("svc_returns", id, { redo3: true, redo3Clean: !(d?.flags || []).filter(f => f !== "no_order").length }, true);
+      // Oct 30 (David: "it should be sent, not a private note"): if the redo is a normal answer, release it to send now.
+      const clean = !(d?.flags || []).filter(f => f !== "no_order").length;
+      await putDoc("svc_returns", id, clean ? { redo4: true, handedAt: null, lastAt: Date.now() - 6e5 } : { redo4: true }, true);
       // no extra note: one note per conversation
     }
   });
