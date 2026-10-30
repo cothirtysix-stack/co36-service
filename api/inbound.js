@@ -123,7 +123,7 @@ async function inner(req, res) {
     const ret = await getDoc("svc_returns", id);
     if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {
       const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
-      await putDoc("svc_returns", id, { ticketId, number, customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
+      await putDoc("svc_returns", id, { ticketId, number, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email"), customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
         status: "drafting", receivedAt: ret?.status === "sent" ? Date.now() : ret?.receivedAt || Date.now(), lastAt: Date.now(), sarahAt: null }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null }));
     }
