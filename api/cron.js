@@ -55,6 +55,11 @@ export default async function handler(req, res) {
   const since = Date.parse(AUTOPILOT.since || 0) || 0;
   const sent = [], held = [];
   if (live) {
+  // Release: a held draft whose current version has no blocking flag is a normal answer → send it (e.g. Jordyn #37998).
+  await db()`update hub.docs set data = data || jsonb_build_object('handedAt', null, 'releasedAt', ${Date.now()}::bigint), seq = nextval('hub.docs_seq')
+    where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft' and data->>'handedAt' is not null
+    and data->>'sarahAt' is null and coalesce(jsonb_array_length(data->'flags'), 0) = 0 and data->>'releasedAt' is null
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 72 * 3600e3}`;
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 40`;
   for (const { id, data: r } of rows) {
@@ -125,24 +130,23 @@ export default async function handler(req, res) {
   }
   });
   // Redo (Oct 29): replies held in the last 2 days get one fresh draft under the fixed rules (calm VIPs, normal refund
-  // returns). They stay held (not sent) until David/Claude review; a private note shows the new draft in Richpanel.
+  // returns). If the new draft is a normal answer it's released and sent; real problems stay with Michelle.
   if (live) await step(25000, async () => {
     const redo = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
       and data->>'redo4At' is null and data->>'sarahAt' is null and (data->>'handedAt' is not null or jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0)
-      and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 48 * 3600e3} order by seq desc limit 2`;
-    for (const { id, data: r } of redo) {
+      and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 48 * 3600e3} order by seq desc limit 4`;
+    await Promise.all(redo.map(async ({ id, data: r }) => {
       await putDoc("svc_returns", id, { redo4At: Date.now() }, true);
-      const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+      const t = r.number ? await loadTicket(r.number) : null; if (!t) return;
       const comments = (t.comments || []).filter(c => !isNoise(c)), last = comments[comments.length - 1];
-      if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") continue; // a teammate answered meanwhile
+      if (!last || isOp(last) || String(t.status).toUpperCase() === "CLOSED") return; // a teammate answered meanwhile
       const cust = comments.filter(c => !isOp(c)).pop();
       await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
       const d = await getDoc("svc_returns", id);
       // Oct 30 (David: "it should be sent, not a private note"): if the redo is a normal answer, release it to send now.
       const clean = !(d?.flags || []).filter(f => f !== "no_order").length;
       await putDoc("svc_returns", id, clean ? { redo4: true, handedAt: null, lastAt: Date.now() - 6e5 } : { redo4: true }, true);
-      // no extra note: one note per conversation
-    }
+    }));
   });
   if (new Date().getUTCMinutes() === 7) await step(30000, () => buildLessons()); // checks hourly, rebuilds once a day
   res.json({ ok: true, live, sent, held: held.length });
