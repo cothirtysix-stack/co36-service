@@ -91,6 +91,7 @@ export default async function handler(req, res) {
     if (r.exchange || /\{\{LABEL_LINK\}\}/.test(body)) {
       let ex = r.exchangeMade || null;
       if (!ex && r.exchange && (r.flags || []).includes("restock_soon")) { held.push(id); continue; }
+      if (!ex && r.exchange && !AUTOPILOT.exchangesOn) { held.push(id); continue; } // paused Nov 1: wrong item picked on Vito #135643
       if (!ex && r.exchange && !r.exchangeTriedAt) {
         await putDoc("svc_returns", id, { exchangeTriedAt: Date.now() }, true); // never twice
         ex = await createExchange({ orderNumber: r.exchange.order, zip: r.exchange.zip, swaps: r.exchange.swaps, reason: r.exchange.reason }).catch(e => ({ ok: false, why: String(e.message || e).slice(0, 200) }));
