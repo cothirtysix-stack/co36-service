@@ -3,6 +3,9 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 60
+    },
+    "api/inbound.js": {
+      "maxDuration": 300
     }
   },
   "headers": [
