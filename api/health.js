@@ -48,11 +48,12 @@ export default async function handler(req, res) {
       from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'sent' and data->>'sentAt' is not null group by 1,2,3 order by 1`;
     // Why today's drafts didn't go out (counts only).
     const why = await db()`select case when id like 'qc-%' then 'after-return follow-up (switched off)'
-        when data->>'handedAt' is not null then 'held → Michelle: ' || coalesce(data->'flags'->>0, 'vip')
+        when data->>'handedAt' is not null then 'held → Michelle: ' || coalesce(data->'flags'->>0, 'vip') || coalesce(' / ' || nullif(data->>'problem', 'none'), '') || case when data->>'exchange' is not null and data->>'exchange' <> 'null' then ' / exchange' else '' end
         when data->>'sarahAt' is not null then 'someone else answered: ' || coalesce(data->>'answeredBy', data->>'autoSkipped', '?')
         when jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0 then 'flagged, not handed: ' || (data->'flags'->>0)
         when data->>'intent' not in ('return', 'exchange') then 'intent: ' || coalesce(data->>'intent', '?')
         when data->>'vip' = 'true' then 'vip'
+        when data->>'exchange' is not null and data->>'exchange' <> 'null' then 'exchange ready (exchanges paused)'
         else 'clean draft (should send)' end as reason, count(*)::int as n
       from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' in ('draft', 'drafting', 'error')
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 36 * 3600e3} group by 1 order by 2 desc`;
