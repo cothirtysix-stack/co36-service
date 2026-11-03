@@ -1,7 +1,7 @@
 // Runs every minute (vercel.json). Sends Ella's due, safe return/exchange replies while autopilot is on.
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
-import { loadTicket, isOp, isNoise, draftFor } from "../lib/ella.js";
+import { loadTicket, isOp, isNoise, draftFor, agentReplied } from "../lib/ella.js";
 import { pollAfterQc, notifyRefunds, scanQcThreads } from "../lib/afterqc.js";
 import { buildLessons } from "../lib/learn.js";
 import { createExchange } from "../lib/portal.js";
@@ -39,6 +39,8 @@ async function handOff(since) {
   for (const { id, data: r } of rows) {
     const why = (r.flags || []).filter(f => WHY[f]).map(f => WHY[f]);
     if (!why.length || !r.ticketId) continue; // not held: autopilot answers it
+    const tk = r.number ? await loadTicket(r.number).catch(() => null) : null;
+    if (tk && agentReplied(tk.comments)) { await putDoc("svc_returns", id, { handedAt: Date.now(), sarahAt: Date.now(), answeredBy: "team", autoSkipped: "an agent already wrote to this customer" }, true); continue; }
     const body = `FOR MICHELLE · Ella held this one\nWhy: ${why.join("; ")}.\nElla suggests: ${r.plan || "-"}\n\nHer draft (edit and send, or reply your own way):\n${r.draft || "-"}`;
     const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
       headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
@@ -79,6 +81,7 @@ export default async function handler(req, res) {
     // After-QC follow-ups are ours to start, so "our message is last" is expected there; only a newer customer message stops them.
     // For after-QC, stop if a teammate wrote to the customer after Ella drafted (e.g. "we've processed the refund").
     const newer = last && isOp(last) && Date.parse(last.created_at || last.createdAt || 0) > (r.draftedAt || 0);
+    if (t && agentReplied(t.comments)) { await putDoc("svc_returns", id, { sarahAt: Date.now(), answeredBy: "team", autoSkipped: "an agent already wrote to this customer" }, true); continue; }
     // Email only: never post publicly on Instagram/Facebook comments (Oct 30).
     if (t && t.via?.channel && !/email|gmail/i.test(String(t.via.channel))) { await putDoc("svc_returns", id, { channel: String(t.via.channel), sarahAt: Date.now(), autoSkipped: "not email" }, true); continue; }
     if (t && /comment|facebook|instagram/i.test(String(t.channel || t.source || ""))) { await putDoc("svc_returns", id, { channel: String(t.channel || t.source), sarahAt: Date.now(), autoSkipped: "not email" }, true); continue; }
