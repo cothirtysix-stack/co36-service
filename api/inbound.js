@@ -13,7 +13,7 @@ const TYPES = ["damaged", "wrong", "late", "service", "sarah", "other"];
 
 // The reader sometimes fails (busy API, odd JSON). Try up to 3 times before falling back to keywords.
 async function read(text, subject) {
-  for (let i = 0; i < 3; i++) { const o = await readOnce(text, subject).catch(() => null); if (o) return o; await new Promise(r => setTimeout(r, 800 * (i + 1))); }
+  for (let i = 0; i < 2; i++) { const o = await readOnce(text, subject).catch(() => null); if (o) return o; await new Promise(r => setTimeout(r, 600)); }
   return null;
 }
 async function readOnce(text, subject) {
@@ -125,7 +125,7 @@ async function inner(req, res) {
       const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
       await putDoc("svc_returns", id, { ticketId, number, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email"), customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
         status: "drafting", receivedAt: ret?.status === "sent" ? Date.now() : ret?.receivedAt || Date.now(), lastAt: Date.now(), sarahAt: null }, true);
-      waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null }));
+      waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
     }
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
     const now = Date.now();
