@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 36 * 3600e3} group by 1 order by 2 desc`;
     // The ones that should have gone out (clean drafts, errors, stuck drafting): numbers + status + why, no customer text.
     const stuck = await db()`select substr(id, 2) as no, data->>'status' as st, data->>'channel' as ch, left(coalesce(data->>'error', data->>'sendError', ''), 140) as err,
-        round((${Date.now()} - coalesce((data->>'receivedAt')::bigint, 0)) / 60000.0)::int as age_min, data->>'sendAt' as send_at, data->>'releasedAt' as rel, data->>'redo5' as redo5, data->>'caughtBy' as by
+        round((${Date.now()} - coalesce((data->>'receivedAt')::bigint, 0)) / 60000.0)::int as age_min, data->>'sendAt' as send_at, data->>'releasedAt' as rel, data->>'redo5' as redo5, data->>'caughtBy' as by, data->>'intent' as intent, (data->>'exchange' is not null and data->>'exchange' <> 'null') as exch, data->>'draft' is not null as has_draft, data->>'problem' as problem
       from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' in ('draft', 'drafting', 'error')
       and data->>'handedAt' is null and data->>'sarahAt' is null and jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) = 0
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 36 * 3600e3} order by 1 desc limit 60`;
