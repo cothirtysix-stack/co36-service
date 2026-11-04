@@ -69,7 +69,7 @@ export default async function handler(req, res) {
       and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 36 * 3600e3} order by 1 desc limit 60`;
     // Exchanges Ella set up in the portal (items and result only).
     const exchanges = await db()`select substr(id, 2) as no, data->>'status' as st, data->'exchangeMade'->'items' as items, data->'exchangeMade'->>'name' as ret,
-        data->>'exchangeError' as err, data->>'exchangeTriedAt' as tried from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeTriedAt' is not null
+        data->>'exchangeError' as err, data->>'exchangeTriedAt' as tried, data->'exchange'->>'order' as ord, data->'exchange'->'swaps' as swaps from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeTriedAt' is not null
         order by (data->>'exchangeTriedAt')::bigint desc limit 15`;
     // Coverage: every conversation the safety net judged a return/exchange ask must have an outcome in the hub.
     const cov = await db()`select count(*)::int as asks, count(r.id)::int as handled,
