@@ -42,6 +42,9 @@ async function handOff(since) {
     if (!why.length || !r.ticketId) continue; // not held: autopilot answers it
     const tk = r.number ? await loadTicket(r.number).catch(() => null) : null;
     if (tk && agentReplied(tk.comments)) { await putDoc("svc_returns", id, { handedAt: Date.now(), sarahAt: Date.now(), answeredBy: "team", autoSkipped: "an agent already wrote to this customer" }, true); continue; }
+    // Email only, notes included (David, Nov 4: a FOR MICHELLE note landed on an Instagram DM). Unknown channel = don't touch.
+    const ch = String(tk?.via?.channel || tk?.channel || tk?.source || r.channel || "");
+    if (!tk || !/email|gmail/i.test(ch) || /comment|facebook|instagram|social|dm|messenger|whatsapp|sms/i.test(ch)) { await putDoc("svc_returns", id, { handedAt: Date.now(), sarahAt: Date.now(), channel: ch || null, autoSkipped: "not email" }, true); continue; }
     const body = `FOR MICHELLE · Ella held this one\nWhy: ${why.join("; ")}.\nElla suggests: ${r.plan || "-"}\n\nHer draft (edit and send, or reply your own way):\n${r.draft || "-"}`;
     const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
       headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
