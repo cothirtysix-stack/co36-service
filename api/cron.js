@@ -5,6 +5,7 @@ import { loadTicket, isOp, isNoise, draftFor, agentReplied } from "../lib/ella.j
 import { pollAfterQc, notifyRefunds, scanQcThreads } from "../lib/afterqc.js";
 import { buildLessons } from "../lib/learn.js";
 import { createExchange } from "../lib/portal.js";
+import { watchdog } from "../lib/watchdog.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
@@ -54,6 +55,7 @@ async function handOff(since) {
 export default async function handler(req, res) {
   const t0 = Date.now(), left = () => 50000 - (Date.now() - t0);
   await init();
+  await putDoc("svc_meta", "cronbeat", { at: Date.now() }).catch(() => {}); // the watchdog checks this is recent
   const off = await getDoc("svc_meta", "autopilot");
   const live = AUTOPILOT.on && Date.now() < Date.parse(AUTOPILOT.until) && !off?.off;
   const since = Date.parse(AUTOPILOT.since || 0) || 0;
@@ -117,6 +119,7 @@ export default async function handler(req, res) {
   }
   // Then the rest, each only if there's time.
   const step = async (ms, fn) => { if (left() > ms) await fn().catch(() => {}); };
+  await step(8000, () => watchdog()); // every 10 min: emails Michelle + David if Ella is broken
   await step(12000, () => scanQcThreads()); // the safety net: every new conversation is checked
   await step(15000, () => handOff(since));
   // (Shadow-mode "ELLA'S DRAFT" notes are off: clean drafts are sent, held ones get the single FOR MICHELLE note.)

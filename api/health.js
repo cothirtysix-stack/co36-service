@@ -1,5 +1,5 @@
 // Connection check: says which services work. Never returns key values.
-import { db, SB_URL, SB_ANON } from "../lib/server.js";
+import { db, SB_URL, SB_ANON, getDoc } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
 import { findOrders } from "../lib/ella.js";
@@ -120,5 +120,6 @@ export default async function handler(req, res) {
       body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 20, messages: [{ role: "user", content: "Say ok" }] }) });
     const j = await r.json().catch(() => ({})); return { status: r.status, model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", error: j.error?.message?.slice(0, 200) || null, text: (j.content || []).map(b => b.text).join("").slice(0, 40) };
   }) : undefined;
-  res.json({ reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  const watch = await getDoc("svc_meta", "watchdog").catch(() => null);
+  res.json({ watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }

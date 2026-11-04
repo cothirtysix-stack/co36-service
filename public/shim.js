@@ -171,6 +171,18 @@
     out.onclick = async () => { await sb.auth.signOut(); location.reload(); };
     document.body.appendChild(out);
     resolveReady(); startLoop();
+    // Ella problems (watchdog, every 10 min) pop up on every page until they clear (David, Nov 4).
+    const box = document.createElement("div"); let hidden = "";
+    box.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:60;max-width:380px;background:#FDECEC;border:1px solid #F5B5B5;color:#7F1D1D;border-radius:16px;padding:14px 16px;font:13px/1.45 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none";
+    document.body.appendChild(box);
+    const check = async () => {
+      const r = await api("alert", {}).catch(() => null), list = r?.problems || [], sig = list.join("|");
+      if (!list.length || sig === hidden) { box.style.display = "none"; return; }
+      box.innerHTML = `<div style="font-weight:700;font-size:14px;margin-bottom:6px">⚠️ Ella needs attention</div>${list.map(t => `<div style="margin:4px 0">• ${t.replace(/[<>&]/g, "")}</div>`).join("")}<div style="margin-top:8px;color:#6E6E7A">Answer return/exchange emails by hand until this clears.</div><button style="margin-top:10px;border:0;background:#7F1D1D;color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer">Got it</button>`;
+      box.querySelector("button").onclick = () => { hidden = sig; box.style.display = "none"; };
+      box.style.display = "block";
+    };
+    check(); setInterval(check, 120e3);
   }
   // The hub's own sign-in (one password set in Vercel). Remembered in this browser for 60 days.
   async function passwordBoot() {
@@ -218,6 +230,18 @@
     out.onclick = () => { try { localStorage.removeItem(KEY); } catch (_) {} location.reload(); };
     document.body.appendChild(out);
     resolveReady(); startLoop();
+    // Ella problems (watchdog, every 10 min) pop up on every page until they clear (David, Nov 4).
+    const box = document.createElement("div"); let hidden = "";
+    box.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:60;max-width:380px;background:#FDECEC;border:1px solid #F5B5B5;color:#7F1D1D;border-radius:16px;padding:14px 16px;font:13px/1.45 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none";
+    document.body.appendChild(box);
+    const check = async () => {
+      const r = await api("alert", {}).catch(() => null), list = r?.problems || [], sig = list.join("|");
+      if (!list.length || sig === hidden) { box.style.display = "none"; return; }
+      box.innerHTML = `<div style="font-weight:700;font-size:14px;margin-bottom:6px">⚠️ Ella needs attention</div>${list.map(t => `<div style="margin:4px 0">• ${t.replace(/[<>&]/g, "")}</div>`).join("")}<div style="margin-top:8px;color:#6E6E7A">Answer return/exchange emails by hand until this clears.</div><button style="margin-top:10px;border:0;background:#7F1D1D;color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer">Got it</button>`;
+      box.querySelector("button").onclick = () => { hidden = sig; box.style.display = "none"; };
+      box.style.display = "block";
+    };
+    check(); setInterval(check, 120e3);
   }
   const go = () => boot().catch(e => { console.error(e); document.body.insertAdjacentHTML("afterbegin", '<div style="padding:12px 16px;background:#FDECEC;color:#B91C1C;font:14px system-ui">Sign-in failed to load. Check the Supabase keys in Vercel settings.</div>'); });
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", go) : go();
