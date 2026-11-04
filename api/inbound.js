@@ -71,6 +71,9 @@ async function inner(req, res) {
     const b = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const number = String(pick(b, "ticketConversationNumber", "conversation_no", "conversation_number", "ticket_number") || "").replace(/\D/g, "");
     let ticketId = pick(b, "ticket_id", "conversation_id", "ticketId");
+    // The newest conversation number we've heard of: the safety net never looks past it (Nov 4: probing numbers that
+    // didn't exist yet, every minute, got the Richpanel key cancelled as "suspicious traffic").
+    if (number) { const nw = await getDoc("svc_meta", "newest").catch(() => null); if (!(Number(nw?.number) >= Number(number))) await putDoc("svc_meta", "newest", { number: Number(number), at: Date.now() }).catch(() => {}); }
     // Richpanel's template has the conversation number but no ticket id, so look the conversation up by number.
     const looked = !ticketId && number && process.env.RICHPANEL_API_KEY
       ? await fetch(`https://api.richpanel.com/v1/tickets/number/${number}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null) : null;
