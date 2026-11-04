@@ -33,6 +33,7 @@ async function postNotes() {
 const HANDOFF_TO = () => process.env.SERVICE_HANDOFF_TO || "d50e81de-edcc-49f3-bbb9-bbe4b6dc3fe6"; // Michelle Aguinalde
 const WHY = { needs_human: "needs a person (our mistake, a refund they insist on, or an upset customer)", out_of_stock: "what they want is sold out",
   past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply",
+  stock_unknown: "Ella couldn't tell when a sold-out item is coming back: check stock and answer",
   restock_soon: "what they want is due back within 2 weeks: decide whether to wait or offer another color", exchange_failed: "Ella couldn't set up the exchange in the portal" };
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
