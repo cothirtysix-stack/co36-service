@@ -22,7 +22,11 @@ export default async function handler(req, res) {
     run(async () => {
       if (!process.env.RICHPANEL_API_KEY) return { ok: false, error: "RICHPANEL_API_KEY missing" };
       const r = await fetch("https://api.richpanel.com/v1/teams", { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY } });
-      return r.ok ? { ok: true } : { ok: false, error: `Richpanel said ${r.status}` };
+      if (r.ok) return { ok: true };
+      // Why it failed, without showing the key: Richpanel's own message, the key's length, stray spaces/line breaks.
+      const k = process.env.RICHPANEL_API_KEY, said = (await r.text()).slice(0, 200);
+      const trimmed = k.trim() !== k ? (await fetch("https://api.richpanel.com/v1/teams", { headers: { "x-richpanel-key": k.trim() } })).status : null;
+      return { ok: false, error: `Richpanel said ${r.status}`, said, keyLength: k.length, extraSpaces: k.trim() !== k, statusIfTrimmed: trimmed };
     }),
     run(async () => {
       if (!process.env.RICHPANEL_RETURNS_API_KEY) return { ok: false, error: "RICHPANEL_RETURNS_API_KEY missing" };
