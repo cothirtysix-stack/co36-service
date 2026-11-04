@@ -136,11 +136,11 @@ export default async function handler(req, res) {
   const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
     and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
     and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
-  // Drafts that errored (busy API) get retried once.
+  // Drafts that errored get retried once (retry2At: Nov 4, the writer had too little room and many came back empty; retry those once more).
   const errs = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
-    and data->>'retryAt' is null and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
+    and data->>'retry2At' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 72 * 3600e3)} limit 3`;
   for (const { id, data: r } of errs) {
-    await putDoc("svc_returns", id, { retryAt: Date.now() }, true);
+    await putDoc("svc_returns", id, { retryAt: Date.now(), retry2At: Date.now() }, true);
     const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
     const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
     await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
