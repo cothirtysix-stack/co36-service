@@ -34,7 +34,8 @@ const HANDOFF_TO = () => process.env.SERVICE_HANDOFF_TO || "d50e81de-edcc-49f3-b
 const WHY = { needs_human: "needs a person (our mistake, a refund they insist on, or an upset customer)", out_of_stock: "what they want is sold out",
   past_window: "past the 40-day return window", asked_if_bot: "they asked if they're talking to a real person", vip: "VIP customer (5+ orders or $500+), a person should reply",
   stock_unknown: "Ella couldn't tell when a sold-out item is coming back: check stock and answer",
-  restock_soon: "what they want is due back within 2 weeks: decide whether to wait or offer another color", exchange_failed: "Ella couldn't set up the exchange in the portal" };
+  restock_soon: "what they want is due back within 2 weeks: decide whether to wait or offer another color", exchange_failed: "Ella couldn't set up the exchange in the portal",
+  write_failed: "Ella couldn't write a reply for this one: please answer the customer" };
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
     and data->>'handedAt' is null and data->>'sarahAt' is null
@@ -156,6 +157,19 @@ export default async function handler(req, res) {
     await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
     // Out of Claude credit (Nov 5: monthly spend limit hit): keep it in line so it's written as soon as the limit is raised.
     const now = await getDoc("svc_returns", id); if (now?.status === "error" && /usage limit|credit balance/i.test(String(now.error || ""))) await putDoc("svc_returns", id, { retry2At: null }, true);
+  }
+  // Nov 5 (David OK): Claude came back without an email (#41923, #35806). One more try with a reminder; if it still fails,
+  // it goes to Michelle with a FOR MICHELLE note (handOff) instead of sitting in "error" where nobody sees it.
+  const empty = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
+    and data->>'error' like 'Claude returned no reply%' and data->>'writeFailAt' is null and data->>'handedAt' is null and data->>'sarahAt' is null
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 72 * 3600e3)} limit 2`;
+  for (const { id, data: r } of empty) {
+    await putDoc("svc_returns", id, { writeFailAt: Date.now() }, true);
+    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+    const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
+    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+    const now = await getDoc("svc_returns", id);
+    if (now?.status === "error" && /returned no reply/i.test(String(now.error || ""))) await putDoc("svc_returns", id, { status: "draft", draft: null, flags: [...new Set([...(now.flags || []), "write_failed"])] }, true);
   }
   for (const { id, data: r } of stuck) {
     await putDoc("svc_returns", id, { redraft2At: Date.now() }, true);
