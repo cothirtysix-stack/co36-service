@@ -154,6 +154,8 @@ export default async function handler(req, res) {
     const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
     const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
     await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+    // Out of Claude credit (Nov 5: monthly spend limit hit): keep it in line so it's written as soon as the limit is raised.
+    const now = await getDoc("svc_returns", id); if (now?.status === "error" && /usage limit|credit balance/i.test(String(now.error || ""))) await putDoc("svc_returns", id, { retry2At: null }, true);
   }
   for (const { id, data: r } of stuck) {
     await putDoc("svc_returns", id, { redraft2At: Date.now() }, true);
