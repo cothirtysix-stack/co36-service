@@ -37,9 +37,12 @@ const WHY = { needs_human: "needs a person (our mistake, a refund they insist on
   restock_soon: "what they want is due back within 2 weeks: decide whether to wait or offer another color", exchange_failed: "Ella couldn't set up the exchange in the portal" };
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
-    and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 8`;
+    and data->>'handedAt' is null and data->>'sarahAt' is null
+    and (jsonb_array_length(coalesce(data->'flags', '[]'::jsonb)) > 0 or data->>'intent' = 'question') order by seq desc limit 8`;
   for (const { id, data: r } of rows) {
     const why = (r.flags || []).filter(f => WHY[f]).map(f => WHY[f]);
+    // Questions (not a return/exchange) aren't sent automatically; give fresh ones to Michelle instead of letting them sit (Nov 5).
+    if (!why.length && r.intent === "question" && id.startsWith("n") && (r.lastAt || r.receivedAt || 0) > Date.now() - 48 * 3600e3) why.push("a question Ella doesn't answer on her own yet (her draft is below)");
     if (!why.length || !r.ticketId) continue; // not held: autopilot answers it
     const tk = r.number ? await loadTicket(r.number).catch(() => null) : null;
     if (tk && agentReplied(tk.comments)) { await putDoc("svc_returns", id, { handedAt: Date.now(), sarahAt: Date.now(), answeredBy: "team", autoSkipped: "an agent already wrote to this customer" }, true); continue; }
