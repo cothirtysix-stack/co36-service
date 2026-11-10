@@ -172,7 +172,7 @@ const doneToday = () => happy.filter(t => isToday(t.handledAt) || isToday(t.clos
 const custOf = t => cust[String(t.email || "").trim().toLowerCase()];
 const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order${+c.orders === 1 ? "" : "s"}` : "", money(c.spent)].filter(Boolean).join(" · ") : "";
 const TRUSTPILOT = "https://www.trustpilot.com/evaluate/www.cothirtysix.com";
-const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you wouldn't mind taking 4 minutes to leave us a review on Trustpilot, it would mean a lot, and it helps other guys find us: ${TRUSTPILOT}\n\nTalk soon,\nElla · CO36`;
+const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you wouldn't mind taking 4 minutes to leave us a review on Trustpilot, it would mean a lot, and it helps others find us: ${TRUSTPILOT}\n\nTalk soon,\nElla · CO36`;
 // Email only (never an Instagram/Facebook reply): the invite goes as an email reply in their Richpanel conversation.
 const canInvite = t => !!(t.ticketId && t.email && !/instagram|facebook|comment|social|dm/i.test(String(t.channel || "")));
 async function sendInvite(t, body) {
