@@ -171,7 +171,14 @@ const openHappy = () => happy.filter(isOpen).sort((a, b) => (when(b) || 0) - (wh
 const doneToday = () => happy.filter(t => isToday(t.handledAt) || isToday(t.closedAt)).sort((a, b) => (b.handledAt || b.closedAt || 0) - (a.handledAt || a.closedAt || 0));
 const custOf = t => cust[String(t.email || "").trim().toLowerCase()];
 const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order${+c.orders === 1 ? "" : "s"}` : "", money(c.spent)].filter(Boolean).join(" · ") : "";
-const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you have 30 seconds, would you share it on Trustpilot? It helps other guys find us: [Trustpilot link]\n\nTalk soon,\nElla · CO36`;
+const TRUSTPILOT = "https://www.trustpilot.com/evaluate/www.cothirtysix.com";
+const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you wouldn't mind taking 4 minutes to leave us a review on Trustpilot, it would mean a lot, and it helps other guys find us: ${TRUSTPILOT}\n\nTalk soon,\nElla · CO36`;
+// Email only (never an Instagram/Facebook reply): the invite goes as an email reply in their Richpanel conversation.
+const canInvite = t => !!(t.ticketId && t.email && !/instagram|facebook|comment|social|dm/i.test(String(t.channel || "")));
+async function sendInvite(t, body) {
+  await api.post("service", { op: "reply", ticketId: t.ticketId, body });
+  await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now(), handledBy: me, invitedAt: Date.now() });
+}
 
 // VIP lookup (read only): orders / spent / vip for the open happy conversations.
 async function loadCustomers() {
@@ -235,12 +242,17 @@ function render() {
   $("tiles").innerHTML = [
     { k: "Waiting for a thank-you", v: loaded ? String(open.length) : "…", s: "Said something kind, not answered yet", c: "var(--good2)", b: "var(--goodb)" },
     { k: "Happy VIPs", v: vipV, s: custErr ? "Couldn't load order history from Shopify" : "5+ orders or $500+ spent, waiting now", c: "var(--ink)", nd: custErr ? 1 : 0 },
-    { k: "Trustpilot invites sent", v: "—", s: "connect Trustpilot", c: "var(--dis)", nd: 1 },
+    { k: "Trustpilot invites sent", v: loaded ? String(happy.filter(t => (t.invitedAt || 0) >= start).length) : "…", s: "Asked for a review this period", c: "var(--good2)" },
     { k: "VIP check-ins", v: "—", s: "Needs a customer list from Shopify", c: "var(--dis)", nd: 1 }
   ].map(t => `<div class="kpi" style="${t.b ? "border-color:" + t.b : ""}"><span class="k">${esc(t.k)}</span><span class="v" style="color:${t.c}">${esc(t.v)}</span><span class="s">${esc(t.s)}</span>${t.nd ? ND : ""}</div>`).join("");
 
   $("bulk").innerHTML = open.length > 1 ? `<button class="bulk" id="joyall">Send all Trustpilot invites (${open.length.toLocaleString()})</button>` : "";
-  if ($("joyall")) $("joyall").onclick = () => notConnected(open.length);
+  if ($("joyall")) $("joyall").onclick = async () => {
+    const ok = open.filter(canInvite), skip = open.length - ok.length;
+    if (!(await ask(`Send ${ok.length} Trustpilot invites?`, ["Each customer gets the standard invite as an email reply, signed Ella · CO36", skip ? `${skip} without an email conversation are skipped` : "All are email conversations"], "Send all"))) return;
+    let n = 0; for (const t of ok) { try { await sendInvite(t, inviteBody(t)); n++; } catch (e) { console.warn(e); } }
+    toast(`Sent ${n} invite${n === 1 ? "" : "s"}`);
+  };
 
   $("board").innerHTML = COLS.map(renderCol).join("");
   document.querySelectorAll("#board [data-open]").forEach(b => b.onclick = () => openDrawer(b.dataset.open));
@@ -291,7 +303,7 @@ function renderDrawer() {
       ${t.summary && t.quote && t.summary !== t.quote ? `<div class="dnote">${esc(t.summary)}</div>` : ""}
       ${facts([["ORDERS", c?.orders != null ? (+c.orders).toLocaleString() : lookup], ["SPENT", c ? money(c.spent) : lookup], ["LAST ORDER", c?.lastOrder ? String(c.lastOrder) + (c.lastOrderAt ? " · " + short(ts(c.lastOrderAt)) : "") : lookup], ["VIP", c ? (c.vip ? "Yes" : "No") : lookup], ["RECEIVED", dt(t.firstAt)], ["EMAILS", t.messages ? String(t.messages) : ""]])}
       ${open ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">TRUSTPILOT INVITE</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[t.docId] ?? inviteBody(t))}</textarea></div>
-        <div class="dnote">Trustpilot isn't connected yet, so this invite can't be sent from the hub.</div>`
+        <div class="dnote">${canInvite(t) ? "Goes as an email reply in their Richpanel conversation." : "No email conversation for this customer (e.g. Instagram), so it can't be sent from here."}</div>`
         : `<div class="dnote">${t.repliedAt ? "Thanked " + esc(dt(t.repliedAt)) + "." : ""} ${t.handledAt ? "Marked done " + esc(dt(t.handledAt)) + "." : t.closedAt ? "Closed " + esc(dt(t.closedAt)) + "." : ""}</div>`}
     </div><div class="df">${open ? `<button class="alt" id="d-done">Mark done, don't send</button><button class="pri green" id="d-send">Send Trustpilot invite</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
   const D = $("drawer");
@@ -299,7 +311,14 @@ function renderDrawer() {
   if (D.querySelector("#d-close")) D.querySelector("#d-close").onclick = closeDrawer;
   const ta = D.querySelector("#d-ta");
   if (ta) { ta.oninput = () => { edits[t.docId] = ta.value; }; if (focus) { ta.focus(); try { ta.setSelectionRange(caret, caret); } catch (_) {} } }
-  const send = D.querySelector("#d-send"); if (send) send.onclick = () => notConnected(1);
+  const send = D.querySelector("#d-send"); if (send) send.onclick = async () => {
+    if (!canInvite(t)) return ask("Can't send this one", ["There's no email conversation for this customer", "Thank them by hand where they wrote"], "OK");
+    const body = (ta?.value || inviteBody(t)).trim(), who = t.customer || t.email || "this customer";
+    if (!(await ask(`Send the Trustpilot invite to ${who}?`, ["It goes as an email reply in their Richpanel conversation", "Moves them to \"Done today\""], "Send"))) return;
+    send.disabled = true;
+    try { await sendInvite(t, body); toast("Invite sent"); closeDrawer(); }
+    catch (e) { toast(e.text || e.message); send.disabled = false; }
+  };
   const done = D.querySelector("#d-done"); if (done) done.onclick = async () => {
     const who = t.customer || t.email || "this customer";
     if (!(await ask(`Mark ${who} done?`, ["Nothing is sent to the customer", "Move this conversation to \"Done today\""], "Mark done"))) return;
