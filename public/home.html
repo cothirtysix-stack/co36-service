@@ -62,7 +62,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
 .ki{font:500 12px/1.4 Inter;color:var(--body);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .kp{display:flex;gap:4px;flex-wrap:wrap}
 .pp{font:600 10px Inter;padding:2px 7px;border-radius:999px;white-space:nowrap}
-.p-ink{background:#0B0B0F;color:#fff}.p-ind{background:var(--indt);color:var(--ind2)}.p-grey{background:var(--line3);color:var(--body)}.p-good{background:var(--goodt);color:var(--good2)}
+.p-ink{background:#0B0B0F;color:#fff}.p-ind{background:var(--indt);color:var(--ind2)}.p-grey{background:var(--line3);color:var(--body)}.p-good{background:var(--goodt);color:var(--good2)}.p-bad{background:#FDECEC;color:#B91C1C}
 /* VIP band */
 .band{margin-top:36px;background:var(--surface);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:8px 0 24px}
 .bandlbl{display:flex;justify-content:center;margin-top:-22px}.bandlbl span{font:700 11px Inter;letter-spacing:.06em;color:#fff;background:#0B0B0F;padding:6px 14px;border-radius:999px}
@@ -156,7 +156,7 @@ const db = await window.claude.use("db"), api = await window.claude.use("api");
 let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
 
 // ---------- state ----------
-let range = "today", happy = [], loaded = false, sel = null;
+let range = "today", happy = [], upset = [], loaded = false, sel = null;
 const edits = {};
 let cust = {}, custLoading = false, custErr = "", custKey = "";
 
@@ -168,6 +168,8 @@ const periodStart = () => { if (range === "today") { const d = new Date(); d.set
 const when = t => t.lastAt || t.firstAt || t.waitingSince;
 const isOpen = t => !t.handledAt && !t.closedAt;
 const openHappy = () => happy.filter(isOpen).sort((a, b) => (when(b) || 0) - (when(a) || 0));
+const openUpset = () => upset.filter(isOpen).sort((a, b) => (when(b) || 0) - (when(a) || 0));
+const findConv = id => happy.find(x => x.docId === id) || upset.find(x => x.docId === id);
 const doneToday = () => happy.filter(t => isToday(t.handledAt) || isToday(t.closedAt)).sort((a, b) => (b.handledAt || b.closedAt || 0) - (a.handledAt || a.closedAt || 0));
 const custOf = t => cust[String(t.email || "").trim().toLowerCase()];
 const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order${+c.orders === 1 ? "" : "s"}` : "", money(c.spent)].filter(Boolean).join(" · ") : "";
@@ -184,7 +186,7 @@ async function sendInvite(t, body) {
 
 // VIP lookup (read only): orders / spent / vip for the open happy conversations.
 async function loadCustomers() {
-  const emails = [...new Set(openHappy().map(t => String(t.email || "").trim().toLowerCase()).filter(Boolean))].sort();
+  const emails = [...new Set([...openHappy(), ...openUpset()].map(t => String(t.email || "").trim().toLowerCase()).filter(Boolean))].sort();
   const key = emails.join(",");
   if (key === custKey) return; custKey = key;
   if (!emails.length) { custLoading = false; render(); return; }
@@ -200,7 +202,7 @@ const cards = new Map();
 function card(t, col) {
   const key = t.docId; cards.set(key, { t, col });
   const c = custOf(t), done = col === "done";
-  const pill = done ? (t.repliedAt ? ["Thanked", "p-good"] : t.closedAt && !t.handledAt ? ["Closed", "p-grey"] : ["Done", "p-ind"]) : ["Happy", "p-good"];
+  const pill = done ? (t.repliedAt ? ["Thanked", "p-good"] : t.closedAt && !t.handledAt ? ["Closed", "p-grey"] : ["Done", "p-ind"]) : col === "bad" ? ["Upset", "p-bad"] : ["Happy", "p-good"];
   const extra = (c?.vip ? `<span class="pp p-ink">VIP</span>` : "") + (c && ltv(c) ? `<span class="pp p-grey">${esc(ltv(c))}</span>` : "");
   const msg = t.quote || t.summary || "";
   return `<button class="kc${sel === key ? " sel" : ""}" data-open="${esc(key)}">
@@ -209,12 +211,13 @@ function card(t, col) {
     <div class="kp"><span class="pp ${pill[1]}">${esc(pill[0])}</span>${extra}</div></button>`;
 }
 const COLS = [
+  { k: "bad", label: "Complaints · make it right", dot: "#DC2626", sub: "Upset or let down. Answer these first, in Richpanel", empty: "No complaints waiting." },
   { k: "joy", label: "Happy · ask for Trustpilot", dot: "#16A34A", sub: "Said something kind. Invite them to review", empty: "All invited." },
   { k: "done", label: "Done today", dot: "#5B5BF6", sub: "Thanked or closed today", empty: "Nothing yet today." }
 ];
 const lists = {};
 function renderCol(c) {
-  const list = c.k === "joy" ? openHappy() : doneToday(); lists[c.k] = list;
+  const list = c.k === "joy" ? openHappy() : c.k === "bad" ? openUpset() : doneToday(); lists[c.k] = list;
   const n = list.length;
   const body = !loaded ? `<div class="csoon">Loading…</div>` : list.slice(0, 6).map(t => card(t, c.k)).join("") || `<div class="cempty">${esc(c.empty)}</div>`;
   return `<div class="col"><div class="chd"><i style="background:${c.dot}"></i><b>${esc(c.label)}</b><em>${loaded ? n.toLocaleString() : "…"}</em></div>
@@ -293,11 +296,11 @@ const facts = list => `<div class="facts">${list.map(([k, v]) => `<div><small>${
 const dt = t => t ? new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
 function renderDrawer() {
   if (!sel) return;
-  const t = happy.find(x => x.docId === sel);
+  const t = findConv(sel);
   if (!t) { closeDrawer(); return; }
   const focus = document.activeElement?.id === "d-ta", caret = focus ? document.activeElement.selectionStart : null;
   const c = custOf(t), open = isOpen(t), msg = t.quote || t.summary || "";
-  const pill = c?.vip ? ["VIP · happy", "p-ink"] : open ? ["Happy", "p-good"] : ["Done", "p-ind"];
+  const pill = t.mood !== "happy" ? (open ? ["Upset", "p-bad"] : ["Done", "p-ind"]) : c?.vip ? ["VIP · happy", "p-ink"] : open ? ["Happy", "p-good"] : ["Done", "p-ind"];
   const meta = [t.order || "No order", t.email, t.number ? "Richpanel #" + t.number : ""].filter(Boolean).join(" · ");
   const lookup = custLoading && !c ? "Loading…" : custErr && !c ? "Couldn't load" : "";
   $("drawer").innerHTML = `<div class="ovl" id="d-ovl"></div><aside class="drw"><div class="dh"><div class="t"><div class="n"><b>${esc(t.customer || t.email || "Customer")}</b><span class="pp ${pill[1]}" style="font-size:11px;padding:3px 8px">${esc(pill[0])}</span></div><span class="m">${esc(meta)}</span></div><button class="x" id="d-x">×</button></div>
@@ -305,10 +308,11 @@ function renderDrawer() {
       ${msg ? `<div class="dmsg">“${esc(String(msg).slice(0, 2000))}”</div>` : ""}
       ${t.summary && t.quote && t.summary !== t.quote ? `<div class="dnote">${esc(t.summary)}</div>` : ""}
       ${facts([["ORDERS", c?.orders != null ? (+c.orders).toLocaleString() : lookup], ["SPENT", c ? money(c.spent) : lookup], ["LAST ORDER", c?.lastOrder ? String(c.lastOrder) + (c.lastOrderAt ? " · " + short(ts(c.lastOrderAt)) : "") : lookup], ["VIP", c ? (c.vip ? "Yes" : "No") : lookup], ["RECEIVED", dt(t.firstAt)], ["EMAILS", t.messages ? String(t.messages) : ""]])}
-      ${open ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">TRUSTPILOT INVITE</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[t.docId] ?? inviteBody(t))}</textarea></div>
+      ${open && t.mood !== "happy" ? `<div class="dnote">Upset customer: answer them in Richpanel${t.number ? " (#" + esc(t.number) + ")" : ""}, then mark done here.</div>`
+      : open ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">TRUSTPILOT INVITE</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[t.docId] ?? inviteBody(t))}</textarea></div>
         <div class="dnote">${canInvite(t) ? "Goes as an email reply in their Richpanel conversation." : fromJudgeMe(t) ? "This came from a Judge.me review notification, not an email from the customer, so it isn't sent from here. They already left a review." : "No email conversation for this customer (e.g. Instagram), so it can't be sent from here."}</div>`
         : `<div class="dnote">${t.repliedAt ? "Thanked " + esc(dt(t.repliedAt)) + "." : ""} ${t.handledAt ? "Marked done " + esc(dt(t.handledAt)) + "." : t.closedAt ? "Closed " + esc(dt(t.closedAt)) + "." : ""}</div>`}
-    </div><div class="df">${open ? `<button class="alt" id="d-done">Mark done, don't send</button><button class="pri green" id="d-send">Send Trustpilot invite</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
+    </div><div class="df">${open && t.mood !== "happy" ? `<button class="pri" id="d-done">Mark done</button>` : open ? `<button class="alt" id="d-done">Mark done, don't send</button><button class="pri green" id="d-send">Send Trustpilot invite</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
   const D = $("drawer");
   D.querySelector("#d-ovl").onclick = closeDrawer; D.querySelector("#d-x").onclick = closeDrawer;
   if (D.querySelector("#d-close")) D.querySelector("#d-close").onclick = closeDrawer;
@@ -333,7 +337,9 @@ function renderDrawer() {
 
 // ---------- live data ----------
 db.collection("svc_inbox").onSnapshot(s => {
-  // Home shows happy customers only; everything else is dropped right here.
+  // Home shows complaints (left) and happy customers (David, Nov 10); neutral conversations are dropped here.
+  const fix = t => ({ ...t, firstAt: ts(t.firstAt), lastAt: ts(t.lastAt), waitingSince: ts(t.waitingSince), handledAt: ts(t.handledAt), repliedAt: ts(t.repliedAt), closedAt: ts(t.closedAt) });
+  upset = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "upset").map(fix);
   happy = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "happy")
     .map(t => ({ ...t, firstAt: ts(t.firstAt), lastAt: ts(t.lastAt), waitingSince: ts(t.waitingSince), handledAt: ts(t.handledAt), repliedAt: ts(t.repliedAt), closedAt: ts(t.closedAt) }));
   loaded = true; render(); if (sel && !document.activeElement?.closest?.(".drw")) renderDrawer(); loadCustomers();

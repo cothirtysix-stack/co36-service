@@ -116,7 +116,7 @@ async function inner(req, res) {
       ticketId, number: number || cur?.number || null,
       customer: pick(b, "ticketCustomerName", "customer_name", "name") || rpName || cur?.customer || null, email: pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail || cur?.email || null,
       subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : Array.isArray(b.ticketConversationTags) ? b.ticketConversationTags : cur?.tags || [],
-      mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood === "happy" ? "neutral" : cur?.mood || "upset" /* Nov 10: a later plain message ends "happy" */, moodCheck: mood?.mood ? 2 : cur?.moodCheck || 0, type: mood?.type || cur?.type || "other",
+      mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood === "happy" ? "neutral" : cur?.mood || "neutral" /* Nov 10: a later plain message ends "happy" */, moodCheck: mood?.mood ? 2 : cur?.moodCheck || 0, type: mood?.type || cur?.type || "other",
       summary: mood?.summary || cur?.summary || null, quote: mood?.quote || message.slice(0, 140), order: mood?.order || cur?.order || null,
       firstAt: cur?.firstAt || Date.parse(pick(b, "created_at") || "") || now, lastAt: now,
       // The 1-hour clock restarts when they write again after we answered.
