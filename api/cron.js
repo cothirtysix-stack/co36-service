@@ -7,6 +7,7 @@ import { buildLessons } from "../lib/learn.js";
 import { createExchange } from "../lib/portal.js";
 import { watchdog } from "../lib/watchdog.js";
 import { read as readMood } from "../lib/mood.js";
+import * as moodLib from "../lib/mood.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
@@ -56,7 +57,9 @@ async function recheckHappy() {
     const text = String(last?.plain_body || last?.body || r.quote || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000);
     const m = text ? await readMood(text, r.subject).catch(() => null) : null;
     // Couldn't read it: leave it as it is and try again later (3 tries), never drop someone silently.
-    if (!m?.mood) { failed++; const n = (r.moodTries || 0) + 1; await putDoc("svc_inbox", id, n >= 3 ? { moodCheck: 2, moodWhy: "couldn't re-read", moodTries: n } : { moodTries: n }, true); continue; }
+    if (!m?.mood) { failed++; const n = (r.moodTries || 0) + 1, why = text ? moodLib.lastWhy || "no answer" : "no message text found";
+      await putDoc("svc_inbox", id, n >= 3 ? { moodCheck: 2, moodWhy: `couldn't re-read: ${why}`, moodTries: n } : { moodTries: n, moodErr: why }, true);
+      await putDoc("svc_meta", "happyRecheck", { lastFail: why.slice(0, 200) }, true); continue; }
     const mood = m.mood === "happy" ? "happy" : m.mood === "upset" ? "upset" : "neutral"; mood === "happy" ? kept++ : moved++;
     await putDoc("svc_inbox", id, { moodCheck: 2, mood, moodWhy: `re-read: ${m.mood}`, ...(m.quote ? { quote: m.quote } : {}), ...(m.summary ? { summary: m.summary } : {}) }, true);
   }
