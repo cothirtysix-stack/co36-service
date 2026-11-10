@@ -6,6 +6,7 @@ import { pollAfterQc, notifyRefunds, scanQcThreads } from "../lib/afterqc.js";
 import { buildLessons } from "../lib/learn.js";
 import { createExchange } from "../lib/portal.js";
 import { watchdog } from "../lib/watchdog.js";
+import { read as readMood } from "../lib/mood.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
 const delayMs = (id, s = {}) => { // stable wait per conversation (Settings page, default 8–12 min), so it doesn't look automatic
@@ -36,6 +37,21 @@ const WHY = { needs_human: "needs a person (our mistake, a refund they insist on
   stock_unknown: "Ella couldn't tell when a sold-out item is coming back: check stock and answer",
   restock_soon: "what they want is due back within 2 weeks: decide whether to wait or offer another color", exchange_failed: "Ella couldn't set up the exchange in the portal",
   write_failed: "Ella couldn't write a reply for this one: please answer the customer" };
+// The Home "ask for Trustpilot" list must only hold real praise. Re-read each open "happy" conversation's latest customer
+// message once with the stricter reader (Nov 10: "Please remove the free pants" and "if you didn't send it, cancel" were "happy").
+async function recheckHappy() {
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_inbox' and not deleted and data->>'mood' = 'happy'
+    and data->>'handledAt' is null and data->>'closedAt' is null and coalesce((data->>'moodCheck')::int, 0) < 2 order by seq desc limit 6`;
+  for (const { id, data: r } of rows) {
+    const t = r.number ? await loadTicket(r.number).catch(() => null) : null;
+    const last = (t?.comments || []).filter(c => !isNoise(c) && !isOp(c)).pop();
+    const text = String(last?.plain_body || last?.body || r.quote || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const m = text ? await readMood(text, r.subject).catch(() => null) : null;
+    if (!m) { await putDoc("svc_inbox", id, { moodCheck: 2, mood: "neutral" }, true); continue; } // can't confirm praise: not on the list
+    await putDoc("svc_inbox", id, { moodCheck: 2, mood: m.mood === "happy" ? "happy" : m.mood === "upset" ? "upset" : "neutral", ...(m.quote ? { quote: m.quote } : {}), ...(m.summary ? { summary: m.summary } : {}) }, true);
+  }
+}
+
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
     and data->>'handedAt' is null and data->>'sarahAt' is null
@@ -127,6 +143,7 @@ export default async function handler(req, res) {
   }
   // Then the rest, each only if there's time.
   const step = async (ms, fn) => { if (left() > ms) await fn().catch(() => {}); };
+  await step(15000, () => recheckHappy()); // Nov 10: re-read the "happy" list with the stricter rule before anyone is asked for a review
   await step(8000, () => watchdog()); // every 10 min: emails Michelle + David if Ella is broken
   await step(12000, () => scanQcThreads()); // the safety net: every new conversation is checked
   await step(15000, () => handOff(since));

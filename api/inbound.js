@@ -6,30 +6,10 @@ import { putDoc, getDoc } from "../lib/server.js";
 import { draftFor, isNoise, RETURN_WORDS, RETURNS_TEMPLATE, plainText } from "../lib/ella.js";
 import { recordReply } from "../lib/learn.js";
 import { isReturnAsk } from "../lib/classify.js";
+import { read } from "../lib/mood.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
-const TYPES = ["damaged", "wrong", "late", "service", "sarah", "other"];
-
-// The reader sometimes fails (busy API, odd JSON). Try up to 3 times before falling back to keywords.
-async function read(text, subject) {
-  for (let i = 0; i < 2; i++) { const o = await readOnce(text, subject).catch(() => null); if (o) return o; await new Promise(r => setTimeout(r, 600)); }
-  return null;
-}
-async function readOnce(text, subject) {
-  const key = process.env.ANTHROPIC_API_KEY; if (!key) return null;
-  const prompt = `A customer emailed CO36, a men's clothing brand. Read their message and answer with JSON only:
-{"mood":"upset"|"happy"|"neutral","intent":"return"|"exchange"|"none","type":"damaged"|"wrong"|"late"|"service"|"sarah"|"other","summary":"what happened, under 12 words","quote":"their most telling sentence, under 140 characters","order":"order number like #12345 or null"}
-intent: return = wants to send something back, asks for a return label or a refund for an item they received; exchange = wants a different size, color or style; none = anything else (where is my order, cancel before shipping, questions).
-upset = angry, frustrated, repeating themselves, threatening a dispute or bad review, or let down. happy = praise or thanks. Questions without emotion are neutral.
-type: damaged item; wrong (wrong or missing item, wrong size sent); late (not shipped, delayed, lost, delivered but not received); service (no reply, slow, rude, refund not processed); sarah (complains about an automated or AI reply); other.
-Subject: ${String(subject || "").slice(0, 200)}
-Message: ${String(text || "").slice(0, 4000)}`;
-  const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 300, messages: [{ role: "user", content: prompt }] }) });
-  const j = await r.json().catch(() => ({})); const t = (j.content || []).map(b => b.text || "").join("");
-  try { const o = JSON.parse(t.match(/\{[\s\S]*\}/)?.[0] || ""); return { ...o, type: TYPES.includes(o.type) ? o.type : "other" }; } catch { return null; }
-}
 
 // Sarah or an agent answered in Richpanel.
 // Someone replied in Richpanel. Work out who: Ella (her draft was sent from anywhere), Sarah (Richpanel's AI account), or a teammate.
@@ -136,7 +116,7 @@ async function inner(req, res) {
       ticketId, number: number || cur?.number || null,
       customer: pick(b, "ticketCustomerName", "customer_name", "name") || rpName || cur?.customer || null, email: pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail || cur?.email || null,
       subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : Array.isArray(b.ticketConversationTags) ? b.ticketConversationTags : cur?.tags || [],
-      mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood || "upset", type: mood?.type || cur?.type || "other",
+      mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood === "happy" ? "neutral" : cur?.mood || "upset" /* Nov 10: a later plain message ends "happy" */, moodCheck: mood?.mood ? 2 : cur?.moodCheck || 0, type: mood?.type || cur?.type || "other",
       summary: mood?.summary || cur?.summary || null, quote: mood?.quote || message.slice(0, 140), order: mood?.order || cur?.order || null,
       firstAt: cur?.firstAt || Date.parse(pick(b, "created_at") || "") || now, lastAt: now,
       // The 1-hour clock restarts when they write again after we answered.
