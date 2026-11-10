@@ -122,6 +122,6 @@ export default async function handler(req, res) {
   }) : undefined;
   const happyList = await run(async () => (await db()`select count(*) filter (where data->>'mood' = 'happy')::int as happy, count(*) filter (where data->>'mood' = 'happy' and coalesce((data->>'moodCheck')::int, 0) < 2)::int as unchecked
     from hub.docs where coll = 'svc_inbox' and not deleted and data->>'handledAt' is null and data->>'closedAt' is null`)[0]);
-  const watch = await getDoc("svc_meta", "watchdog").catch(() => null);
-  res.json({ happyList, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  const watch = await getDoc("svc_meta", "watchdog").catch(() => null), happyRecheck = await getDoc("svc_meta", "happyRecheck").catch(() => null);
+  res.json({ happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }

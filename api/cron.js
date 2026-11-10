@@ -40,16 +40,27 @@ const WHY = { needs_human: "needs a person (our mistake, a refund they insist on
 // The Home "ask for Trustpilot" list must only hold real praise. Re-read each open "happy" conversation's latest customer
 // message once with the stricter reader (Nov 10: "Please remove the free pants" and "if you didn't send it, cancel" were "happy").
 async function recheckHappy() {
+  // One time (Nov 10): the first pass set everyone it couldn't read to "neutral"; put those back on the list to re-check properly.
+  const meta = (await getDoc("svc_meta", "happyRecheck")) || {};
+  if (!meta.restored) {
+    await db()`update hub.docs set data = data || '{"mood":"happy","moodCheck":0}'::jsonb, seq = nextval('hub.docs_seq') where coll = 'svc_inbox' and not deleted
+      and data->>'mood' = 'neutral' and data->>'moodCheck' = '2' and data->>'moodWhy' is null and data->>'handledAt' is null and data->>'closedAt' is null`;
+    await putDoc("svc_meta", "happyRecheck", { restored: Date.now() }, true);
+  }
   const rows = await db()`select id, data from hub.docs where coll = 'svc_inbox' and not deleted and data->>'mood' = 'happy'
     and data->>'handledAt' is null and data->>'closedAt' is null and coalesce((data->>'moodCheck')::int, 0) < 2 order by seq desc limit 6`;
+  let kept = 0, moved = 0, failed = 0;
   for (const { id, data: r } of rows) {
     const t = r.number ? await loadTicket(r.number).catch(() => null) : null;
     const last = (t?.comments || []).filter(c => !isNoise(c) && !isOp(c)).pop();
-    const text = String(last?.plain_body || last?.body || r.quote || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const text = String(last?.plain_body || last?.body || r.quote || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000);
     const m = text ? await readMood(text, r.subject).catch(() => null) : null;
-    if (!m) { await putDoc("svc_inbox", id, { moodCheck: 2, mood: "neutral" }, true); continue; } // can't confirm praise: not on the list
-    await putDoc("svc_inbox", id, { moodCheck: 2, mood: m.mood === "happy" ? "happy" : m.mood === "upset" ? "upset" : "neutral", ...(m.quote ? { quote: m.quote } : {}), ...(m.summary ? { summary: m.summary } : {}) }, true);
+    // Couldn't read it: leave it as it is and try again later (3 tries), never drop someone silently.
+    if (!m?.mood) { failed++; const n = (r.moodTries || 0) + 1; await putDoc("svc_inbox", id, n >= 3 ? { moodCheck: 2, moodWhy: "couldn't re-read", moodTries: n } : { moodTries: n }, true); continue; }
+    const mood = m.mood === "happy" ? "happy" : m.mood === "upset" ? "upset" : "neutral"; mood === "happy" ? kept++ : moved++;
+    await putDoc("svc_inbox", id, { moodCheck: 2, mood, moodWhy: `re-read: ${m.mood}`, ...(m.quote ? { quote: m.quote } : {}), ...(m.summary ? { summary: m.summary } : {}) }, true);
   }
+  if (rows.length) await putDoc("svc_meta", "happyRecheck", { at: Date.now(), kept: (meta.kept || 0) + kept, moved: (meta.moved || 0) + moved, failed: (meta.failed || 0) + failed }, true);
 }
 
 async function handOff(since) {
