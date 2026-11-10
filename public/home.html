@@ -174,7 +174,9 @@ const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order$
 const TRUSTPILOT = "https://www.trustpilot.com/evaluate/www.cothirtysix.com";
 const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you wouldn't mind taking 4 minutes to leave us a review on Trustpilot, it would mean a lot, and it helps others find us: ${TRUSTPILOT}\n\nTalk soon,\nElla · CO36`;
 // Email only (never an Instagram/Facebook reply): the invite goes as an email reply in their Richpanel conversation.
-const canInvite = t => !!(t.ticketId && t.email && !/instagram|facebook|comment|social|dm/i.test(String(t.channel || "")));
+// Not Judge.me review notifications either: that "conversation" is Judge.me's automated email, and they already left a review.
+const fromJudgeMe = t => /judge\.?me/i.test(`${t.subject || ""} ${t.summary || ""} ${t.email || ""}`);
+const canInvite = t => !!(t.ticketId && t.email && !fromJudgeMe(t) && !/instagram|facebook|comment|social|dm/i.test(String(t.channel || "")));
 async function sendInvite(t, body) {
   await api.post("service", { op: "reply", ticketId: t.ticketId, body });
   await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now(), handledBy: me, invitedAt: Date.now() });
@@ -187,7 +189,8 @@ async function loadCustomers() {
   if (key === custKey) return; custKey = key;
   if (!emails.length) { custLoading = false; render(); return; }
   custLoading = true; custErr = ""; render();
-  try { const r = await api.post("service", { op: "customers", emails }); if (key !== custKey) return; cust = { ...cust, ...(r && typeof r === "object" ? r : {}) }; }
+  // The server takes 50 emails per call: ask in batches so everyone on the list gets their orders (Nov 10: William #44894 showed "—").
+  try { for (let i = 0; i < emails.length; i += 50) { const r = await api.post("service", { op: "customers", emails: emails.slice(i, i + 50) }); if (key !== custKey) return; cust = { ...cust, ...(r && typeof r === "object" ? r : {}) }; render(); } }
   catch (e) { if (key !== custKey) return; custErr = e.text || e.message || "Couldn't load customers"; console.warn("customers:", custErr); }
   custLoading = false; render(); if (sel) renderDrawer();
 }
@@ -303,7 +306,7 @@ function renderDrawer() {
       ${t.summary && t.quote && t.summary !== t.quote ? `<div class="dnote">${esc(t.summary)}</div>` : ""}
       ${facts([["ORDERS", c?.orders != null ? (+c.orders).toLocaleString() : lookup], ["SPENT", c ? money(c.spent) : lookup], ["LAST ORDER", c?.lastOrder ? String(c.lastOrder) + (c.lastOrderAt ? " · " + short(ts(c.lastOrderAt)) : "") : lookup], ["VIP", c ? (c.vip ? "Yes" : "No") : lookup], ["RECEIVED", dt(t.firstAt)], ["EMAILS", t.messages ? String(t.messages) : ""]])}
       ${open ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">TRUSTPILOT INVITE</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[t.docId] ?? inviteBody(t))}</textarea></div>
-        <div class="dnote">${canInvite(t) ? "Goes as an email reply in their Richpanel conversation." : "No email conversation for this customer (e.g. Instagram), so it can't be sent from here."}</div>`
+        <div class="dnote">${canInvite(t) ? "Goes as an email reply in their Richpanel conversation." : fromJudgeMe(t) ? "This came from a Judge.me review notification, not an email from the customer, so it isn't sent from here. They already left a review." : "No email conversation for this customer (e.g. Instagram), so it can't be sent from here."}</div>`
         : `<div class="dnote">${t.repliedAt ? "Thanked " + esc(dt(t.repliedAt)) + "." : ""} ${t.handledAt ? "Marked done " + esc(dt(t.handledAt)) + "." : t.closedAt ? "Closed " + esc(dt(t.closedAt)) + "." : ""}</div>`}
     </div><div class="df">${open ? `<button class="alt" id="d-done">Mark done, don't send</button><button class="pri green" id="d-send">Send Trustpilot invite</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
   const D = $("drawer");
