@@ -130,9 +130,9 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
     <div class="bandlbl"><span>VIP · DAILY CHECK-IN</span></div>
     <section class="s2h">
       <div class="t"><b>Today's 10 VIPs</b><span>A new 10 every day, from people not checked in on for 60+ days. A short personal email from you, no selling. Ella writes the draft only from what we actually know: orders, emails, returns and reviews.</span></div>
-      <div class="c"><span style="color:var(--dis)">— of 10 sent</span><span class="nd">needs data</span></div>
+      <div class="c" id="vipc"><span style="color:var(--dis)">… of 10</span></div>
     </section>
-    <div class="vempty">Coming soon: needs a customer list from Shopify.<br>We don't track who was last contacted 60+ days ago yet, so no VIPs are picked here.</div>
+    <div id="vips"><div class="vempty">Loading today's VIPs…</div></div>
   </div>
   <div style="height:56px"></div>
 </div>
@@ -336,6 +336,30 @@ function renderDrawer() {
 }
 
 // ---------- live data ----------
+// ---------- Today's 10 VIPs ----------
+let vipList = [], vipDone = {};
+async function loadVips() {
+  try { const r = await api.post("service", { op: "vips" }); vipList = r.list || []; } catch (e) { $("vips").innerHTML = `<div class="vempty">Couldn't load VIPs: ${esc(e.text || e.message)}</div>`; return; }
+  renderVips();
+}
+function renderVips() {
+  const n = vipList.filter(v => vipDone[v.id]).length;
+  $("vipc").innerHTML = `<span>${n} of ${vipList.length} checked in</span>`;
+  if (!vipList.length) { $("vips").innerHTML = `<div class="vempty">No VIPs due today: everyone with 5+ orders or $500+ was checked in on in the last 60 days.</div>`; return; }
+  $("vips").innerHTML = `<div class="board" style="flex-wrap:wrap">${vipList.map(v => `<div class="kc" style="flex:1 1 300px;cursor:default">
+    <div class="kt"><b>${esc(v.name || v.email)}</b><span class="tp t-grey">${v.lastOrderAt ? "last order " + esc(short(ts(v.lastOrderAt))) : ""}</span></div>
+    <span class="ki">${esc(v.email)}</span>
+    <div class="kp"><span class="pp p-ink">VIP</span><span class="pp p-grey">${v.orders} orders · ${esc(money(v.spent))}</span>${v.lastOrder ? `<span class="pp p-grey">${esc(v.lastOrder)}</span>` : ""}
+      ${vipDone[v.id] ? `<span class="pp p-good">Checked in</span>` : `<button class="alt" data-vip="${esc(v.id)}" style="margin-left:auto;padding:5px 10px;font-size:12px">Mark checked in</button>`}</div></div>`).join("")}</div>`;
+  document.querySelectorAll("[data-vip]").forEach(b => b.onclick = async () => {
+    const v = vipList.find(x => x.id === b.dataset.vip); b.disabled = true;
+    try { await db.doc(`svc_vip/${v.id}`).set({ checkedAt: Date.now(), by: me, email: v.email, name: v.name }); vipDone[v.id] = true; renderVips(); toast("Checked in"); }
+    catch (e) { toast(e.text || e.message); b.disabled = false; }
+  });
+}
+db.collection("svc_vip").onSnapshot(s => { const cut = Date.now() - 60 * 864e5; vipDone = {}; s.docs.forEach(d => { if ((d.data().checkedAt || 0) > cut) vipDone[d.id] = true; }); if (vipList.length) renderVips(); });
+loadVips();
+
 db.collection("svc_inbox").onSnapshot(s => {
   // Home shows complaints (left) and happy customers (David, Nov 10); neutral conversations are dropped here.
   const fix = t => ({ ...t, firstAt: ts(t.firstAt), lastAt: ts(t.lastAt), waitingSince: ts(t.waitingSince), handledAt: ts(t.handledAt), repliedAt: ts(t.repliedAt), closedAt: ts(t.closedAt) });

@@ -141,7 +141,28 @@ async function customers({ emails }) {
   return out;
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers };
+// Today's 10 VIPs (David, Nov 10): 5+ orders or $500+ spent, not checked in on for 60+ days. Same 10 all day (saved per day).
+async function vips() {
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" }), saved = await getDoc("svc_meta", `vips-${day}`);
+  if (saved?.list) return { day, list: saved.list };
+  const all = []; let after = null;
+  for (let page = 0; page < 6; page++) {
+    const j = await shopify(`query($a:String){ customers(first: 250, after: $a, query: "orders_count:>4 OR total_spent:>499"){ nodes { id displayName email numberOfOrders amountSpent { amount } lastOrder { name createdAt } } pageInfo { hasNextPage endCursor } } }`, { a: after });
+    const c = j.data?.customers; (c?.nodes || []).forEach(n => all.push(n)); if (!c?.pageInfo?.hasNextPage) break; after = c.pageInfo.endCursor;
+  }
+  const cutoff = Date.now() - 60 * 864e5, pick = [];
+  const hash = t => { let h = 0; for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
+  for (const c of all.filter(c => c.email).sort((a, b) => hash(day + a.id) - hash(day + b.id))) {
+    const v = await getDoc("svc_vip", String(c.id).split("/").pop()); if (v?.checkedAt > cutoff) continue;
+    pick.push({ id: String(c.id).split("/").pop(), name: c.displayName, email: c.email, orders: +c.numberOfOrders || 0, spent: +c.amountSpent?.amount || 0,
+      lastOrder: c.lastOrder?.name || null, lastOrderAt: c.lastOrder?.createdAt || null, lastCheckIn: v?.checkedAt || null });
+    if (pick.length >= 10) break;
+  }
+  await putDoc("svc_meta", `vips-${day}`, { list: pick, at: Date.now(), pool: all.length });
+  return { day, list: pick, pool: all.length };
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });
