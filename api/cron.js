@@ -48,6 +48,12 @@ async function recheckHappy() {
       and data->>'mood' = 'neutral' and data->>'moodCheck' = '2' and data->>'moodWhy' is null and data->>'handledAt' is null and data->>'closedAt' is null`;
     await putDoc("svc_meta", "happyRecheck", { restored: Date.now() }, true);
   }
+  // Second pass (Nov 10): the ones the first pass couldn't read stayed "happy"; read them again now that the reader is fixed.
+  if (!meta.retried) {
+    await db()`update hub.docs set data = data || '{"moodCheck":0,"moodTries":0}'::jsonb, seq = nextval('hub.docs_seq') where coll = 'svc_inbox' and not deleted
+      and data->>'mood' = 'happy' and data->>'moodWhy' like 'couldn''t re-read%' and data->>'handledAt' is null and data->>'closedAt' is null`;
+    await putDoc("svc_meta", "happyRecheck", { retried: Date.now() }, true);
+  }
   const rows = await db()`select id, data from hub.docs where coll = 'svc_inbox' and not deleted and data->>'mood' = 'happy'
     and data->>'handledAt' is null and data->>'closedAt' is null and coalesce((data->>'moodCheck')::int, 0) < 2 order by seq desc limit 6`;
   let kept = 0, moved = 0, failed = 0;
