@@ -202,7 +202,7 @@ const cards = new Map();
 function card(t, col) {
   const key = t.docId; cards.set(key, { t, col });
   const c = custOf(t), done = col === "done";
-  const pill = done ? (t.repliedAt ? ["Thanked", "p-good"] : t.closedAt && !t.handledAt ? ["Closed", "p-grey"] : ["Done", "p-ind"]) : col === "bad" ? ["Upset", "p-bad"] : ["Happy", "p-good"];
+  const pill = done ? (t.invitedAt ? ["Trustpilot invite sent", "p-good"] : t.repliedAt ? ["Thanked", "p-good"] : t.closedAt && !t.handledAt ? ["Closed", "p-grey"] : ["Done", "p-ind"]) : col === "bad" ? ["Upset", "p-bad"] : ["Happy", "p-good"];
   const extra = (c?.vip ? `<span class="pp p-ink">VIP</span>` : "") + (c && ltv(c) ? `<span class="pp p-grey">${esc(ltv(c))}</span>` : "");
   const msg = t.quote || t.summary || "";
   return `<button class="kc${sel === key ? " sel" : ""}" data-open="${esc(key)}">
