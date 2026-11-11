@@ -176,9 +176,9 @@ const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order$
 const TRUSTPILOT = "https://www.trustpilot.com/evaluate/www.cothirtysix.com";
 const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made my day, thank you!\n\nI know your time is valuable. Would you mind taking 4 minutes to leave us a review on Trustpilot? It would mean a lot, but really only if you have the time: ${TRUSTPILOT}\n\nThank you,\nElla · CO36`; // David's wording, Nov 10
 // Email only (never an Instagram/Facebook reply): the invite goes as an email reply in their Richpanel conversation.
-// Not Judge.me review notifications either: that "conversation" is Judge.me's automated email, and they already left a review.
+// Judge.me review notifications are fine to invite (David, Nov 10): Richpanel has the reviewer as the customer, so the reply goes to them.
 const fromJudgeMe = t => /judge\.?me/i.test(`${t.subject || ""} ${t.summary || ""} ${t.email || ""}`);
-const canInvite = t => !!(t.ticketId && t.email && !fromJudgeMe(t) && !/instagram|facebook|comment|social|dm/i.test(String(t.channel || "")));
+const canInvite = t => !!(t.ticketId && t.email && !/instagram|facebook|comment|social|dm/i.test(String(t.channel || "")));
 async function sendInvite(t, body) {
   await api.post("service", { op: "reply", ticketId: t.ticketId, body });
   await db.doc(`svc_inbox/${t.docId}`).update({ handledAt: Date.now(), handledBy: me, invitedAt: Date.now() });
@@ -310,7 +310,7 @@ function renderDrawer() {
       ${facts([["ORDERS", c?.orders != null ? (+c.orders).toLocaleString() : lookup], ["SPENT", c ? money(c.spent) : lookup], ["LAST ORDER", c?.lastOrder ? String(c.lastOrder) + (c.lastOrderAt ? " · " + short(ts(c.lastOrderAt)) : "") : lookup], ["VIP", c ? (c.vip ? "Yes" : "No") : lookup], ["RECEIVED", dt(t.firstAt)], ["EMAILS", t.messages ? String(t.messages) : ""]])}
       ${open && t.mood !== "happy" ? `<div class="dnote">Upset customer: answer them in Richpanel${t.number ? " (#" + esc(t.number) + ")" : ""}, then mark done here.</div>`
       : open ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="dl">TRUSTPILOT INVITE</span><textarea class="dta" id="d-ta" rows="9">${esc(edits[t.docId] ?? inviteBody(t))}</textarea></div>
-        <div class="dnote">${canInvite(t) ? "Goes as an email reply in their Richpanel conversation." : fromJudgeMe(t) ? "This came from a Judge.me review notification, not an email from the customer, so it isn't sent from here. They already left a review." : "No email conversation for this customer (e.g. Instagram), so it can't be sent from here."}</div>`
+        <div class="dnote">${canInvite(t) ? `Goes as an email reply to ${esc(t.email)} in their Richpanel conversation.${fromJudgeMe(t) ? " They came in through a Judge.me review, so they already reviewed us on the site." : ""}` : "No email conversation for this customer (e.g. Instagram), so it can't be sent from here."}</div>`
         : `<div class="dnote">${t.repliedAt ? "Thanked " + esc(dt(t.repliedAt)) + "." : ""} ${t.handledAt ? "Marked done " + esc(dt(t.handledAt)) + "." : t.closedAt ? "Closed " + esc(dt(t.closedAt)) + "." : ""}</div>`}
     </div><div class="df">${open && t.mood !== "happy" ? `<button class="pri" id="d-done">Mark done</button>` : open ? `<button class="alt" id="d-done">Mark done, don't send</button><button class="pri green" id="d-send">Send Trustpilot invite</button>` : `<button class="pri" id="d-close">Close</button>`}</div></aside>`;
   const D = $("drawer");
