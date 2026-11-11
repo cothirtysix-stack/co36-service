@@ -167,7 +167,7 @@ async function vipDraft({ id, refresh }) {
   const day = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
   const had = await getDoc("svc_vipdraft", String(id)); if (had?.day === day && had.body && !refresh) return had;
   const j = await shopify(`query($id:ID!){ customer(id:$id){ displayName firstName email createdAt numberOfOrders
-    orders(first: 6, reverse: true){ nodes { name createdAt lineItems(first: 10){ nodes { title variantTitle quantity } } } } } }`, { id: `gid://shopify/Customer/${String(id).replace(/\D/g, "")}` });
+    orders(first: 6, reverse: true){ nodes { name createdAt returnStatus displayFinancialStatus lineItems(first: 10){ nodes { title variantTitle quantity } } } } } }`, { id: `gid://shopify/Customer/${String(id).replace(/\D/g, "")}` });
   const c = j.data?.customer; if (!c) fail("Customer not found in Shopify");
   await init();
   const mail = String(c.email || "").toLowerCase();
@@ -175,7 +175,7 @@ async function vipDraft({ id, refresh }) {
   const rets = mail ? (await db()`select data from hub.docs where coll = 'svc_returns' and not deleted and lower(data->>'email') = ${mail} order by seq desc limit 5`).map(r => r.data) : [];
   const facts = [
     `Name: ${c.firstName || c.displayName}`, `Customer since: ${String(c.createdAt).slice(0, 10)}`, `Orders: ${c.numberOfOrders}`,
-    ...(c.orders?.nodes || []).map(o => `- ${o.name} on ${String(o.createdAt).slice(0, 10)}: ${(o.lineItems?.nodes || []).filter(l => !/protection|insurance/i.test(l.title)).map(l => `${l.quantity}x ${l.title}${l.variantTitle ? " (" + l.variantTitle + ")" : ""}`).join(", ")}`),
+    ...(c.orders?.nodes || []).map(o => `- ${o.name} on ${String(o.createdAt).slice(0, 10)}${o.returnStatus && o.returnStatus !== "NO_RETURN" ? ` [return: ${o.returnStatus.toLowerCase().replace(/_/g, " ")}]` : ""}${/REFUND/.test(o.displayFinancialStatus || "") ? ` [${o.displayFinancialStatus.toLowerCase().replace(/_/g, " ")}]` : ""}: ${(o.lineItems?.nodes || []).filter(l => !/protection|insurance/i.test(l.title)).map(l => `${l.quantity}x ${l.title}${l.variantTitle ? " (" + l.variantTitle + ")" : ""}`).join(", ")}`),
     ...talks.map(t => `- Past email to us (${t.mood || "neutral"}): ${t.summary || t.quote || ""}`),
     ...rets.map(r => `- ${r.intent === "exchange" ? "Exchange" : "Return"} request: ${String(r.plan || r.message || "").slice(0, 140)}`)
   ].join("\n");
@@ -185,7 +185,9 @@ Rules:
 - 40 to 80 words. Warm, simple, human. Sound like David wrote it himself.
 - Use ONLY the facts below. Mention one specific, real thing (what he bought, how long he's been with us, an exchange we did). Never invent anything.
 - No selling: no discounts, no new products, no links, no "shop now". Don't mention how much he spent or order counts as numbers.
-- If a past email or return shows a problem, acknowledge it briefly and kindly, don't dwell.
+- TWO KINDS OF NOTE (David, Nov 10):
+  - HISTORY: if the facts show a past email with us, a return, exchange, refund or problem, build the note around it naturally ("Hope the exchange to the Medium worked out", "I saw the wait on your last order, sorry again"). Kind and brief, never dwell.
+  - NO HISTORY: if there is nothing but orders, it's a simple check-in about what he bought ("How are the Mock Necks holding up?"). Don't invent a reason.
 - End with one genuine, easy question (how the shirts are holding up, how the fit has been), so he feels free to reply.
 - Never mention AI, automation, or that he was picked from a list.
 - Start with "Hi ${(c.firstName || String(c.displayName || "").split(" ")[0] || "there").replace(/[^\p{L}' -]/gu, "")},". Sign off exactly:\nDavid\nFounder, CO36
