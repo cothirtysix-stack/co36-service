@@ -1,5 +1,5 @@
 // Service Hub actions. Every call is signed in (wrap). Writes to Shopify and Richpanel only happen when a person clicks.
-import { wrap, putDoc, getDoc } from "../lib/server.js";
+import { wrap, putDoc, getDoc, db, init } from "../lib/server.js";
 import { shopify, need } from "../lib/shopify.js";
 import { bulkQuery, parseBulk, classify, eventsQuery, classifyMoving } from "../lib/fix.js";
 import { draftFor, loadTicket, isOp } from "../lib/ella.js";
@@ -162,7 +162,46 @@ async function vips() {
   return { day, list: pick, pool: all.length };
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips };
+// A personal check-in note for one VIP, from David (Nov 10). Facts only: their orders and past conversations with us. Nothing is sent.
+async function vipDraft({ id, refresh }) {
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const had = await getDoc("svc_vipdraft", String(id)); if (had?.day === day && had.body && !refresh) return had;
+  const j = await shopify(`query($id:ID!){ customer(id:$id){ displayName firstName email createdAt numberOfOrders
+    orders(first: 6, reverse: true){ nodes { name createdAt lineItems(first: 10){ nodes { title variantTitle quantity } } } } } }`, { id: `gid://shopify/Customer/${String(id).replace(/\D/g, "")}` });
+  const c = j.data?.customer; if (!c) fail("Customer not found in Shopify");
+  await init();
+  const mail = String(c.email || "").toLowerCase();
+  const talks = mail ? (await db()`select data from hub.docs where coll = 'svc_inbox' and not deleted and lower(data->>'email') = ${mail} order by seq desc limit 5`).map(r => r.data) : [];
+  const rets = mail ? (await db()`select data from hub.docs where coll = 'svc_returns' and not deleted and lower(data->>'email') = ${mail} order by seq desc limit 5`).map(r => r.data) : [];
+  const facts = [
+    `Name: ${c.firstName || c.displayName}`, `Customer since: ${String(c.createdAt).slice(0, 10)}`, `Orders: ${c.numberOfOrders}`,
+    ...(c.orders?.nodes || []).map(o => `- ${o.name} on ${String(o.createdAt).slice(0, 10)}: ${(o.lineItems?.nodes || []).filter(l => !/protection|insurance/i.test(l.title)).map(l => `${l.quantity}x ${l.title}${l.variantTitle ? " (" + l.variantTitle + ")" : ""}`).join(", ")}`),
+    ...talks.map(t => `- Past email to us (${t.mood || "neutral"}): ${t.summary || t.quote || ""}`),
+    ...rets.map(r => `- ${r.intent === "exchange" ? "Exchange" : "Return"} request: ${String(r.plan || r.message || "").slice(0, 140)}`)
+  ].join("\n");
+  const prompt = `Write a short personal check-in email from David, the founder of CO36 (a men's clothing brand), to one of our best customers.
+Goal: make him feel valued and remembered, like a personal note from the founder. NOT marketing.
+Rules:
+- 40 to 80 words. Warm, simple, human. Sound like David wrote it himself.
+- Use ONLY the facts below. Mention one specific, real thing (what he bought, how long he's been with us, an exchange we did). Never invent anything.
+- No selling: no discounts, no new products, no links, no "shop now". Don't mention how much he spent or order counts as numbers.
+- If a past email or return shows a problem, acknowledge it briefly and kindly, don't dwell.
+- End with one genuine, easy question (how the shirts are holding up, how the fit has been), so he feels free to reply.
+- Never mention AI, automation, or that he was picked from a list.
+- Start with "Hi ${(c.firstName || String(c.displayName || "").split(" ")[0] || "there").replace(/[^\p{L}' -]/gu, "")},". Sign off exactly:\nDavid\nFounder, CO36
+Facts:
+${facts}
+Answer with the email only.`;
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) fail("ANTHROPIC_API_KEY missing");
+  const r = await fetch("https://api.anthropic.com/v1/messages", { signal: AbortSignal.timeout(40000), method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5", max_tokens: 2000, messages: [{ role: "user", content: prompt }] }) });
+  const out = await r.json().catch(() => ({})); if (!r.ok) fail(out.error?.message || `Claude ${r.status}`, 502);
+  const body = (out.content || []).map(b => b.text || "").join("").trim(); if (!body) fail("No draft came back, try again", 502);
+  const doc = { day, body, at: Date.now(), email: c.email, name: c.displayName };
+  await putDoc("svc_vipdraft", String(id), doc); return doc;
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips, vipDraft };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });

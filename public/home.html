@@ -337,12 +337,21 @@ function renderDrawer() {
 
 // ---------- live data ----------
 // ---------- Today's 10 VIPs ----------
-let vipList = [], vipDone = {};
+let vipList = [], vipDone = {}, vipDraft = {}, vipBusy = {};
+// Ella's note for each VIP, written from their orders and past emails; nothing is sent from here yet (David, Nov 10).
+async function draftVip(id, refresh) {
+  vipBusy[id] = true; renderVips();
+  try { const r = await api.post("service", { op: "vipDraft", id, refresh: !!refresh }); vipDraft[id] = r.body; }
+  catch (e) { vipDraft[id] = vipDraft[id] || ""; toast(e.text || e.message); }
+  vipBusy[id] = false; renderVips();
+}
+async function draftAllVips() { const todo = vipList.filter(v => !vipDraft[v.id]); for (let i = 0; i < todo.length; i += 2) await Promise.all(todo.slice(i, i + 2).map(v => draftVip(v.id))); }
 async function loadVips() {
   try { const r = await api.post("service", { op: "vips" }); vipList = r.list || []; } catch (e) { $("vips").innerHTML = `<div class="vempty">Couldn't load VIPs: ${esc(e.text || e.message)}</div>`; return; }
-  renderVips();
+  renderVips(); draftAllVips();
 }
 function renderVips() {
+  const focus = document.activeElement?.dataset?.vipta, caret = focus ? document.activeElement.selectionStart : null;
   const n = vipList.filter(v => vipDone[v.id]).length;
   $("vipc").innerHTML = `<span>${n} of ${vipList.length} checked in</span>`;
   if (!vipList.length) { $("vips").innerHTML = `<div class="vempty">No VIPs due today: everyone with 5+ orders or $500+ was checked in on in the last 60 days.</div>`; return; }
@@ -350,7 +359,14 @@ function renderVips() {
     <div class="kt"><b>${esc(v.name || v.email)}</b><span class="tp t-grey">${v.lastOrderAt ? "last order " + esc(short(ts(v.lastOrderAt))) : ""}</span></div>
     <span class="ki">${esc(v.email)}</span>
     <div class="kp"><span class="pp p-ink">VIP</span><span class="pp p-grey">${v.orders} orders · ${esc(money(v.spent))}</span>${v.lastOrder ? `<span class="pp p-grey">${esc(v.lastOrder)}</span>` : ""}
-      ${vipDone[v.id] ? `<span class="pp p-good">Checked in</span>` : `<button class="alt" data-vip="${esc(v.id)}" style="margin-left:auto;padding:5px 10px;font-size:12px">Mark checked in</button>`}</div></div>`).join("")}</div>`;
+      ${vipDone[v.id] ? `<span class="pp p-good">Checked in</span>` : `<button class="alt" data-vip="${esc(v.id)}" style="margin-left:auto;padding:5px 10px;font-size:12px">Mark checked in</button>`}</div>
+    ${vipBusy[v.id] && !vipDraft[v.id] ? `<div class="dnote" style="margin-top:8px">Ella is writing the note…</div>`
+      : vipDraft[v.id] != null ? `<textarea class="dta" data-vipta="${esc(v.id)}" rows="8" style="margin-top:8px">${esc(vipDraft[v.id])}</textarea>
+      <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:6px"><button class="alt" data-vipre="${esc(v.id)}" style="height:34px;font-size:12px"${vipBusy[v.id] ? " disabled" : ""}>${vipBusy[v.id] ? "Rewriting…" : "Rewrite"}</button><button class="pri" data-vipcopy="${esc(v.id)}" style="height:34px;font-size:12px">Copy</button></div>` : ""}</div>`).join("")}</div>
+    <div class="dnote" style="margin-top:10px">Drafts only: copy a note into your email (or Richpanel), send it, then mark them checked in. Sending from here comes after a test.</div>`;
+  document.querySelectorAll("[data-vipta]").forEach(ta => { ta.oninput = () => { vipDraft[ta.dataset.vipta] = ta.value; }; if (ta.dataset.vipta === focus) { ta.focus(); try { ta.setSelectionRange(caret, caret); } catch (_) {} } });
+  document.querySelectorAll("[data-vipre]").forEach(b => b.onclick = () => draftVip(b.dataset.vipre, true));
+  document.querySelectorAll("[data-vipcopy]").forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(vipDraft[b.dataset.vipcopy] || ""); toast("Copied"); } catch (_) { toast("Couldn't copy, select the text instead"); } });
   document.querySelectorAll("[data-vip]").forEach(b => b.onclick = async () => {
     const v = vipList.find(x => x.id === b.dataset.vip); b.disabled = true;
     try { await db.doc(`svc_vip/${v.id}`).set({ checkedAt: Date.now(), by: me, email: v.email, name: v.name }); vipDone[v.id] = true; renderVips(); toast("Checked in"); }
