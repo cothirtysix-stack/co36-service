@@ -120,8 +120,17 @@ export default async function handler(req, res) {
       body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 20, messages: [{ role: "user", content: "Say ok" }] }) });
     const j = await r.json().catch(() => ({})); return { status: r.status, model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", error: j.error?.message?.slice(0, 200) || null, text: (j.content || []).map(b => b.text).join("").slice(0, 40) };
   }) : undefined;
+  // ?rpcust=1 → which Richpanel endpoints can list a customer's past conversations (status codes and top-level keys only).
+  const rpcust = req.query?.rpcust ? await run(async () => {
+    const e = "david@cothirtysix.com", H = { "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" }, out = {};
+    for (const path of [`customers/${encodeURIComponent(e)}`, `customers?email=${encodeURIComponent(e)}`, `tickets?customer_email=${encodeURIComponent(e)}`, `customers/${encodeURIComponent(e)}/tickets`, `tickets?email=${encodeURIComponent(e)}`]) {
+      const r = await fetch(`https://api.richpanel.com/v1/${path}`, { headers: H }); const j = await r.json().catch(() => null);
+      out[path.split("?")[0] + (path.includes("?") ? "?" + path.split("?")[1].split("=")[0] : "")] = { status: r.status, keys: j && typeof j === "object" ? Object.keys(j).slice(0, 8) : null, sub: j && typeof j === "object" ? Object.fromEntries(Object.entries(j).slice(0, 4).map(([k, v]) => [k, v && typeof v === "object" ? (Array.isArray(v) ? `array(${v.length})` : Object.keys(v).slice(0, 12)) : typeof v])) : null };
+    }
+    return out;
+  }) : undefined;
   const happyList = await run(async () => (await db()`select count(*) filter (where data->>'mood' = 'happy')::int as happy, count(*) filter (where data->>'mood' = 'happy' and coalesce((data->>'moodCheck')::int, 0) < 2)::int as unchecked, count(*) filter (where data->>'mood' = 'upset')::int as upset, count(*) filter (where data->>'mood' = 'upset' and data->>'summary' is null)::int as upset_unread
     from hub.docs where coll = 'svc_inbox' and not deleted and data->>'handledAt' is null and data->>'closedAt' is null`)[0]);
   const watch = await getDoc("svc_meta", "watchdog").catch(() => null), happyRecheck = await getDoc("svc_meta", "happyRecheck").catch(() => null);
-  res.json({ happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ rpcust, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
