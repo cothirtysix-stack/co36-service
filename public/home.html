@@ -174,7 +174,7 @@ const doneToday = () => happy.filter(t => isToday(t.handledAt) || isToday(t.clos
 const custOf = t => cust[String(t.email || "").trim().toLowerCase()];
 const ltv = c => c ? [c.orders != null ? `${(+c.orders).toLocaleString()} order${+c.orders === 1 ? "" : "s"}` : "", money(c.spent)].filter(Boolean).join(" · ") : "";
 const TRUSTPILOT = "https://www.trustpilot.com/evaluate/www.cothirtysix.com";
-const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made our day, thank you.\n\nIf you wouldn't mind taking 4 minutes to leave us a review on Trustpilot, it would mean a lot, and it helps others find us: ${TRUSTPILOT}\n\nTalk soon,\nElla · CO36`;
+const inviteBody = t => `Hi ${first(t.customer)},\n\nThis made my day, thank you!\n\nI know your time is valuable. Would you mind taking 4 minutes to leave us a review on Trustpilot? It would mean a lot, but really only if you have the time: ${TRUSTPILOT}\n\nThank you,\nElla · CO36`; // David's wording, Nov 10
 // Email only (never an Instagram/Facebook reply): the invite goes as an email reply in their Richpanel conversation.
 // Not Judge.me review notifications either: that "conversation" is Judge.me's automated email, and they already left a review.
 const fromJudgeMe = t => /judge\.?me/i.test(`${t.subject || ""} ${t.summary || ""} ${t.email || ""}`);
