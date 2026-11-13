@@ -119,6 +119,8 @@ export default async function handler(req, res) {
     const safe = SAFE_INTENTS.includes(r.intent) || (r.intent === "after_qc" && AUTOPILOT.afterQcSend && off?.afterQcAuto && r.v3); // v3 = written with their history
     if (!safe || blocking.length || r.sarahAt || !r.draft) { held.push(id); continue; }
     if (r.redo5 || r.releasedAt) { held.push(id); continue; } // Oct 30: released batch paused until reviewed
+    // After-scan emails (on since Nov 13): only fresh scans whose refund hasn't been handed to the team yet, never the old backlog.
+    if (r.intent === "after_qc" && (r.refundNotifiedAt || Date.now() - (r.draftedAt || r.lastAt || 0) > 12 * 3600e3)) { held.push(id); continue; }
     if (r.channel && /comment|facebook|instagram|social/i.test(r.channel)) { held.push(id); continue; }
     // Follow-ups after a return is checked in go right away (nobody is waiting, and the team may refund soon).
     if (r.intent !== "after_qc" && Date.now() < (r.lastAt || r.receivedAt || 0) + delayMs(id, off || {})) continue;
