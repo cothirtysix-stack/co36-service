@@ -118,7 +118,7 @@ async function inner(req, res) {
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
     const now = Date.now();
     await putDoc("svc_inbox", id, {
-      ticketId, number: number || cur?.number || null,
+      ticketId, number: number || cur?.number || null, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || cur?.channel || ""),
       customer: pick(b, "ticketCustomerName", "customer_name", "name") || rpName || cur?.customer || null, email: pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail || cur?.email || null,
       subject: subject || cur?.subject || null, tags: Array.isArray(b.tags) ? b.tags : Array.isArray(b.ticketConversationTags) ? b.ticketConversationTags : cur?.tags || [],
       mood: mood?.mood && mood.mood !== "neutral" ? mood.mood : cur?.mood === "happy" ? "neutral" : cur?.mood || "neutral" /* Nov 10: a later plain message ends "happy" */, moodCheck: mood?.mood ? 2 : cur?.moodCheck || 0, type: mood?.type || cur?.type || "other",

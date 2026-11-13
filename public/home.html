@@ -392,8 +392,10 @@ loadVips();
 db.collection("svc_inbox").onSnapshot(s => {
   // Home shows complaints (left) and happy customers (David, Nov 10); neutral conversations are dropped here.
   const fix = t => ({ ...t, firstAt: ts(t.firstAt), lastAt: ts(t.lastAt), waitingSince: ts(t.waitingSince), handledAt: ts(t.handledAt), repliedAt: ts(t.repliedAt), closedAt: ts(t.closedAt) });
-  upset = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "upset").map(fix);
-  happy = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "happy")
+  // Email only (David, Nov 13): Instagram/Facebook comments and DMs never show here. No email address = not an email conversation.
+  const isEmail = t => !!t.email && !/instagram|facebook|messenger|social|comment|dm/i.test(String(t.channel || "")) && !/^(instagram|facebook) (visitor|user)/i.test(String(t.customer || ""));
+  upset = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "upset" && isEmail(t)).map(fix);
+  happy = s.docs.map(d => ({ docId: d.id, ...d.data() })).filter(t => t.mood === "happy" && isEmail(t))
     .map(t => ({ ...t, firstAt: ts(t.firstAt), lastAt: ts(t.lastAt), waitingSince: ts(t.waitingSince), handledAt: ts(t.handledAt), repliedAt: ts(t.repliedAt), closedAt: ts(t.closedAt) }));
   loaded = true; render(); if (sel && !document.activeElement?.closest?.(".drw")) renderDrawer(); loadCustomers();
 });
