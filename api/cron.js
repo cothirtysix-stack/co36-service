@@ -86,7 +86,7 @@ async function handOff(since) {
     // Email only, notes included (David, Nov 4: a FOR MICHELLE note landed on an Instagram DM). Unknown channel = don't touch.
     const ch = String(tk?.via?.channel || tk?.channel || tk?.source || r.channel || "");
     if (!tk || !/email|gmail/i.test(ch) || /comment|facebook|instagram|social|dm|messenger|whatsapp|sms/i.test(ch)) { await putDoc("svc_returns", id, { handedAt: Date.now(), sarahAt: Date.now(), channel: ch || null, autoSkipped: "not email" }, true); continue; }
-    const body = `FOR MICHELLE · Ella held this one\nWhy: ${why.join("; ")}${r.exchangeError ? ` (${r.exchangeError})` : ""}.\nElla suggests: ${r.plan || "-"}\n\nHer draft (edit and send, or reply your own way):\n${r.draft || "-"}`;
+    const body = `FOR MICHELLE · ${r.chasedAt ? `the customer wrote again${r.chases > 1 ? ` (${r.chases} times)` : ""}, still waiting for us` : "Ella held this one"}\nWhy: ${why.join("; ")}${r.exchangeError ? ` (${r.exchangeError})` : ""}.\nElla suggests: ${r.plan || "-"}\n\nHer draft (edit and send, or reply your own way):\n${r.draft || "-"}`;
     const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(r.ticketId)}`, { method: "PUT",
       headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
       body: JSON.stringify({ ticket: { status: "OPEN", assignee_id: HANDOFF_TO(), comment: { body, sender_type: "operator", public: false, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });

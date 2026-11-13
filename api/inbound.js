@@ -3,7 +3,7 @@
 import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { putDoc, getDoc } from "../lib/server.js";
-import { draftFor, isNoise, RETURN_WORDS, RETURNS_TEMPLATE, plainText } from "../lib/ella.js";
+import { draftFor, isNoise, RETURN_WORDS, RETURNS_TEMPLATE, plainText, isAutoEmail } from "../lib/ella.js";
 import { recordReply } from "../lib/learn.js";
 import { isReturnAsk } from "../lib/classify.js";
 import { read } from "../lib/mood.js";
@@ -70,14 +70,16 @@ async function inner(req, res) {
     if (status === "CLOSED" && cur) { await putDoc("svc_inbox", id, { closedAt: Date.now() }, true); return res.json({ ok: true }); }
     // Richpanel Returns' "Quality Check Completed for your return - Order #123" email: remember its thread for Ella's follow-up.
     const qcm = String(pick(b, "ticketSubject", "subject") || looked?.ticket?.subject || "").match(/quality check completed.*?#\s*(\d+)/i);
-    if (qcm) { await putDoc("svc_qcthread", qcm[1], { ticketId, number, at: Date.now() }); return res.json({ ok: true, kept: false, qc: true }); }
+    // Only the automated email itself is skipped: a customer replying in that thread is handled like any other email (Lori, Nov 13).
+    const custInThread = (looked?.ticket?.comments || []).some(c => !isNoise(c) && !(c.is_operator ?? c.isOperator) && !isAutoEmail(c));
+    if (qcm) { await putDoc("svc_qcthread", qcm[1], { ticketId, number, at: Date.now() }); if (!custInThread) return res.json({ ok: true, kept: false, qc: true }); }
     // Our own replies (Sarah or an agent) restart nothing; they count as answering.
     if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
       const real = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), lastReal = real[real.length - 1];
       if (lastReal && (lastReal.is_operator ?? lastReal.isOperator)) await ourReply(id, cur, lastReal); // a private note or auto-reply isn't an answer
       return res.json({ ok: true, kept: false });
     }
-    const comments = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), isOp = c => !!(c.is_operator ?? c.isOperator);
+    const comments = (looked?.ticket?.comments || []).filter(c => !isNoise(c) && !isAutoEmail(c)), isOp = c => !!(c.is_operator ?? c.isOperator);
     // Richpanel's "Things are busy" auto-reply lands seconds after every customer email, so "last message is ours" is not enough.
     // Work from the newest customer message and only handle each one once.
     const lastCust = comments.filter(c => !isOp(c)).pop();
@@ -98,7 +100,7 @@ async function inner(req, res) {
     const subject = pick(b, "ticketSubject", "subject") || looked?.ticket?.subject;
     let mood = await read(message, subject).catch(() => null);
     // Safety net: if the reader failed or missed an obvious return/exchange ("too big for a medium, may I exchange for a small?"), use the words.
-    if (!RETURNS_TEMPLATE.test(String(subject || "")) && (!mood || mood.intent === "none") && (await isReturnAsk(subject, message)).yes) mood = { ...(mood || { mood: "neutral", type: "other" }), intent: /exchange|swap|another size|size (up|down)/i.test(message) ? "exchange" : "return" };
+    if ((!RETURNS_TEMPLATE.test(String(subject || "")) || lastCust) && (!mood || mood.intent === "none") && (await isReturnAsk(subject, message)).yes) mood = { ...(mood || { mood: "neutral", type: "other" }), intent: /exchange|swap|another size|size (up|down)/i.test(message) ? "exchange" : "return" };
     await putDoc("svc_seen", id, { read: mood ? `${mood.intent}/${mood.mood}` : "failed", msgLen: message.length }, true).catch(() => {});
     // Learning: how did they react to what we (Ella, Sarah or the team) said last?
     await recordReply({ id, comments, lastCust, mood, isOp, isNoise }).catch(() => {});
@@ -107,7 +109,10 @@ async function inner(req, res) {
     if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {
       const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
       await putDoc("svc_returns", id, { ticketId, number, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email"), customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
-        status: "drafting", receivedAt: ret?.status === "sent" ? Date.now() : ret?.receivedAt || Date.now(), lastAt: Date.now(), sarahAt: null }, true);
+        status: "drafting", receivedAt: ret?.status === "sent" ? Date.now() : ret?.receivedAt || Date.now(), lastAt: Date.now(), sarahAt: null,
+        // They wrote again on a ticket that went to Michelle and nobody answered yet (Dave, Nov 13: "can you send me a return label"):
+        // Ella re-reads it with the new message; a clean answer goes out, otherwise Michelle gets a fresh "customer wrote again" note.
+        ...(ret?.handedAt && ret?.status !== "sent" ? { handedAt: null, chasedAt: Date.now(), chases: (ret.chases || 0) + 1 } : {}) }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
     }
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
