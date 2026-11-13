@@ -56,7 +56,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
 .bulk{height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--ink);color:var(--surface);font:600 13px Inter;white-space:nowrap}
 /* board */
 .bwrap{padding:14px 24px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.board{display:flex;gap:12px;align-items:flex-start;min-width:1180px}.board.s2{min-width:1560px}
+.board{display:flex;gap:12px;align-items:flex-start;min-width:1360px}.board.s2{min-width:1560px}
 .col{flex:1 1 0;min-width:186px;background:var(--col);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}.s2 .col{background:var(--line3)}
 .chd{display:flex;align-items:center;gap:8px;padding:4px 4px 2px}.chd i{width:8px;height:8px;border-radius:50%;flex:none}.chd b{font:700 13px Inter;flex:1}.chd em{font:800 18px Inter;font-style:normal;letter-spacing:-.02em}.chd em.red{color:var(--bad2)}
 .csub{font:500 11px/1.4 Inter;color:var(--muted);padding:0 4px 4px}
@@ -373,8 +373,9 @@ function svcCard(r, col) {
   const needs = svcNeeds(r);
   let time, tcls, urgent = needs, recvAttr = "";
   if (col === "new") { const t = timer(r.receivedAt); time = t.text; tcls = t.cls; urgent = urgent || t.urgent; recvAttr = ` data-recv="${+r.receivedAt || 0}"`; }
+  else if (col === "saved") { time = short(r.savedAt); tcls = "t-grey"; }
   else { time = short(r.sentAt); tcls = "t-grey"; }
-  const pill = needs ? ["Needs you", "p-red"] : r.status === "drafting" ? ["Ella is writing", "p-mute"] : r.status === "error" ? ["Couldn't draft", "p-red"]
+  const pill = col === "saved" ? [r.exchangeMade ? "Saved · exchange set up" : "Saved · switched to exchange", "p-good"] : needs ? ["Needs you", "p-red"] : r.status === "drafting" ? ["Ella is writing", "p-mute"] : r.status === "error" ? ["Couldn't draft", "p-red"]
     : col === "new" && r.status === "draft" ? ["Draft ready", "p-amb"] : r.intent === "exchange" ? ["Exchange", "p-ind"] : ["Return", "p-grey"];
   const extra = (r.sarahAt ? `<span class="pp p-amb">${r.answeredBy === "team" ? "Team answered" : "Sarah answered"}</span>` : "") + (r.flags || []).filter(f => f !== "needs_human").map(f => `<span class="pp p-red">${esc(FLAG[f] || f)}</span>`).join("");
   const item = (r.items || []).join(" · ") || r.subject || (r.orders || []).join(", ") || "";
@@ -409,7 +410,8 @@ const COLS = [
   { k: "label", label: "Label sent", dot: "#5B5BF6", sub: "Nudge after 7 days", empty: "—", rp: true },
   { k: "transit", label: "In transit", dot: "#6E6E7A", sub: "Flag if no scan for 5 days", empty: "—", rp: true },
   { k: "recv", label: "Received → act today", dot: "#0B0B0F", sub: "Moves to \"After it's scanned in\" below", empty: "All shipped. Nice.", red: true, rp: true },
-  { k: "done", label: "Resolved", dot: "#16A34A", sub: "Check back in 3 days", empty: "—", rp: true }
+  { k: "done", label: "Resolved", dot: "#16A34A", sub: "Check back in 3 days", empty: "—", rp: true },
+  { k: "saved", label: "Saved · refund → exchange", dot: "#16A34A", sub: "Wanted a refund, Ella turned it into a swap", empty: "None yet in this period." }
 ];
 const COLS2 = [
   { k: "p_issue", label: "Came back wrong → needs you", dot: "#EF4444", sub: "Worn, damaged, wrong item or missing pieces", soon: "Coming soon: needs warehouse inspection data" },
@@ -431,6 +433,7 @@ function colItems(k) {
     case "transit": return R(rpTransit);
     case "recv": return R(rpRecv);
     case "done": return R(r => r.status === "PROCESSED" && inPeriod(doneAt(r)), byNew);
+    case "saved": return S(rets.filter(r => r.savedAt && inPeriod(r.savedAt)).sort((a, b) => b.savedAt - a.savedAt));
     case "p_two": return S(afterQc("two_sizes"));
     case "p_dec": return S(afterQc("last_ask"));
     case "p_ex": return R(r => (r.shipment === "DELIVERED" || r.qcAt) && r.outcome === "EXCHANGE" && OPEN(r.status));

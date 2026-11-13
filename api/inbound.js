@@ -112,7 +112,10 @@ async function inner(req, res) {
         status: "drafting", receivedAt: ret?.status === "sent" ? Date.now() : ret?.receivedAt || Date.now(), lastAt: Date.now(), sarahAt: null,
         // They wrote again on a ticket that went to Michelle and nobody answered yet (Dave, Nov 13: "can you send me a return label"):
         // Ella re-reads it with the new message; a clean answer goes out, otherwise Michelle gets a fresh "customer wrote again" note.
-        ...(ret?.handedAt && ret?.status !== "sent" ? { handedAt: null, chasedAt: Date.now(), chases: (ret.chases || 0) + 1 } : {}) }, true);
+        ...(ret?.handedAt && ret?.status !== "sent" ? { handedAt: null, chasedAt: Date.now(), chases: (ret.chases || 0) + 1 } : {}),
+        // Saved returns (David, Nov 13): they first wanted a return/refund, then switched to an exchange after Ella's offer.
+        ...(mood?.intent === "return" && !ret?.wantedRefund ? { wantedRefund: true } : {}),
+        ...((ret?.wantedRefund || ret?.intent === "return") && mood?.intent === "exchange" && !ret?.savedAt ? { savedAt: Date.now() } : {}) }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
     }
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });

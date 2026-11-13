@@ -146,7 +146,7 @@ export default async function handler(req, res) {
       if (!ex && r.exchange && !r.exchangeTriedAt) {
         await putDoc("svc_returns", id, { exchangeTriedAt: Date.now() }, true); // never twice
         ex = await createExchange({ orderNumber: r.exchange.order, zip: r.exchange.zip, swaps: r.exchange.swaps, reason: r.exchange.reason }).catch(e => ({ ok: false, why: String(e.message || e).slice(0, 200) }));
-        await putDoc("svc_returns", id, ex.ok ? { exchangeMade: { returnId: ex.returnId, url: ex.statusPageUrl, items: ex.items } } : { exchangeError: ex.why || "failed", flags: [...new Set([...(r.flags || []), "exchange_failed"])] }, true);
+        await putDoc("svc_returns", id, ex.ok ? { exchangeMade: { returnId: ex.returnId, url: ex.statusPageUrl, items: ex.items }, ...(r.wantedRefund && !r.savedAt ? { savedAt: Date.now() } : {}) } : { exchangeError: ex.why || "failed", flags: [...new Set([...(r.flags || []), "exchange_failed"])] }, true);
         if (!ex.ok) { held.push(id); continue; }
         ex = { returnId: ex.returnId, url: ex.statusPageUrl };
       }
