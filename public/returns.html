@@ -56,7 +56,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
 .bulk{height:36px;padding:0 14px;border:0;border-radius:10px;background:var(--ink);color:var(--surface);font:600 13px Inter;white-space:nowrap}
 /* board */
 .bwrap{padding:14px 24px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.board{display:flex;gap:12px;align-items:flex-start;min-width:1360px}.board.s2{min-width:1560px}
+.board{display:flex;gap:12px;align-items:flex-start;min-width:1360px}.board.s2{min-width:1760px}
 .col{flex:1 1 0;min-width:186px;background:var(--col);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}.s2 .col{background:var(--line3)}
 .chd{display:flex;align-items:center;gap:8px;padding:4px 4px 2px}.chd i{width:8px;height:8px;border-radius:50%;flex:none}.chd b{font:700 13px Inter;flex:1}.chd em{font:800 18px Inter;font-style:normal;letter-spacing:-.02em}.chd em.red{color:var(--bad2)}
 .csub{font:500 11px/1.4 Inter;color:var(--muted);padding:0 4px 4px}
@@ -373,9 +373,9 @@ function svcCard(r, col) {
   const needs = svcNeeds(r);
   let time, tcls, urgent = needs, recvAttr = "";
   if (col === "new") { const t = timer(r.receivedAt); time = t.text; tcls = t.cls; urgent = urgent || t.urgent; recvAttr = ` data-recv="${+r.receivedAt || 0}"`; }
-  else if (col === "saved") { time = short(r.savedAt); tcls = "t-grey"; }
+  else if (col === "saved" || col === "p_saved") { time = short(r.savedAt); tcls = "t-grey"; }
   else { time = short(r.sentAt); tcls = "t-grey"; }
-  const pill = col === "saved" ? [r.exchangeMade ? "Saved · exchange set up" : "Saved · switched to exchange", "p-good"] : needs ? ["Needs you", "p-red"] : r.status === "drafting" ? ["Ella is writing", "p-mute"] : r.status === "error" ? ["Couldn't draft", "p-red"]
+  const pill = col === "saved" || col === "p_saved" ? [r.exchangeMade ? "Saved · exchange set up" : "Saved · switched to exchange", "p-good"] : needs ? ["Needs you", "p-red"] : r.status === "drafting" ? ["Ella is writing", "p-mute"] : r.status === "error" ? ["Couldn't draft", "p-red"]
     : col === "new" && r.status === "draft" ? ["Draft ready", "p-amb"] : r.intent === "exchange" ? ["Exchange", "p-ind"] : ["Return", "p-grey"];
   const extra = (r.sarahAt ? `<span class="pp p-amb">${r.answeredBy === "team" ? "Team answered" : "Sarah answered"}</span>` : "") + (r.flags || []).filter(f => f !== "needs_human").map(f => `<span class="pp p-red">${esc(FLAG[f] || f)}</span>`).join("");
   const item = (r.items || []).join(" · ") || r.subject || (r.orders || []).join(", ") || "";
@@ -390,7 +390,7 @@ function rpCard(r, col) {
   if (col === "label" && late) pill = ["Nudge", "p-amb"];
   else if (col === "transit" && r.shipment === "EXCEPTION") pill = ["Carrier exception", "p-amb"];
   else if (col === "p_ex") pill = ["Ship today", "p-ind"];
-  else if (col === "p_wait") pill = ["Refund on its own", "p-grey"];
+  else if (col === "p_wait") pill = ["Needs refund", "p-grey"];
   else if (col === "p_credit") pill = ["Credit" + (r.total != null ? " " + money(r.total * 1.1) : ""), "p-ind"];
   else if (r.status === "MANUAL_REVIEW") pill = ["Needs you", "p-red"];
   const value = r.total != null && r.outcome !== "REFUND" && col !== "p_credit" ? money(r.total) : "";
@@ -418,6 +418,7 @@ const COLS2 = [
   { k: "p_ex", label: "Exchange → ship now", dot: "#5B5BF6", sub: "Out the door today, then close", empty: "All exchanges shipped.", red: true },
   { k: "p_two", label: "Bought 2 sizes → rush another?", dot: "#F59E0B", sub: "Ella drafts the offer once it passes quality check", empty: "None right now." },
   { k: "p_dec", label: "Refund → one last ask", dot: "#F59E0B", sub: "Passed quality check · Ella's one last offer (credit +10%)", empty: "None right now." },
+  { k: "p_saved", label: "Saved at the last ask → exchange", dot: "#16A34A", sub: "Was getting a refund, said yes to a swap after Ella's last ask", empty: "None yet in this period." },
   { k: "p_wait", label: "Refunds to do", dot: "#EF4444", sub: "Passed quality check · team refunds in Richpanel Returns", empty: "No refunds waiting.", red: true },
   { k: "p_credit", label: "Took store credit → send code", dot: "#5B5BF6", sub: "Credit + 10%, code emailed today", empty: "All codes sent." },
   { k: "p_check", label: "Check back · did it fit?", dot: "#0B0B0F", sub: "3 days after the new one lands", soon: "Coming soon: needs exchange delivery data" },
@@ -433,7 +434,8 @@ function colItems(k) {
     case "transit": return R(rpTransit);
     case "recv": return R(rpRecv);
     case "done": return R(r => r.status === "PROCESSED" && inPeriod(doneAt(r)), byNew);
-    case "saved": return S(rets.filter(r => r.savedAt && inPeriod(r.savedAt)).sort((a, b) => b.savedAt - a.savedAt));
+    case "saved": return S(rets.filter(r => r.savedAt && !r.savedAfterQc && inPeriod(r.savedAt)).sort((a, b) => b.savedAt - a.savedAt));
+    case "p_saved": return S(rets.filter(r => r.savedAt && r.savedAfterQc && inPeriod(r.savedAt)).sort((a, b) => b.savedAt - a.savedAt));
     case "p_two": return S(afterQc("two_sizes"));
     case "p_dec": return S(afterQc("last_ask"));
     case "p_ex": return R(r => (r.shipment === "DELIVERED" || r.qcAt) && r.outcome === "EXCHANGE" && OPEN(r.status));

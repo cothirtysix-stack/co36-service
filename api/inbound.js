@@ -2,7 +2,7 @@
 // plus an automation rule "New message received → Notify HTTP Targets"). Claude reads the mood; upset and happy customers are kept.
 import crypto from "node:crypto";
 import { waitUntil } from "@vercel/functions";
-import { putDoc, getDoc } from "../lib/server.js";
+import { putDoc, getDoc, db, init } from "../lib/server.js";
 import { draftFor, isNoise, RETURN_WORDS, RETURNS_TEMPLATE, plainText, isAutoEmail } from "../lib/ella.js";
 import { recordReply } from "../lib/learn.js";
 import { isReturnAsk } from "../lib/classify.js";
@@ -106,6 +106,9 @@ async function inner(req, res) {
     await recordReply({ id, comments, lastCust, mood, isOp, isNoise }).catch(() => {});
     // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
     const ret = await getDoc("svc_returns", id);
+    // Did Ella's after-scan "one last ask" go out in this thread? Then switching to an exchange now counts as a save at the warehouse stage.
+    let qcAsked = false;
+    if (mood?.intent === "exchange") { await init(); qcAsked = (await db()`select 1 from hub.docs where coll = 'svc_returns' and not deleted and id like 'qc-%' and data->>'status' = 'sent' and data->>'ticketId' = ${String(ticketId)} limit 1`).length > 0; }
     if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {
       const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
       await putDoc("svc_returns", id, { ticketId, number, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email"), customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
@@ -115,7 +118,7 @@ async function inner(req, res) {
         ...(ret?.handedAt && ret?.status !== "sent" ? { handedAt: null, chasedAt: Date.now(), chases: (ret.chases || 0) + 1 } : {}),
         // Saved returns (David, Nov 13): they first wanted a return/refund, then switched to an exchange after Ella's offer.
         ...(mood?.intent === "return" && !ret?.wantedRefund ? { wantedRefund: true } : {}),
-        ...((ret?.wantedRefund || ret?.intent === "return") && mood?.intent === "exchange" && !ret?.savedAt ? { savedAt: Date.now() } : {}) }, true);
+        ...((ret?.wantedRefund || ret?.intent === "return" || qcAsked) && mood?.intent === "exchange" && !ret?.savedAt ? { savedAt: Date.now(), ...(qcAsked ? { savedAfterQc: true } : {}) } : {}) }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
     }
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
