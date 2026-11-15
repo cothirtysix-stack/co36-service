@@ -72,6 +72,27 @@ async function recheckHappy() {
   if (rows.length) await putDoc("svc_meta", "happyRecheck", { at: Date.now(), kept: (meta.kept || 0) + kept, moved: (meta.moved || 0) + moved, failed: (meta.failed || 0) + failed }, true);
 }
 
+// Product questions Ella is sure about (David, Nov 15): sent after the usual wait, then left as complete on the Training page.
+// Same guards as returns: email only, skip if anyone on the team already wrote, skip if closed or our message is last.
+async function sendQuestions(off) {
+  if (!AUTOPILOT.questionsSend || off?.off) return;
+  const rows = await db()`select id, data from hub.docs where coll = 'svc_questions' and not deleted and data->>'status' = 'draft'
+    and data->>'confidence' = 'known' and data->>'doneAt' is null and data->>'sentAt' is null order by seq desc limit 6`;
+  for (const { id, data: q } of rows) {
+    if ((q.flags || []).length || !q.draft || !q.ticketId) continue;
+    if (Date.now() < (q.lastAt || 0) + delayMs(id, off || {})) continue;
+    const t = q.number ? await loadTicket(q.number) : null; if (!t) continue;
+    const real = (t.comments || []).filter(c => !isNoise(c)), last = real[real.length - 1];
+    if (agentReplied(t.comments)) { await putDoc("svc_questions", id, { doneAt: Date.now(), doneBy: "team (answered in Richpanel)" }, true); continue; }
+    if (t.via?.channel && !/email|gmail/i.test(String(t.via.channel))) { await putDoc("svc_questions", id, { confidence: "new", skipped: "not email" }, true); continue; }
+    if (String(t.status).toUpperCase() === "CLOSED" || (last && isOp(last))) { await putDoc("svc_questions", id, { doneAt: Date.now(), doneBy: "closed or already answered" }, true); continue; }
+    const x = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(q.ticketId)}`, { method: "PUT",
+      headers: { "content-type": "application/json", "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" },
+      body: JSON.stringify({ ticket: { status: "CLOSED", comment: { body: q.draft, sender_type: "operator", public: true, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });
+    await putDoc("svc_questions", id, x.ok ? { status: "sent", sentAt: Date.now(), sentText: q.draft, doneAt: Date.now(), doneBy: "Ella (sent)" } : { sendError: `Richpanel ${x.status}` }, true);
+  }
+}
+
 async function handOff(since) {
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and (id like 'n%' or id like 'qc-%') and data->>'status' = 'draft'
     and data->>'handedAt' is null and data->>'sarahAt' is null
@@ -165,6 +186,7 @@ export default async function handler(req, res) {
   }
   // Then the rest, each only if there's time.
   const step = async (ms, fn) => { if (left() > ms) await fn().catch(() => {}); };
+  if (live) await step(12000, () => sendQuestions(off));
   await step(15000, () => recheckHappy()); // Nov 10: re-read the "happy" list with the stricter rule before anyone is asked for a review
   await step(8000, () => watchdog()); // every 10 min: emails Michelle + David if Ella is broken
   await step(12000, () => scanQcThreads()); // the safety net: every new conversation is checked

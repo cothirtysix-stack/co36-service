@@ -36,7 +36,9 @@ textarea{width:100%;border:1px solid var(--line2);border-radius:12px;padding:10p
 .empty{text-align:center;color:var(--muted);padding:40px 0}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
 
-.cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;align-items:start}@media(max-width:900px){.cols{grid-template-columns:1fr}}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}@media(max-width:1000px){.cols{grid-template-columns:1fr}}
+.search{width:100%;height:44px;border:1px solid var(--line2);border-radius:12px;padding:0 14px;font:500 14px Inter;background:var(--surface);color:var(--ink);outline:none;margin-bottom:14px}
+.qc.sent{border-color:var(--goodb)}
 .colh{display:flex;align-items:center;gap:8px;margin:0 0 10px}.colh i{width:8px;height:8px;border-radius:99px;display:inline-block}.colh b{font:800 15px Inter}.colh em{font-style:normal;font:700 13px Inter;color:var(--muted);margin-left:auto}
 .stack{display:flex;flex-direction:column;gap:12px}
 .lbl{font:700 10px Inter;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
@@ -55,9 +57,11 @@ textarea.teach{min-height:70px;background:var(--soft);border-style:dashed}
   <nav class="pnav"><a href="/home.html">Home</a><a href="/returns.html">Returns</a><span>Training</span><a href="/fulfillment.html">Fulfillment</a></nav>
 </header>
 <div class="wrap" style="max-width:1400px">
-  <div class="note"><b>How this works.</b> Each card is a customer's product question with the reply Ella would send. If it's right, copy it into Richpanel and mark it done. If not, write in the dashed box what she should do and press <b>Teach &amp; rewrite</b>: she rewrites this reply now and follows your note on every reply from then on. When the customer writes back, the earlier part folds into a summary at the top and her new draft appears. On the right: anything Ella sent on her own that backfired (the customer came back upset or felt misunderstood). Tell her what she did wrong.</div>
+  <div class="note"><b>How this works.</b> <b>Left:</b> something new Ella isn't sure about. Her draft waits for you: copy it into Richpanel, or write in the dashed box what she should do and press <b>Teach &amp; rewrite</b> (she follows your note on every reply from then on). <b>Middle:</b> questions she already knows (easy, or you taught her): she sends them herself after a few minutes and they stay here as done. <b>Right:</b> anything she sent that backfired: the customer came back upset or felt misunderstood. Tell her what she did wrong.</div>
+  <input class="search" id="q" placeholder="Search order number, email, name or conversation #" autocomplete="off">
   <div class="cols">
-    <section><div class="colh"><i style="background:#5B5BF6"></i><b>Questions · Ella's draft</b><em id="qn"></em></div><div class="tabs" id="tabs"></div><div class="stack" id="qs"><div class="empty">Loading…</div></div></section>
+    <section><div class="colh"><i style="background:#F59E0B"></i><b>New · needs you</b><em id="qn"></em></div><div class="tabs" id="tabs"></div><div class="stack" id="qs"><div class="empty">Loading…</div></div></section>
+    <section><div class="colh"><i style="background:#16A34A"></i><b>Ella knows · sent</b><em id="kn"></em></div><div class="stack" id="ks"><div class="empty">Loading…</div></div></section>
     <section><div class="colh"><i style="background:#EF4444"></i><b>Backfired · tell Ella what went wrong</b><em id="bn"></em></div><div class="tabs" id="btabs"></div><div class="stack" id="bf"><div class="empty">Loading…</div></div></section>
   </div>
 </div>
@@ -71,7 +75,17 @@ const short = t => { if (!t) return ""; const d = Date.now() - t; return d < 36e
 const db = await window.claude.use("db"), api = await window.claude.use("api");
 let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
 const FLAG = { needs_answer: "Ella doesn't know · teach her", not_a_question: "Not really a question · check" };
-let qs = [], bfs = [], tab = "open", btab = "open", edits = {}, notes = {}, busy = {};
+let qs = [], bfs = [], tab = "open", btab = "open", edits = {}, notes = {}, busy = {}, term = "";
+const match = (...vals) => !term || vals.some(v => String(v ?? "").toLowerCase().includes(term));
+const qMatch = q => match(q.email, q.customer, q.number, q.message, ...(q.orders || []));
+const isKnown = q => q.status === "sent" || (q.confidence === "known" && !(q.flags || []).length && !q.doneAt);
+function kCard(q) {
+  return `<div class="qc sent">
+    <div class="qh"><b>${esc(q.customer || q.email || "Customer")}</b><span>${short(q.sentAt || q.lastAt)}${q.number ? " · #" + esc(q.number) : ""}</span></div>
+    <div class="qp"><span class="pp ind">${esc(q.topic || "question")}</span>${q.status === "sent" ? `<span class="pp" style="background:var(--goodt);color:var(--good2)">Sent by Ella</span>` : `<span class="pp">Sending in a few minutes</span>`}</div>
+    <span class="lbl">Customer asked</span><div class="qm">${esc(q.message || "")}</div>
+    <span class="lbl">Ella ${q.status === "sent" ? "sent" : "will send"}</span><div class="said">${esc(q.sentText || q.draft || "")}</div></div>`;
+}
 const keepFocus = fn => { const a = document.activeElement, k = a?.dataset?.key, c = a?.selectionStart; fn(); if (k) { const t = document.querySelector(`[data-key="${CSS.escape(k)}"]`); if (t) { t.focus(); try { t.setSelectionRange(c, c); } catch (_) {} } } };
 function qCard(q) {
   const hist = q.history || [];
@@ -96,11 +110,13 @@ function bCard(b) {
     <div class="qf"><button class="teachb" data-bteach="${esc(b.docId)}"${busy["b" + b.docId] ? " disabled" : ""}>Teach Ella</button></div>`}</div>`;
 }
 function render() { keepFocus(() => {
-  const open = qs.filter(q => !q.doneAt), done = qs.filter(q => q.doneAt);
-  $("qn").textContent = open.length;
+  const vis = qs.filter(qMatch), known = vis.filter(isKnown), mine = vis.filter(q => !isKnown(q));
+  const open = mine.filter(q => !q.doneAt), done = mine.filter(q => q.doneAt);
+  $("qn").textContent = open.length; $("kn").textContent = known.length;
+  $("ks").innerHTML = known.sort((a, b) => (b.sentAt || b.lastAt || 0) - (a.sentAt || a.lastAt || 0)).slice(0, 60).map(kCard).join("") || `<div class="empty">Nothing yet. Once you teach Ella, more lands here.</div>`;
   $("tabs").innerHTML = [["open", `Waiting (${open.length})`], ["done", `Done (${done.length})`]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("");
   $("qs").innerHTML = (tab === "open" ? open : done).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)).map(qCard).join("") || `<div class="empty">${tab === "open" ? "No product questions waiting." : "Nothing done yet."}</div>`;
-  const bo = bfs.filter(b => !b.reviewedAt), bd = bfs.filter(b => b.reviewedAt);
+  const bv = bfs.filter(b => match(b.conv, String(b.conv || "").replace(/^n/, ""), b.ours, b.customer, b.summary)), bo = bv.filter(b => !b.reviewedAt), bd = bv.filter(b => b.reviewedAt);
   $("bn").textContent = bo.length;
   $("btabs").innerHTML = [["open", `To review (${bo.length})`], ["done", `Taught (${bd.length})`]].map(([k, l]) => `<button data-btab="${k}" class="${btab === k ? "on" : ""}">${l}</button>`).join("");
   $("bf").innerHTML = (btab === "open" ? bo : bd).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 60).map(bCard).join("") || `<div class="empty">${btab === "open" ? "Nothing backfired. Nice." : "Nothing taught yet."}</div>`;
@@ -127,6 +143,7 @@ function wire() {
     busy["b" + id] = false; render();
   });
 }
+$("q").oninput = e => { term = e.target.value.trim().toLowerCase().replace(/^#/, ""); render(); };
 db.collection("svc_questions").onSnapshot(s => { qs = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
 db.collection("svc_backfire").onSnapshot(s => { bfs = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
 })();
