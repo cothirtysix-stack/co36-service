@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CO36 Questions</title>
+<link rel="icon" href="/apps/service.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--dis:#B5B5BE;--line:#ECECF0;--line2:#E2E2E8;--line3:#F1F1F4;--page:#F7F7F9;--surface:#fff;--col:#EFEFF3;--soft:#FBFBFC;--seg:#ECECF0;
+--ind:#5B5BF6;--ind2:#4343D9;--indt:#EEEEFE;--indb:#DCDCFB;--good:#16A34A;--good2:#15803D;--goodt:#E8F6EE;--goodb:#BFE5CD;--bad:#EF4444;--bad2:#B91C1C;--badt:#FEECEC;--badb:#F8C9C9;--amb:#F59E0B;--amb2:#B45309;--ambt:#FEF3E2;
+--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--dis:#5C5C66;--line:#26262E;--line2:#30303A;--line3:#1E1E25;--page:#0E0E12;--surface:#16161C;--col:#1B1B22;--soft:#121217;--seg:#24242C;
+--indt:#23234A;--indb:#33335E;--goodt:#12301F;--goodb:#1E4A30;--badt:#3A1616;--badb:#5A2424;--ambt:#3A2A10;--ind2:#9B9BFF;--good2:#4ADE80;--bad2:#F87171;--amb2:#FBBF24;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,textarea{font-family:inherit}button{cursor:pointer}a{color:var(--ind);text-decoration:none}
+.hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tile{width:34px;height:34px;border-radius:9px;background:#0B0B0F;color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px Inter;flex:none}
+.ttl{display:flex;flex-direction:column;gap:1px;min-width:0}.ttl b{font:800 18px Inter;letter-spacing:-.02em}.ttl span{font:500 12px Inter;color:var(--muted)}
+.pnav{display:flex;gap:4px;background:var(--line3);padding:3px;border-radius:10px}
+.pnav a,.pnav span{height:30px;padding:0 12px;border-radius:8px;font:600 12px/30px Inter;color:var(--muted)}
+.pnav span{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 80px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:500 13px/1.5 Inter;color:var(--body);margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.tabs button{border:1px solid var(--line2);background:var(--surface);border-radius:99px;padding:6px 12px;font:600 12px Inter;color:var(--muted)}.tabs button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
+.qc{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.qh{display:flex;gap:8px;align-items:baseline}.qh b{font:700 14px Inter;flex:1;min-width:0;overflow-wrap:anywhere}.qh span{font:600 11px Inter;color:var(--muted)}
+.qm{background:var(--line3);border-radius:10px;padding:10px 12px;font:500 13px/1.5 Inter;color:var(--body);white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.pp{font:600 10px Inter;padding:2px 7px;border-radius:999px;white-space:nowrap;background:var(--line3);color:var(--body)}.pp.red{background:var(--badt);color:var(--bad2)}.pp.ind{background:var(--indt);color:var(--ind2)}
+.qp{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+textarea{width:100%;border:1px solid var(--line2);border-radius:12px;padding:10px 12px;font:400 13px/1.55 Inter;resize:vertical;outline:none;color:var(--ink);background:var(--surface);min-height:140px}
+.qf{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}.qf button{height:34px;padding:0 14px;border-radius:10px;font:600 12px Inter;border:1px solid var(--line2);background:var(--surface);color:var(--ink)}.qf button.pri{background:#0B0B0F;color:#fff;border:0}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="tile">CO36</div>
+  <div class="ttl"><b>Product questions</b><span>Ella's drafts · nothing is sent from here yet</span></div>
+  <div style="flex:1"></div>
+  <nav class="pnav"><a href="/home.html">Home</a><a href="/returns.html">Returns</a><span>Questions</span><a href="/fulfillment.html">Fulfillment</a></nav>
+</header>
+<div class="wrap">
+  <div class="note"><b>Drafts only (David, Nov 15).</b> When a customer asks about sizing, fit, fabric, care, colors or stock, Ella writes an answer here from the real catalog and fit rules. Copy it into Richpanel and send, then mark it done. Once these look right, Ella can send them herself.</div>
+  <div class="tabs" id="tabs"></div>
+  <div class="grid" id="list"><div class="empty">Loading…</div></div>
+</div>
+<script src="/shim.js"></script>
+<script>
+(async () => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toast = t => { document.querySelectorAll(".toast").forEach(x => x.remove()); const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const short = t => { if (!t) return ""; const d = Date.now() - t; return d < 36e5 ? Math.max(1, Math.round(d / 6e4)) + "m" : d < 864e5 ? Math.round(d / 36e5) + "h" : Math.round(d / 864e5) + "d"; };
+const db = await window.claude.use("db");
+let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
+const FLAG = { needs_answer: "Ella doesn't know · fill in", not_a_question: "Not really a question · check" };
+let all = [], tab = "open", edits = {};
+function render() {
+  const open = all.filter(q => !q.doneAt), done = all.filter(q => q.doneAt);
+  $("tabs").innerHTML = [["open", `Waiting (${open.length})`], ["done", `Done (${done.length})`]].map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? "on" : ""}">${l}</button>`).join("");
+  document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+  const list = (tab === "open" ? open : done).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+  $("list").innerHTML = list.map(q => `<div class="qc">
+    <div class="qh"><b>${esc(q.customer || q.email || "Customer")}</b><span>${short(q.lastAt)}${q.number ? " · #" + esc(q.number) : ""}</span></div>
+    <div class="qp"><span class="pp ind">${esc(q.topic || "question")}</span>${(q.flags || []).map(f => `<span class="pp red">${esc(FLAG[f] || f)}</span>`).join("")}${q.plan ? `<span class="pp">${esc(q.plan)}</span>` : ""}</div>
+    <div class="qm">${esc(q.message || "")}</div>
+    ${q.status === "drafting" ? `<div class="pp">Ella is writing…</div>` : q.status === "error" ? `<div class="pp red">Couldn't draft: ${esc(q.error || "")}</div>` : `<textarea data-ta="${esc(q.docId)}">${esc(edits[q.docId] ?? q.draft ?? "")}</textarea>`}
+    <div class="qf">${q.doneAt ? `<span class="pp">Done${q.doneBy ? " by " + esc(q.doneBy) : ""}</span>` : `<button data-done="${esc(q.docId)}">Mark done</button>`}${q.draft ? `<button class="pri" data-copy="${esc(q.docId)}">Copy</button>` : ""}</div></div>`).join("") || `<div class="empty">${tab === "open" ? "No product questions waiting." : "Nothing done yet."}</div>`;
+  document.querySelectorAll("[data-ta]").forEach(t => t.oninput = () => { edits[t.dataset.ta] = t.value; });
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => { const q = all.find(x => x.docId === b.dataset.copy); try { await navigator.clipboard.writeText(edits[q.docId] ?? q.draft ?? ""); toast("Copied"); } catch (_) { toast("Couldn't copy, select the text instead"); } });
+  document.querySelectorAll("[data-done]").forEach(b => b.onclick = async () => { b.disabled = true; try { await db.doc(`svc_questions/${b.dataset.done}`).update({ doneAt: Date.now(), doneBy: me }); toast("Marked done"); } catch (e) { toast(e.text || e.message); b.disabled = false; } });
+}
+db.collection("svc_questions").onSnapshot(s => { all = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
+})();
+</script>
+</body>
+</html>

@@ -62,6 +62,7 @@ h3.sec{font:800 13px Inter;letter-spacing:.06em;color:var(--muted);margin:10px 0
     <div class="pages" id="newPages">
       <label><input type="checkbox" value="home"> Home</label>
       <label><input type="checkbox" value="returns" checked> Returns</label>
+      <label><input type="checkbox" value="questions"> Questions</label>
       <label><input type="checkbox" value="fulfillment"> Fulfillment</label>
     </div>
     <div><button id="add">Add and make a password</button></div>
@@ -79,7 +80,7 @@ h3.sec{font:800 13px Inter;letter-spacing:.06em;color:var(--muted);margin:10px 0
 const api = await window.claude.use("api");
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const LABEL = { home: "Home", returns: "Returns", fulfillment: "Fulfillment" };
+const LABEL = { home: "Home", returns: "Returns", questions: "Questions", fulfillment: "Fulfillment" };
 const say = (t, err) => { $("msg").textContent = t; $("msg").className = "msg" + (err ? " err" : ""); };
 const showPw = (email, pw) => { $("pw").hidden = false;
   $("pw").innerHTML = `<div>Send this to <b>${esc(email)}</b> by text. It's shown only once.</div><code>${esc(pw)}</code>

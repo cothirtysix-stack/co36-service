@@ -7,6 +7,7 @@ import { draftFor, isNoise, RETURN_WORDS, RETURNS_TEMPLATE, plainText, isAutoEma
 import { recordReply } from "../lib/learn.js";
 import { isReturnAsk } from "../lib/classify.js";
 import { read } from "../lib/mood.js";
+import { draftQuestion } from "../lib/questions.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -120,6 +121,16 @@ async function inner(req, res) {
         ...(mood?.intent === "return" && !ret?.wantedRefund ? { wantedRefund: true } : {}),
         ...((ret?.wantedRefund || ret?.intent === "return" || qcAsked) && mood?.intent === "exchange" && !ret?.savedAt ? { savedAt: Date.now(), ...(qcAsked ? { savedAfterQc: true } : {}) } : {}) }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
+    }
+    // Product questions (David, Nov 15): Ella drafts an answer for the Questions page. Email only, drafts only, nothing is sent.
+    if (mood?.intent === "product" && !ret && lastCust) {
+      const ch = String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email");
+      const q = await getDoc("svc_questions", id);
+      if (/email|gmail/i.test(ch) && !/instagram|facebook|comment|social|messenger|dm/i.test(ch) && q?.lastMsg !== lastCust.id) {
+        const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
+        await putDoc("svc_questions", id, { ticketId, number, customer: who, email: mail, subject, message: message.slice(0, 2000), status: "drafting", receivedAt: q?.receivedAt || Date.now(), lastAt: Date.now(), lastMsg: lastCust.id, doneAt: null }, true);
+        waitUntil(draftQuestion(id, { who, mail, subject, message }));
+      }
     }
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
     const now = Date.now();
