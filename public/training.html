@@ -62,7 +62,7 @@ textarea.teach{min-height:70px;background:var(--soft);border-style:dashed}
 </header>
 <div class="wrap" style="max-width:1400px">
   <div class="note"><b>How this works.</b> <b>Left:</b> something new Ella isn't sure about. Her draft waits for you: copy it into Richpanel, or write in the dashed box what she should do and press <b>Teach &amp; rewrite</b> (she follows your note on every reply from then on). <b>Middle:</b> questions she already knows (easy, or you taught her): she sends them herself after a few minutes and they stay here as done. <b>Right:</b> anything she sent that backfired: the customer came back upset or felt misunderstood. Tell her what she did wrong.</div>
-  <div class="pin"><div class="colh"><i style="background:#F59E0B"></i><b>Needs Michelle · where's my order / refund</b><span class="prep" style="margin-left:8px">PREP · nothing is sent to customers yet</span><em id="an"></em></div><div class="pgrid" id="asks"><div class="empty">Loading…</div></div></div>
+  <div class="pin"><div class="colh"><i style="background:#F59E0B"></i><b>Needs Michelle · where's my order / refund</b><span class="prep" style="margin-left:8px">PREP · nothing is sent to customers yet</span><select id="afilter" style="margin-left:auto;height:32px;border:1px solid var(--line2);border-radius:10px;padding:0 10px;font:600 12px Inter;background:var(--surface);color:var(--ink)"></select><em id="an" style="margin-left:10px"></em></div><div class="pgrid" id="asks"><div class="empty">Loading…</div></div></div>
   <input class="search" id="q" placeholder="Search order number, email, name or conversation #" autocomplete="off">
   <div class="cols">
     <section><div class="colh"><i style="background:#F59E0B"></i><b>New · needs you</b><em id="qn"></em></div><div class="tabs" id="tabs"></div><div class="stack" id="qs"><div class="empty">Loading…</div></div></section>
@@ -80,7 +80,10 @@ const short = t => { if (!t) return ""; const d = Date.now() - t; return d < 36e
 const db = await window.claude.use("db"), api = await window.claude.use("api");
 let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
 const FLAG = { needs_answer: "Ella doesn't know · teach her", not_a_question: "Not really a question · check" };
-let asks = [];
+let asks = [], afilter = "all";
+// Filter for the Needs Michelle cards (David, Nov 15): by what they need, with how many are in each.
+const AF = [["all", "Everything", a => true], ["order", "Where's my order", a => a.kind !== "refund"], ["refund", "Where's my refund", a => a.kind === "refund"],
+  ["waiting", "Waiting on Michelle", a => a.status !== "follow_up_ready"], ["ready", "Follow-up ready", a => a.status === "follow_up_ready"]];
 function aCard(a) {
   const o = (a.orders || [])[0], track = (a.orders || []).flatMap(x => (x.shipments || []).flatMap(s => s.tracking || [])).filter(t => t.url);
   return `<div class="qc">
@@ -139,7 +142,9 @@ function render() { keepFocus(() => {
   $("bn").textContent = bo.length;
   $("btabs").innerHTML = [["open", `To review (${bo.length})`], ["done", `Taught (${bd.length})`]].map(([k, l]) => `<button data-btab="${k}" class="${btab === k ? "on" : ""}">${l}</button>`).join("");
   $("bf").innerHTML = (btab === "open" ? bo : bd).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 60).map(bCard).join("") || `<div class="empty">${btab === "open" ? "Nothing backfired. Nice." : "Nothing taught yet."}</div>`;
-  const av = asks.filter(a => !a.doneAt && match(a.email, a.customer, a.number, a.message, ...(a.orders || []).map(o => o.order)));
+  const base = asks.filter(a => !a.doneAt && match(a.email, a.customer, a.number, a.message, ...(a.orders || []).map(o => o.order)));
+  const sel = $("afilter"); if (document.activeElement !== sel) sel.innerHTML = AF.map(([k, l, f]) => `<option value="${k}"${afilter === k ? " selected" : ""}>${l} (${base.filter(f).length})</option>`).join("");
+  const av = base.filter((AF.find(x => x[0] === afilter) || AF[0])[2]);
   $("an").textContent = av.length;
   $("asks").innerHTML = av.sort((a, b) => (a.lastAt || 0) - (b.lastAt || 0)).map(aCard).join("") || `<div class="empty">Nothing waiting on Michelle.</div>`;
   wire();
@@ -173,6 +178,7 @@ function wire() {
     busy["b" + id] = false; render();
   });
 }
+$("afilter").onchange = e => { afilter = e.target.value; render(); };
 $("q").oninput = e => { term = e.target.value.trim().toLowerCase().replace(/^#/, ""); render(); };
 db.collection("svc_questions").onSnapshot(s => { qs = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
 db.collection("svc_asks").onSnapshot(s => { asks = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
