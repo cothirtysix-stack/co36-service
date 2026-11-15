@@ -3,6 +3,7 @@ import { db, SB_URL, SB_ANON, getDoc } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
 import { findOrders } from "../lib/ella.js";
+import { refundsCsv } from "./service.js";
 
 const NEED_SCOPES = ["read_orders", "read_fulfillments", "read_customers", "write_orders", "write_draft_orders", "write_gift_cards"];
 const run = async fn => { try { return await Promise.race([fn(), new Promise((_, no) => setTimeout(() => no(new Error("timed out after 8s")), 8000))]); } catch (e) { return { ok: false, error: String(e.message || e).slice(0, 160) }; } };
@@ -121,8 +122,12 @@ export default async function handler(req, res) {
       body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 20, messages: [{ role: "user", content: "Say ok" }] }) });
     const j = await r.json().catch(() => ({})); return { status: r.status, model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", error: j.error?.message?.slice(0, 200) || null, text: (j.content || []).map(b => b.text).join("").slice(0, 40) };
   }) : undefined;
+  // ?refunds=1 → counts only (no names): scanned refunds Richpanel hasn't processed, checked against Shopify.
+  const refunds = req.query?.refunds ? await refundsCsv().then(r => ({ total: r.total, owed: r.owed, owedAmount: r.owedAmount, alreadyRefundedInShopify: r.already, partly: r.partly,
+    owedByAge: r.csv.split("\n").slice(1).filter(l => l.includes("OWED")).reduce((b, l) => { const d = +JSON.parse("[" + l + "]")[5] || 0; b[d < 7 ? "under 1 week" : d < 14 ? "1-2 weeks" : d < 28 ? "2-4 weeks" : "over 4 weeks"]++; return b; }, { "under 1 week": 0, "1-2 weeks": 0, "2-4 weeks": 0, "over 4 weeks": 0 }) }))
+    .catch(e => ({ error: String(e.message || e).slice(0, 200) })) : undefined;
   const happyList = await run(async () => (await db()`select count(*) filter (where data->>'mood' = 'happy')::int as happy, count(*) filter (where data->>'mood' = 'happy' and coalesce((data->>'moodCheck')::int, 0) < 2)::int as unchecked, count(*) filter (where data->>'mood' = 'upset')::int as upset, count(*) filter (where data->>'mood' = 'upset' and data->>'summary' is null)::int as upset_unread
     from hub.docs where coll = 'svc_inbox' and not deleted and data->>'handledAt' is null and data->>'closedAt' is null`)[0]);
   const watch = await getDoc("svc_meta", "watchdog").catch(() => null), happyRecheck = await getDoc("svc_meta", "happyRecheck").catch(() => null);
-  res.json({ happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }

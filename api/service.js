@@ -205,7 +205,7 @@ Answer with the email only.`;
 
 // Refunds to check (David, Nov 14): every scanned return whose outcome is a refund but Richpanel hasn't processed it,
 // with what Shopify says was refunded, as a CSV the team can go through one by one. Read only: nothing is refunded here.
-async function refundsCsv() {
+export async function refundsCsv() {
   const all = [];
   for (let skip = 0; skip < 4000; skip += 200) {
     const d = await returnsGql(`query($q: ReturnsQueryInput){ getAllReturns(query: $q){ returns { name status orderNumber outcome qcCompletedAt createdAt customer { name email } total { amount } statusPageUrl } } }`,
