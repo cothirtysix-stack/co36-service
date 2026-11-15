@@ -128,8 +128,10 @@ async function inner(req, res) {
       const q = await getDoc("svc_questions", id);
       if (/email|gmail/i.test(ch) && !/instagram|facebook|comment|social|messenger|dm/i.test(ch) && q?.lastMsg !== lastCust.id) {
         const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
-        await putDoc("svc_questions", id, { ticketId, number, customer: who, email: mail, subject, message: message.slice(0, 2000), status: "drafting", receivedAt: q?.receivedAt || Date.now(), lastAt: Date.now(), lastMsg: lastCust.id, doneAt: null }, true);
-        waitUntil(draftQuestion(id, { who, mail, subject, message }));
+        // A follow-up: the earlier question and our reply move into the history (the card folds them into a summary).
+        const history = q?.message ? [...(q.history || []), { msg: q.message, draft: q.draft || "", sent: (comments.filter(c => (c.is_operator ?? c.isOperator)).pop()?.plain_body || "").slice(0, 1500), at: q.lastAt }].slice(-6) : (q?.history || []);
+        await putDoc("svc_questions", id, { ticketId, number, customer: who, email: mail, subject, message: message.slice(0, 2000), status: "drafting", receivedAt: q?.receivedAt || Date.now(), lastAt: Date.now(), lastMsg: lastCust.id, doneAt: null, history, draft: null, summary: q?.summary || null }, true);
+        waitUntil(draftQuestion(id, { who, mail, subject, message, history }));
       }
     }
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
