@@ -145,6 +145,8 @@ async function inner(req, res) {
         waitUntil(draftQuestion(id, { who, mail, subject, message, history }));
       }
     }
+    // Judge.me review notifications never go on Home (David, Nov 15). A return/exchange asked inside one is still handled above.
+    if (/judge\.?me|left (a|the following) \d star review/i.test(`${subject || ""} ${message.slice(0, 300)}`)) return res.json({ ok: true, kept: false, review: true });
     if (!cur && (!mood || mood.mood === "neutral")) return res.json({ ok: true, kept: false, lane: ret || mood?.intent !== "none" ? "returns" : undefined });
     const now = Date.now();
     await putDoc("svc_inbox", id, {
