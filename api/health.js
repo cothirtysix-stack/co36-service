@@ -121,8 +121,25 @@ export default async function handler(req, res) {
       body: JSON.stringify({ model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", max_tokens: 20, messages: [{ role: "user", content: "Say ok" }] }) });
     const j = await r.json().catch(() => ({})); return { status: r.status, model: process.env.ANTHROPIC_FAST_MODEL || "claude-haiku-5-5", error: j.error?.message?.slice(0, 200) || null, text: (j.content || []).map(b => b.text).join("").slice(0, 40) };
   }) : undefined;
+  // ?refunds=1 → how many scanned refund returns are really still owed money (Richpanel says not processed AND Shopify shows no refund). Counts only.
+  const refunds = req.query?.refunds ? await (async () => { try {
+    const rq = async (q, v) => { const r = await fetch("https://returns-api.richpanel.com/graphql", { method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.RICHPANEL_RETURNS_API_KEY || "" }, body: JSON.stringify({ query: q, variables: v }) }); return (await r.json()).data; };
+    const all = []; for (let skip = 0; skip < 4000; skip += 200) { const d = await rq(`query($q: ReturnsQueryInput){ getAllReturns(query: $q){ returns { name status orderNumber outcome qcCompletedAt aggregatedShipmentStatus total { amount refund } } } }`, { q: { startDate: new Date(Date.now() - 120 * 864e5).toISOString(), limit: 200, skip } }); const rs = d?.getAllReturns?.returns || []; all.push(...rs); if (rs.length < 200) break; }
+    const open = all.filter(r => r.outcome === "REFUND" && !/PROCESSED|CANCELLED|REJECTED|EXPIRED/.test(r.status || ""));
+    const scanned = open.filter(r => r.qcCompletedAt), deliveredOnly = open.filter(r => !r.qcCompletedAt && r.aggregatedShipmentStatus === "DELIVERED");
+    const owed = [], paid = [];
+    for (let i = 0; i < scanned.length; i += 40) {
+      const chunk = scanned.slice(i, i + 40), q = chunk.map(r => `name:${String(r.orderNumber).replace(/\D/g, "")}`).join(" OR ");
+      const j = await shopify(`query($q:String){ orders(first: 50, query: $q){ nodes { name totalRefundedSet { shopMoney { amount } } } } }`, { q });
+      const m = Object.fromEntries((j.data?.orders?.nodes || []).map(o => [o.name, +o.totalRefundedSet.shopMoney.amount || 0]));
+      chunk.forEach(r => ((m[r.orderNumber] || 0) > 0 ? paid : owed).push(r));
+    }
+    const age = r => (Date.now() - Number(r.qcCompletedAt)) / 864e5, b = { "under 3 days": 0, "3-7 days": 0, "1-2 weeks": 0, "2-4 weeks": 0, "over 4 weeks": 0 };
+    owed.forEach(r => { const a = age(r); b[a < 3 ? "under 3 days" : a < 7 ? "3-7 days" : a < 14 ? "1-2 weeks" : a < 28 ? "2-4 weeks" : "over 4 weeks"]++; });
+    return { returnsLoaded: all.length, refundNotProcessed: open.length, scanned: scanned.length, deliveredNotScanned: deliveredOnly.length, scannedButShopifyRefunded: paid.length, owed: owed.length, owedAmount: Math.round(owed.reduce((t, r) => t + (+r.total?.amount || 0), 0)), owedByAge: b, statuses: [...new Set(open.map(r => r.status))] };
+  } catch (e) { return { error: String(e.message || e).slice(0, 200) }; } })() : undefined;
   const happyList = await run(async () => (await db()`select count(*) filter (where data->>'mood' = 'happy')::int as happy, count(*) filter (where data->>'mood' = 'happy' and coalesce((data->>'moodCheck')::int, 0) < 2)::int as unchecked, count(*) filter (where data->>'mood' = 'upset')::int as upset, count(*) filter (where data->>'mood' = 'upset' and data->>'summary' is null)::int as upset_unread
     from hub.docs where coll = 'svc_inbox' and not deleted and data->>'handledAt' is null and data->>'closedAt' is null`)[0]);
   const watch = await getDoc("svc_meta", "watchdog").catch(() => null), happyRecheck = await getDoc("svc_meta", "happyRecheck").catch(() => null);
-  res.json({ happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
