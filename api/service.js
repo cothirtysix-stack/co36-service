@@ -203,7 +203,36 @@ Answer with the email only.`;
   await putDoc("svc_vipdraft", String(id), doc); return doc;
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips, vipDraft };
+// Refunds to check (David, Nov 14): every scanned return whose outcome is a refund but Richpanel hasn't processed it,
+// with what Shopify says was refunded, as a CSV the team can go through one by one. Read only: nothing is refunded here.
+async function refundsCsv() {
+  const all = [];
+  for (let skip = 0; skip < 4000; skip += 200) {
+    const d = await returnsGql(`query($q: ReturnsQueryInput){ getAllReturns(query: $q){ returns { name status orderNumber outcome qcCompletedAt createdAt customer { name email } total { amount } statusPageUrl } } }`,
+      { q: { startDate: new Date(Date.now() - 150 * 864e5).toISOString(), limit: 200, skip } });
+    const rs = d?.getAllReturns?.returns || []; all.push(...rs); if (rs.length < 200) break;
+  }
+  const todo = all.filter(r => r.outcome === "REFUND" && r.qcCompletedAt && !/PROCESSED|CANCELLED|REJECTED|EXPIRED/.test(r.status || ""));
+  const refunded = {};
+  for (let i = 0; i < todo.length; i += 40) {
+    const chunk = todo.slice(i, i + 40), q = chunk.map(r => `name:${String(r.orderNumber).replace(/\D/g, "")}`).join(" OR ");
+    const j = await shopify(`query($q:String){ orders(first: 50, query: $q){ nodes { name displayFinancialStatus totalRefundedSet { shopMoney { amount } } } } }`, { q });
+    (j.data?.orders?.nodes || []).forEach(o => { refunded[o.name] = { amt: +o.totalRefundedSet.shopMoney.amount || 0, fin: o.displayFinancialStatus }; });
+  }
+  const ms = v => (typeof v === "number" ? v : Date.parse(v) || +v || 0);
+  const rows = todo.map(r => { const sh = refunded[r.orderNumber] || {}, at = ms(r.qcCompletedAt), owe = +r.total?.amount || 0;
+    return { order: r.orderNumber, ret: r.name, who: r.customer?.name || "", email: r.customer?.email || "", scanned: at ? new Date(at).toISOString().slice(0, 10) : "",
+      days: at ? Math.floor((Date.now() - at) / 864e5) : "", amount: owe.toFixed(2), rpStatus: r.status, shopRefunded: (sh.amt || 0).toFixed(2), shopStatus: sh.fin || "",
+      verdict: (sh.amt || 0) >= owe * 0.9 && owe > 0 ? "Refunded in Shopify already: mark processed in Richpanel" : (sh.amt || 0) > 0 ? "Partly refunded: check" : "OWED: refund in Richpanel Returns", link: r.statusPageUrl || "" }; })
+    .sort((a, b) => (b.days || 0) - (a.days || 0));
+  const head = ["Order", "Return ID", "Customer", "Email", "Scanned on", "Days waiting", "Refund amount", "Richpanel status", "Refunded in Shopify", "Shopify status", "What to do", "Return page"];
+  const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [head.map(esc).join(","), ...rows.map(r => [r.order, r.ret, r.who, r.email, r.scanned, r.days, r.amount, r.rpStatus, r.shopRefunded, r.shopStatus, r.verdict, r.link].map(esc).join(","))].join("\n");
+  const owed = rows.filter(r => r.verdict.startsWith("OWED"));
+  return { csv, total: rows.length, owed: owed.length, owedAmount: Math.round(owed.reduce((t, r) => t + +r.amount, 0)), already: rows.filter(r => r.verdict.startsWith("Refunded")).length, partly: rows.filter(r => r.verdict.startsWith("Partly")).length };
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips, vipDraft, refundsCsv };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });

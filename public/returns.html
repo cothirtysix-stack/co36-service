@@ -208,7 +208,7 @@ a{color:var(--ind);text-decoration:none}a:hover{color:var(--ind2);text-decoratio
   <div class="band">
     <div class="bandlbl"><span>STAGE 2 · BACK AT THE WAREHOUSE</span></div>
     <section class="s2h">
-      <div class="t"><b>After it's scanned in</b><span>Exchanges ship right away and close. Bought 2 sizes or said no before? One last friendly ask, then the team is told who to refund (tag "refundrequired" in Richpanel). Nothing is refunded automatically.</span></div>
+      <div class="t"><b>After it's scanned in</b><span>Exchanges ship right away and close. Bought 2 sizes or said no before? One last friendly ask, then the team is told who to refund (tag "refundrequired" in Richpanel). Nothing is refunded automatically.</span><button id="refcsv" class="alt" style="margin-top:8px;align-self:flex-start;height:34px;font-size:12px">Download refunds to check (CSV)</button></div>
       <div class="after" id="after"></div>
     </section>
     <section class="bwrap"><div class="board s2" id="board2"></div></section>
@@ -762,6 +762,19 @@ db.doc("svc_meta/autopilot").onSnapshot(d => { const off = d.exists && d.data().
 document.getElementById("autopilot").onclick = async () => { if (!apLive) return toast("Autopilot is off. Ella only drafts; nothing is sent by itself."); const off = !!document.getElementById("autopilot").dataset.off;
   if (!(await ask(off ? "Resume Ella's autopilot?" : "Pause Ella's autopilot?", off ? ["Ella sends simple return and exchange replies by herself again, 8–12 minutes after each email", "Flagged, VIP and refund cases still wait for a person"] : ["Ella stops sending by herself right away", "Drafts keep appearing; you can still send them by hand"], off ? "Resume" : "Pause"))) return;
   await db.doc("svc_meta/autopilot").update({ off: !off, by: me, at: Date.now() }); toast(off ? "Autopilot on" : "Autopilot paused"); };
+// Refunds to check: every scanned refund Richpanel hasn't processed, with what Shopify says, oldest first (David, Nov 14).
+document.addEventListener("click", async e => {
+  const b = e.target.closest("#refcsv"); if (!b) return;
+  b.disabled = true; const was = b.textContent; b.textContent = "Checking every return against Shopify…";
+  try {
+    const r = await api.post("service", { op: "refundsCsv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob(["﻿" + r.csv], { type: "text/csv" }));
+    link.download = `refunds-to-check-${new Date().toISOString().slice(0, 10)}.csv`; link.click();
+    toast(`${r.owed} owed ($${r.owedAmount.toLocaleString()}), ${r.already} already refunded in Shopify, ${r.partly} partly`);
+  } catch (err) { toast(err.text || err.message); }
+  b.disabled = false; b.textContent = was;
+});
 db.collection("svc_returns").onSnapshot(s => { rets = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); if (sel && sel.startsWith("s:")) renderDrawer(); });
 db.collection("svc_experiments").onSnapshot(s => { exps = s.docs.map(d => ({ id: d.id, ...d.data() })); renderVariants(); renderLab(); });
 render(); loadReturns();
