@@ -4,6 +4,7 @@ import { shopify, need } from "../lib/shopify.js";
 import { bulkQuery, parseBulk, classify, eventsQuery, classifyMoving } from "../lib/fix.js";
 import { draftFor, loadTicket, isOp } from "../lib/ella.js";
 import { draftQuestion } from "../lib/questions.js";
+import { followUp } from "../lib/asks.js";
 
 const fail = (msg, status = 400) => { throw Object.assign(new Error(msg), { status }); };
 const userErr = (label, errs) => { if (errs?.length) fail(`${label}: ${errs.map(e => e.message).join("; ")}`, 502); };
@@ -244,7 +245,13 @@ async function teach({ kind, id, note }, who) {
   return { ok: true, doc: await getDoc(coll, String(id)) };
 }
 
-const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips, vipDraft, refundsCsv, teach };
+// "Needs Michelle" (prep): Michelle tells Ella what happened; Ella drafts the follow-up to the customer. Nothing is sent.
+async function askAnswer({ id, note }, who) {
+  note = String(note || "").trim().slice(0, 1500); if (!note || !id) fail("Tell Ella what you found");
+  return { ok: true, followUp: await followUp(String(id), note, who?.email) };
+}
+
+const OPS = { scanStart, scanCheck, reply, giftCard, reship, redraft, returnsSchema, returnsList, customers, vips, vipDraft, refundsCsv, teach, askAnswer };
 export default wrap(async (req, res, who) => {
   const { op, ...args } = req.body || {};
   if (!OPS[op]) return res.status(400).json({ error: "Unknown action" });

@@ -8,6 +8,7 @@ import { recordReply } from "../lib/learn.js";
 import { isReturnAsk } from "../lib/classify.js";
 import { read } from "../lib/mood.js";
 import { draftQuestion } from "../lib/questions.js";
+import { draftAsk } from "../lib/asks.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -121,6 +122,16 @@ async function inner(req, res) {
         ...(mood?.intent === "return" && !ret?.wantedRefund ? { wantedRefund: true } : {}),
         ...((ret?.wantedRefund || ret?.intent === "return" || qcAsked) && mood?.intent === "exchange" && !ret?.savedAt ? { savedAt: Date.now(), ...(qcAsked ? { savedAfterQc: true } : {}) } : {}) }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
+    }
+    // Where's my order / refund (David, Nov 15, PREP MODE): holding draft + a "Needs Michelle" card. Nothing is sent.
+    if (["tracking", "refund_status"].includes(mood?.intent) && !ret && lastCust) {
+      const ch = String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email");
+      const a0 = await getDoc("svc_asks", id);
+      if (/email|gmail/i.test(ch) && !/instagram|facebook|comment|social|messenger|dm/i.test(ch) && a0?.lastMsg !== lastCust.id) {
+        const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail, kind = mood.intent === "refund_status" ? "refund" : "order";
+        await putDoc("svc_asks", id, { ticketId, number, kind, customer: who, email: mail, subject, message: message.slice(0, 2000), status: "drafting", receivedAt: a0?.receivedAt || Date.now(), lastAt: Date.now(), lastMsg: lastCust.id, doneAt: null }, true);
+        waitUntil(draftAsk(id, { kind, who, mail, subject, message }));
+      }
     }
     // Product questions (David, Nov 15): Ella drafts an answer for the Questions page. Email only, drafts only, nothing is sent.
     if (mood?.intent === "product" && !ret && lastCust) {

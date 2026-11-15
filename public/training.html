@@ -39,6 +39,10 @@ textarea{width:100%;border:1px solid var(--line2);border-radius:12px;padding:10p
 .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}@media(max-width:1000px){.cols{grid-template-columns:1fr}}
 .search{width:100%;height:44px;border:1px solid var(--line2);border-radius:12px;padding:0 14px;font:500 14px Inter;background:var(--surface);color:var(--ink);outline:none;margin-bottom:14px}
 .qc.sent{border-color:var(--goodb)}
+.pin{background:var(--surface);border:1.5px solid #FDE7B0;border-radius:16px;padding:14px;margin-bottom:18px}
+.pin .colh{margin-bottom:8px}.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
+.facts{font:500 12px/1.55 Inter;color:var(--body);background:var(--line3);border-radius:10px;padding:10px 12px}.facts a{font-weight:600}
+.prep{font:600 10px Inter;padding:2px 7px;border-radius:999px;background:#FEF3C7;color:#92400E}
 .colh{display:flex;align-items:center;gap:8px;margin:0 0 10px}.colh i{width:8px;height:8px;border-radius:99px;display:inline-block}.colh b{font:800 15px Inter}.colh em{font-style:normal;font:700 13px Inter;color:var(--muted);margin-left:auto}
 .stack{display:flex;flex-direction:column;gap:12px}
 .lbl{font:700 10px Inter;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
@@ -58,6 +62,7 @@ textarea.teach{min-height:70px;background:var(--soft);border-style:dashed}
 </header>
 <div class="wrap" style="max-width:1400px">
   <div class="note"><b>How this works.</b> <b>Left:</b> something new Ella isn't sure about. Her draft waits for you: copy it into Richpanel, or write in the dashed box what she should do and press <b>Teach &amp; rewrite</b> (she follows your note on every reply from then on). <b>Middle:</b> questions she already knows (easy, or you taught her): she sends them herself after a few minutes and they stay here as done. <b>Right:</b> anything she sent that backfired: the customer came back upset or felt misunderstood. Tell her what she did wrong.</div>
+  <div class="pin"><div class="colh"><i style="background:#F59E0B"></i><b>Needs Michelle · where's my order / refund</b><span class="prep" style="margin-left:8px">PREP · nothing is sent to customers yet</span><em id="an"></em></div><div class="pgrid" id="asks"><div class="empty">Loading…</div></div></div>
   <input class="search" id="q" placeholder="Search order number, email, name or conversation #" autocomplete="off">
   <div class="cols">
     <section><div class="colh"><i style="background:#F59E0B"></i><b>New · needs you</b><em id="qn"></em></div><div class="tabs" id="tabs"></div><div class="stack" id="qs"><div class="empty">Loading…</div></div></section>
@@ -75,6 +80,20 @@ const short = t => { if (!t) return ""; const d = Date.now() - t; return d < 36e
 const db = await window.claude.use("db"), api = await window.claude.use("api");
 let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
 const FLAG = { needs_answer: "Ella doesn't know · teach her", not_a_question: "Not really a question · check" };
+let asks = [];
+function aCard(a) {
+  const o = (a.orders || [])[0], track = (a.orders || []).flatMap(x => (x.shipments || []).flatMap(s => s.tracking || [])).filter(t => t.url);
+  return `<div class="qc">
+    <div class="qh"><b>${esc(a.customer || a.email || "Customer")}</b><span>${short(a.lastAt)}${a.number ? " · #" + esc(a.number) : ""}</span></div>
+    <div class="qp"><span class="pp ind">${a.kind === "refund" ? "Where's my refund" : "Where's my order"}</span>${a.status === "follow_up_ready" ? `<span class="pp" style="background:var(--goodt);color:var(--good2)">Follow-up ready</span>` : `<span class="pp red">Waiting on Michelle</span>`}</div>
+    <span class="lbl">Customer wrote</span><div class="qm">${esc(a.message || "")}</div>
+    <span class="lbl">What we know</span><div class="facts">${o ? `<b>${esc(o.order)}</b> · placed ${esc(o.placed)} · ${esc(o.shipping)} · ${esc(o.paid)}${o.refunded ? ` · refunded $${esc(o.refunded)} of $${esc(o.total)}` : ""}<br>${esc((o.items || []).join(", "))}${track.length ? `<br>${track.map(t => `<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.company || "Tracking")} ${esc(t.number || "")}</a>`).join(" · ")}` : ""}` : esc(a.factsText || "No order found")}</div>
+    ${a.status === "drafting" ? `<div class="pp">Ella is writing…</div>` : a.status === "error" ? `<div class="pp red">${esc(a.error || "")}</div>` : `<span class="lbl">Ella's first reply (not sent · prep)</span><div class="said">${esc(a.holding || "")}</div>`}
+    ${a.michelleNote ? `<div class="taught">Michelle: ${esc(a.michelleNote)}</div>` : ""}
+    ${a.followUp ? `<span class="lbl">Ella's follow-up (not sent · prep)</span><textarea data-key="f-${esc(a.docId)}">${esc(a.followUp)}</textarea>` : ""}
+    ${a.doneAt ? "" : `<span class="lbl">Michelle → Ella (not the customer)</span><textarea class="teach" data-anote="${esc(a.docId)}" data-key="a-${esc(a.docId)}" placeholder="e.g. Small issue, it ships out today · or · Weird, not refunded yet, doing it now · or · Already shipped, tracking is in the order">${esc(notes["a" + a.docId] || "")}</textarea>
+    <div class="qf"><button data-adone="${esc(a.docId)}">Mark done</button><button class="teachb" data-ago="${esc(a.docId)}"${busy["a" + a.docId] ? " disabled" : ""}>${busy["a" + a.docId] ? "Writing…" : "Send to Ella"}</button></div>`}</div>`;
+}
 let qs = [], bfs = [], tab = "open", btab = "open", edits = {}, notes = {}, busy = {}, term = "";
 const match = (...vals) => !term || vals.some(v => String(v ?? "").toLowerCase().includes(term));
 const qMatch = q => match(q.email, q.customer, q.number, q.message, ...(q.orders || []));
@@ -120,6 +139,9 @@ function render() { keepFocus(() => {
   $("bn").textContent = bo.length;
   $("btabs").innerHTML = [["open", `To review (${bo.length})`], ["done", `Taught (${bd.length})`]].map(([k, l]) => `<button data-btab="${k}" class="${btab === k ? "on" : ""}">${l}</button>`).join("");
   $("bf").innerHTML = (btab === "open" ? bo : bd).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 60).map(bCard).join("") || `<div class="empty">${btab === "open" ? "Nothing backfired. Nice." : "Nothing taught yet."}</div>`;
+  const av = asks.filter(a => !a.doneAt && match(a.email, a.customer, a.number, a.message, ...(a.orders || []).map(o => o.order)));
+  $("an").textContent = av.length;
+  $("asks").innerHTML = av.sort((a, b) => (a.lastAt || 0) - (b.lastAt || 0)).map(aCard).join("") || `<div class="empty">Nothing waiting on Michelle.</div>`;
   wire();
 }); }
 function wire() {
@@ -136,6 +158,14 @@ function wire() {
     try { await api.post("service", { op: "teach", kind: "question", id, note }); notes[id] = ""; delete edits[id]; toast("Taught · Ella rewrote it"); } catch (e) { toast(e.text || e.message); }
     busy[id] = false; render();
   });
+  document.querySelectorAll("[data-anote]").forEach(t => t.oninput = () => { notes["a" + t.dataset.anote] = t.value; });
+  document.querySelectorAll("[data-adone]").forEach(b => b.onclick = async () => { b.disabled = true; try { await db.doc(`svc_asks/${b.dataset.adone}`).update({ doneAt: Date.now(), doneBy: me }); toast("Marked done"); } catch (e) { toast(e.text || e.message); b.disabled = false; } });
+  document.querySelectorAll("[data-ago]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.ago, note = (notes["a" + id] || "").trim(); if (!note) return toast("Tell Ella what you found first");
+    busy["a" + id] = true; render();
+    try { await api.post("service", { op: "askAnswer", id, note }); notes["a" + id] = ""; toast("Ella wrote the follow-up (not sent · prep)"); } catch (e) { toast(e.text || e.message); }
+    busy["a" + id] = false; render();
+  });
   document.querySelectorAll("[data-bteach]").forEach(b => b.onclick = async () => {
     const id = b.dataset.bteach, note = (notes["b" + id] || "").trim(); if (!note) return toast("Write what Ella should have done first");
     busy["b" + id] = true; render();
@@ -145,6 +175,7 @@ function wire() {
 }
 $("q").oninput = e => { term = e.target.value.trim().toLowerCase().replace(/^#/, ""); render(); };
 db.collection("svc_questions").onSnapshot(s => { qs = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
+db.collection("svc_asks").onSnapshot(s => { asks = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
 db.collection("svc_backfire").onSnapshot(s => { bfs = s.docs.map(d => ({ docId: d.id, ...d.data() })); render(); });
 })();
 </script>
