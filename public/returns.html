@@ -407,11 +407,11 @@ function cardHtml(c) {
 const COLS = [
   { k: "new", label: "Just asked", dot: "#EF4444", sub: "Ella replies in under 5 min", empty: "Inbox zero.", red: true },
   { k: "offer", label: "Offer out", dot: "#F59E0B", sub: "Waiting on the customer", empty: "No open offers." },
+  { k: "saved", label: "Saved · refund → exchange", dot: "#16A34A", sub: "Wanted a refund, Ella turned it into a swap", empty: "None yet in this period." },
   { k: "label", label: "Label sent", dot: "#5B5BF6", sub: "Nudge after 7 days", empty: "—", rp: true },
   { k: "transit", label: "In transit", dot: "#6E6E7A", sub: "Flag if no scan for 5 days", empty: "—", rp: true },
   { k: "recv", label: "Received → act today", dot: "#0B0B0F", sub: "Moves to \"After it's scanned in\" below", empty: "All shipped. Nice.", red: true, rp: true },
-  { k: "done", label: "Resolved", dot: "#16A34A", sub: "Check back in 3 days", empty: "—", rp: true },
-  { k: "saved", label: "Saved · refund → exchange", dot: "#16A34A", sub: "Wanted a refund, Ella turned it into a swap", empty: "None yet in this period." }
+  { k: "done", label: "Resolved", dot: "#16A34A", sub: "Check back in 3 days", empty: "—", rp: true }
 ];
 const COLS2 = [
   { k: "p_issue", label: "Came back wrong → needs you", dot: "#EF4444", sub: "Worn, damaged, wrong item or missing pieces", soon: "Coming soon: needs warehouse inspection data" },
