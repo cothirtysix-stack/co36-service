@@ -232,6 +232,18 @@ export default async function handler(req, res) {
     const now = await getDoc("svc_returns", id);
     if (now?.status === "error" && /returned no reply/i.test(String(now.error || ""))) await putDoc("svc_returns", id, { status: "draft", draft: null, flags: [...new Set([...(now.flags || []), "write_failed"])] }, true);
   }
+  // Nov 16: the inbound webhook writes the draft in the background; when that hits the 60s limit the row stays "drafting"
+  // forever (#47692, #47947 waited 13–22h). Write those once more here; the normal send checks (team answered, email only,
+  // closed) still apply before anything goes out.
+  const half = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'drafting'
+    and data->>'draftRetryAt' is null and data->>'handedAt' is null and data->>'sarahAt' is null
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) between ${Math.max(since, Date.now() - 72 * 3600e3)} and ${Date.now() - 15 * 60e3} limit 1`;
+  for (const { id, data: r } of half) {
+    await putDoc("svc_returns", id, { draftRetryAt: Date.now() }, true);
+    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+    const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
+    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+  }
   for (const { id, data: r } of stuck) {
     await putDoc("svc_returns", id, { redraft2At: Date.now() }, true);
     const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
