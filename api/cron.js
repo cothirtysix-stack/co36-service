@@ -208,9 +208,21 @@ export default async function handler(req, res) {
   const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
     and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
     and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
+  // One time (Nov 18): tickets parked by the three bugs fixed today (stock "unknown" for colors they didn't buy, exchange asks read as
+  // "a question", the portal's new discount-credit check) go back in line from the last 3 days. The usual send checks still apply
+  // (skip if anyone on the team already wrote to them).
+  const rq = await getDoc("svc_meta", "requeue1118");
+  if (!rq) {
+    const n = await db()`update hub.docs set data = data || jsonb_build_object('status', 'error', 'error', 'requeued Nov 18', 'retry2At', null, 'handedAt', null,
+        'flags', '[]'::jsonb, 'exchangeTriedAt', null, 'exchangeError', null, 'requeued', ${Date.now()}::bigint), seq = nextval('hub.docs_seq')
+      where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft' and data->>'sarahAt' is null and data->>'sentAt' is null
+      and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 72 * 3600e3}
+      and (data->'flags' ? 'stock_unknown' or data->'flags' ? 'exchange_failed' or data->>'intent' = 'question') returning id`;
+    await putDoc("svc_meta", "requeue1118", { at: Date.now(), n: n.length });
+  }
   // Drafts that errored get retried once (retry2At: Nov 4, the writer had too little room and many came back empty; retry those once more).
   const errs = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
-    and data->>'retry2At' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 72 * 3600e3)} limit 3`;
+    and data->>'retry2At' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 72 * 3600e3)} limit 5`;
   for (const { id, data: r } of errs) {
     await putDoc("svc_returns", id, { retryAt: Date.now(), retry2At: Date.now() }, true);
     const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
