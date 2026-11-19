@@ -248,12 +248,23 @@ export default async function handler(req, res) {
       and (data->'flags' ? 'stock_unknown' or data->'flags' ? 'exchange_failed' or data->>'intent' = 'question') returning id`;
     await putDoc("svc_meta", "requeue1118", { at: Date.now(), n: n.length });
   }
+  // One time (Nov 19): requeued tickets whose retry lookup failed were stuck for good; give them their retry back.
+  if (!(await getDoc("svc_meta", "unstick1119"))) {
+    const n = await db()`update hub.docs set data = data || jsonb_build_object('retry2At', null), seq = nextval('hub.docs_seq')
+      where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error' and data->>'error' like 'requeued Nov%'
+      and data->>'retry2At' is not null and data->>'sentAt' is null and data->>'sarahAt' is null and data->>'handedAt' is null returning id`;
+    await putDoc("svc_meta", "unstick1119", { at: Date.now(), n: n.length });
+  }
   // Drafts that errored get retried once (retry2At: Nov 4, the writer had too little room and many came back empty; retry those once more).
   const errs = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
-    and data->>'retry2At' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 15 * 864e5)} limit 6`;
+    and data->>'retry2At' is null and coalesce((data->>'retryNotBefore')::bigint, 0) < ${Date.now()}
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 15 * 864e5)} limit 6`;
   for (const { id, data: r } of errs) {
     await putDoc("svc_returns", id, { retryAt: Date.now(), retry2At: Date.now() }, true);
-    const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
+    const t = r.number ? await loadTicket(r.number) : null;
+    // Nov 19: when Richpanel didn't answer this one lookup the ticket was marked tried and never redrafted (7 sat ~20h).
+    // Try again in 20 minutes, at most 3 more times. Only real, existing ticket numbers are looked up.
+    if (!t) { const f = (+r.loadFails || 0) + 1; if (r.number && f <= 3) await putDoc("svc_returns", id, { retry2At: null, loadFails: f, retryNotBefore: Date.now() + 20 * 60e3 }, true); continue; }
     const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
     await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
     // Out of Claude credit (Nov 5: monthly spend limit hit): keep it in line so it's written as soon as the limit is raised.
