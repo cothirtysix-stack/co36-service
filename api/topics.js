@@ -13,7 +13,7 @@ async function ticket(n) {
 }
 
 export default async function handler(req, res) {
-  if (process.env.TOPICS_ON !== "1" && req.query?.force !== "1") return res.json({ ok: true, paused: true }); // paused Nov 19 while the hang is checked
+  if (process.env.TOPICS_OFF === "1") return res.json({ ok: true, paused: true });
   const t0 = Date.now(), left = () => 50000 - (Date.now() - t0), out = { loaded: 0, drafted: 0 };
   await init();
   // Even minutes write drafts (one round, up to ~45s), odd minutes load conversations: each run stays well under Vercel's 60s.
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
   if (draftMinute) {
     const rows = await db()`select id from hub.docs where coll = 'svc_topics' and not deleted and data->>'lane' = 'topics' and coalesce((data->>'tries')::int, 0) < 3
       and (data->>'status' = 'queued' or data->>'status' = 'error' or (data->>'status' = 'drafting' and coalesce((data->>'draftStartedAt')::bigint, 0) < ${Date.now() - 5 * 60e3}))
-      order by coalesce((data->>'lastAt')::bigint, 0) desc limit 6`;
+      order by coalesce((data->>'lastAt')::bigint, 0) desc limit 2`;
     const end = t0 + 54000; await Promise.all(rows.map(r => draftTopic(r.id, "", end).catch(() => {})));
     out.drafted += rows.length;
   }
