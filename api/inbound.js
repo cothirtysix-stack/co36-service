@@ -9,6 +9,7 @@ import { isReturnAsk } from "../lib/classify.js";
 import { read } from "../lib/mood.js";
 import { draftQuestion } from "../lib/questions.js";
 import { draftAsk } from "../lib/asks.js";
+import { countSave } from "../lib/offertest.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -111,6 +112,8 @@ async function inner(req, res) {
     // Did Ella's after-scan "one last ask" go out in this thread? Then switching to an exchange now counts as a save at the warehouse stage.
     let qcAsked = false;
     if (mood?.intent === "exchange") { await init(); qcAsked = (await db()`select 1 from hub.docs where coll = 'svc_returns' and not deleted and id like 'qc-%' and data->>'status' = 'sent' and data->>'ticketId' = ${String(ticketId)} limit 1`).length > 0; }
+    // Save-offer test: they wanted a refund, got the offer, and now want an exchange → that version saved one.
+    if (ret?.offerVariant && ret?.offerCounted && !ret?.offerSaved && mood?.intent === "exchange") { await countSave(ret.offerVariant); await putDoc("svc_returns", id, { offerSaved: Date.now() }, true); }
     if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {
       const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
       await putDoc("svc_returns", id, { ticketId, number, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email"), customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",

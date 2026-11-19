@@ -7,6 +7,7 @@ import { buildLessons } from "../lib/learn.js";
 import { createExchange } from "../lib/portal.js";
 import { watchdog } from "../lib/watchdog.js";
 import { read as readMood } from "../lib/mood.js";
+import { countSent } from "../lib/offertest.js";
 import * as moodLib from "../lib/mood.js";
 
 const SAFE_INTENTS = ["return", "exchange"];
@@ -182,6 +183,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({ ticket: { comment: { body, sender_type: "operator", public: true, author_id: process.env.RICHPANEL_AUTHOR_ID || "operator" } } }) });
     if (!r2.ok) { await putDoc("svc_returns", id, { autoError: `Richpanel ${r2.status}` }, true); continue; }
     await putDoc("svc_returns", id, { status: "sent", sentAt: Date.now(), sentBy: "Ella (autopilot)", sentText: body, edited: false }, true);
+    if (r.offerVariant && !r.offerCounted) { await countSent(r.offerVariant); await putDoc("svc_returns", id, { offerCounted: true }, true); }
     await putDoc("svc_cases", `auto-${id}-${Date.now().toString(36)}`, { at: Date.now(), by: "Ella (autopilot)", source: "returns", ref: id, customer: r.customer || r.email, email: r.email,
       order: (r.orders || [])[0], product: (r.items || [])[0], type: r.intent, what: r.intent === "exchange" ? "Exchange request" : "Return request", did: `Ella: ${r.plan || "replied"}`, message: r.draft });
     sent.push(id);
@@ -211,6 +213,16 @@ export default async function handler(req, res) {
   const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
     and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
     and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
+  // One time (Nov 19, David: "a/b test until you see what makes people willing to try another size, color or style"): first 4 save-offer versions.
+  if (!(await getDoc("svc_meta", "offerSeed1119"))) {
+    const V = [
+      ["A · Specific swap", "Since the L ran big, I can send you the M in Black instead, it's in stock. Just reply yes and your label lands in your inbox right away."],
+      ["B · Faster than a refund", "Want to try the M instead? A swap is quicker than a refund: reply yes and the new one ships the day yours is scanned."],
+      ["C · Most guys", "Most guys who go one size down end up keeping it. Want me to swap you into the M in Black? Just reply yes."],
+      ["D · Other color or style", "If it's the color that didn't work, Moss and Slate are in stock in your size. Want me to swap it? Just reply yes."]];
+    for (const [i, [name, text]] of V.entries()) await putDoc("svc_experiments", `seed1119${i}`, { name, text, on: true, context: "save", createdAt: Date.now() + i, by: "Ella (first test)", sent: 0, exchanges: 0, credits: 0 });
+    await putDoc("svc_meta", "offerSeed1119", { at: Date.now() });
+  }
   // One time (Nov 19, David: "go and clear all those up"): everything sitting with Michelle from the last 14 days that has NO real
   // problem on our side (no wrong/damaged/missing item, nobody asked for a person, not past the window) goes back to Ella:
   // VIPs, no order found, stock and exchange holds. Redrafted from the live thread; the send checks still skip anyone the team answered.
