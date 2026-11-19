@@ -132,7 +132,10 @@ export default async function handler(req, res) {
     and data->>'sarahAt' is null and coalesce(jsonb_array_length(data->'flags'), 0) = 0 and data->>'releasedAt' is null
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 72 * 3600e3}`;
   const rows = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft'
-    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} and data->>'handedAt' is null and data->>'sarahAt' is null order by seq desc limit 40`;
+    and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Date.parse(AUTOPILOT.since || 0) || 0} and data->>'handedAt' is null and data->>'sarahAt' is null
+    -- Only drafts that can actually go out (Nov 19: held drafts filled all 40 slots, so the after-scan swap offers never got a turn).
+    and (data->>'intent' in ('return', 'exchange') or id like 'qc-%') and coalesce(data->>'redo5', '') = '' and data->>'releasedAt' is null
+    order by (id like 'qc-%') desc, seq desc limit 80`;
   for (const { id, data: r } of rows) {
     if (left() < 8000) break;
     // "no_order" is safe: that reply just asks for the order number.
