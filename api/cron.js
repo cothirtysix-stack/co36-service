@@ -208,6 +208,19 @@ export default async function handler(req, res) {
   const stuck = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft'
     and data->>'redraft2At' is null and data->>'sarahAt' is null and (data->'flags' ? 'needs_human' or data->'flags' ? 'out_of_stock')
     and coalesce((data->>'lastAt')::bigint, 0) >= ${since} limit 1`;
+  // One time (Nov 19, David: "go and clear all those up"): everything sitting with Michelle from the last 14 days that has NO real
+  // problem on our side (no wrong/damaged/missing item, nobody asked for a person, not past the window) goes back to Ella:
+  // VIPs, no order found, stock and exchange holds. Redrafted from the live thread; the send checks still skip anyone the team answered.
+  const rq2 = await getDoc("svc_meta", "requeue1119");
+  if (!rq2) {
+    const n = await db()`update hub.docs set data = data || jsonb_build_object('status', 'error', 'error', 'requeued Nov 19', 'retry2At', null, 'handedAt', null,
+        'flags', '[]'::jsonb, 'exchangeTriedAt', null, 'exchangeError', null, 'vipOk', true, 'requeued', ${Date.now()}::bigint), seq = nextval('hub.docs_seq')
+      where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft' and data->>'sarahAt' is null and data->>'sentAt' is null
+      and data->>'handedAt' is not null and coalesce(data->>'problem', 'none') = 'none'
+      and not (coalesce(data->'flags', '[]'::jsonb) ?| array['needs_human', 'asked_if_bot', 'past_window', 'restock_soon'])
+      and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 14 * 864e5} returning id`;
+    await putDoc("svc_meta", "requeue1119", { at: Date.now(), n: n.length });
+  }
   // One time (Nov 18): tickets parked by the three bugs fixed today (stock "unknown" for colors they didn't buy, exchange asks read as
   // "a question", the portal's new discount-credit check) go back in line from the last 3 days. The usual send checks still apply
   // (skip if anyone on the team already wrote to them).
@@ -222,7 +235,7 @@ export default async function handler(req, res) {
   }
   // Drafts that errored get retried once (retry2At: Nov 4, the writer had too little room and many came back empty; retry those once more).
   const errs = await db()`select id, data from hub.docs where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'error'
-    and data->>'retry2At' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 72 * 3600e3)} limit 5`;
+    and data->>'retry2At' is null and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 15 * 864e5)} limit 6`;
   for (const { id, data: r } of errs) {
     await putDoc("svc_returns", id, { retryAt: Date.now(), retry2At: Date.now() }, true);
     const t = r.number ? await loadTicket(r.number) : null; if (!t) continue;
