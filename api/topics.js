@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   // 1) Backfill, 4 at a time.
   let m = await getDoc("svc_meta", "topicsBackfill");
   if (!m) { const nw = await getDoc("svc_meta", "newest"); m = { next: Number(nw?.number) || 0, done: !nw?.number, startedAt: Date.now(), n: 0, old: 0 }; }
-  while (!draftMinute && !m.done && m.next > 0 && left() > 22000) {
+  while (!draftMinute && !m.done && m.next > 0 && left() > 36000) {
     const nums = [0, 1, 2, 3].map(i => m.next - i).filter(n => n > 0);
     const got = await Promise.all(nums.map(n => ticket(n).catch(e => ({ stop: String(e.message || e).slice(0, 60) }))));
     const stop = got.find(g => g.stop); if (stop) { m.lastStop = { at: Date.now(), why: String(stop.stop) }; break; }
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const rows = await db()`select id from hub.docs where coll = 'svc_topics' and not deleted and data->>'lane' = 'topics' and coalesce((data->>'tries')::int, 0) < 3
       and (data->>'status' = 'queued' or data->>'status' = 'error' or (data->>'status' = 'drafting' and coalesce((data->>'draftStartedAt')::bigint, 0) < ${Date.now() - 5 * 60e3}))
       order by coalesce((data->>'lastAt')::bigint, 0) desc limit 2`;
-    const end = t0 + 54000; await Promise.all(rows.map(r => draftTopic(r.id, "", end).catch(() => {})));
+    const end = t0 + 50000; await Promise.all(rows.map(r => draftTopic(r.id, "", end).catch(() => {})));
     out.drafted += rows.length;
   }
   res.json({ ok: true, ...out, backfill: { next: m.next, done: m.done, n: m.n } });
