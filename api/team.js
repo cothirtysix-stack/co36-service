@@ -2,7 +2,7 @@
 import crypto from "node:crypto";
 import { db, init, wrap, putDoc, getDoc, hashPw } from "../lib/server.js";
 
-const PAGES = ["home", "returns", "training", "fulfillment"];
+const PAGES = ["home", "returns", "training", "inbox", "fulfillment"];
 const newPw = () => crypto.randomBytes(9).toString("base64url");
 const clean = e => String(e || "").trim().toLowerCase();
 

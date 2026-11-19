@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CO36 Inbox</title>
+<link rel="icon" href="/apps/service.svg">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0B0F;--body:#3F3F4A;--muted:#6E6E7A;--dis:#B5B5BE;--line:#ECECF0;--line2:#E2E2E8;--line3:#F1F1F4;--page:#F7F7F9;--surface:#fff;--col:#EFEFF3;--soft:#FBFBFC;--seg:#ECECF0;
+--ind:#5B5BF6;--ind2:#4343D9;--indt:#EEEEFE;--indb:#DCDCFB;--good:#16A34A;--good2:#15803D;--goodt:#E8F6EE;--goodb:#BFE5CD;--bad:#EF4444;--bad2:#B91C1C;--badt:#FEECEC;--badb:#F8C9C9;--amb:#F59E0B;--amb2:#B45309;--ambt:#FEF3E2;
+--shadow:0 1px 2px rgba(11,11,15,.04),0 6px 20px rgba(11,11,15,.04)}
+@media (prefers-color-scheme:dark){:root{--ink:#F4F4F6;--body:#C9C9D2;--muted:#9A9AA6;--dis:#5C5C66;--line:#26262E;--line2:#30303A;--line3:#1E1E25;--page:#0E0E12;--surface:#16161C;--col:#1B1B22;--soft:#121217;--seg:#24242C;
+--indt:#23234A;--indb:#33335E;--goodt:#12301F;--goodb:#1E4A30;--badt:#3A1616;--badb:#5A2424;--ambt:#3A2A10;--ind2:#9B9BFF;--good2:#4ADE80;--bad2:#F87171;--amb2:#FBBF24;--shadow:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,textarea{font-family:inherit}button{cursor:pointer}a{color:var(--ind);text-decoration:none}
+.hdr{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tile{width:34px;height:34px;border-radius:9px;background:#0B0B0F;color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px Inter;flex:none}
+.ttl{display:flex;flex-direction:column;gap:1px;min-width:0}.ttl b{font:800 18px Inter;letter-spacing:-.02em}.ttl span{font:500 12px Inter;color:var(--muted)}
+.pnav{display:flex;gap:4px;background:var(--line3);padding:3px;border-radius:10px}
+.pnav a,.pnav span{height:30px;padding:0 12px;border-radius:8px;font:600 12px/30px Inter;color:var(--muted)}
+.pnav span{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 80px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:500 13px/1.5 Inter;color:var(--body);margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.tabs button{border:1px solid var(--line2);background:var(--surface);border-radius:99px;padding:6px 12px;font:600 12px Inter;color:var(--muted)}.tabs button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}
+.qc{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.qh{display:flex;gap:8px;align-items:baseline}.qh b{font:700 14px Inter;flex:1;min-width:0;overflow-wrap:anywhere}.qh span{font:600 11px Inter;color:var(--muted)}
+.qm{background:var(--line3);border-radius:10px;padding:10px 12px;font:500 13px/1.5 Inter;color:var(--body);white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.pp{font:600 10px Inter;padding:2px 7px;border-radius:999px;white-space:nowrap;background:var(--line3);color:var(--body)}.pp.red{background:var(--badt);color:var(--bad2)}.pp.ind{background:var(--indt);color:var(--ind2)}
+.qp{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+textarea{width:100%;border:1px solid var(--line2);border-radius:12px;padding:10px 12px;font:400 13px/1.55 Inter;resize:vertical;outline:none;color:var(--ink);background:var(--surface);min-height:140px}
+.qf{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}.qf button{height:34px;padding:0 14px;border-radius:10px;font:600 12px Inter;border:1px solid var(--line2);background:var(--surface);color:var(--ink)}.qf button.pri{background:#0B0B0F;color:#fff;border:0}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#0B0B0F;color:#fff;font:600 13px Inter;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(11,11,15,.25);z-index:70;max-width:90vw}
+
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}@media(max-width:1000px){.cols{grid-template-columns:1fr}}
+.search{width:100%;height:44px;border:1px solid var(--line2);border-radius:12px;padding:0 14px;font:500 14px Inter;background:var(--surface);color:var(--ink);outline:none;margin-bottom:14px}
+.qc.sent{border-color:var(--goodb)}
+.pin{background:var(--surface);border:1.5px solid #FDE7B0;border-radius:16px;padding:14px;margin-bottom:18px}
+.pin .colh{margin-bottom:8px}.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px}
+.facts{font:500 12px/1.55 Inter;color:var(--body);background:var(--line3);border-radius:10px;padding:10px 12px}.facts a{font-weight:600}
+.prep{font:600 10px Inter;padding:2px 7px;border-radius:999px;background:#FEF3C7;color:#92400E}
+.colh{display:flex;align-items:center;gap:8px;margin:0 0 10px}.colh i{width:8px;height:8px;border-radius:99px;display:inline-block}.colh b{font:800 15px Inter}.colh em{font-style:normal;font:700 13px Inter;color:var(--muted);margin-left:auto}
+.stack{display:flex;flex-direction:column;gap:12px}
+.lbl{font:700 10px Inter;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+details.fold{background:var(--line3);border-radius:10px;padding:8px 12px}details.fold summary{cursor:pointer;font:600 12px Inter;color:var(--body)}details.fold .turn{font:500 12px/1.5 Inter;color:var(--body);margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+textarea.teach{min-height:70px;background:var(--soft);border-style:dashed}
+.qf button.teachb{background:var(--ind);color:#fff;border:0}
+.said{background:var(--indt);border-radius:10px;padding:10px 12px;font:500 13px/1.5 Inter;color:var(--body);white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto}
+.taught{font:500 12px Inter;color:var(--good2)}
+
+.wrap{max-width:none;padding:18px 16px 80px}
+.seg{display:flex;gap:2px;background:var(--seg);padding:3px;border-radius:10px;width:max-content}
+.seg button{border:0;height:30px;padding:0 12px;border-radius:8px;font:600 12px Inter;background:transparent;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(11,11,15,.12)}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.stats{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.bar{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--line3);margin:8px 0 10px}
+.bar i{display:block;height:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line2);background:var(--surface);border-radius:99px;padding:5px 10px;font:600 12px Inter;color:var(--body)}
+.chip i{width:8px;height:8px;border-radius:99px}.chip b{color:var(--ink)}.chip span{color:var(--muted)}
+.scroll{overflow-x:auto;padding-bottom:8px}
+.board{display:flex;gap:12px;align-items:flex-start}
+.col{flex:0 0 340px;background:var(--col);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.col>.colh{padding:4px 4px 0}.col>.sub{font:500 11px Inter;color:var(--muted);padding:0 4px 4px}
+.qc{padding:12px;gap:6px}.qm,.said{max-height:150px}.facts{max-height:110px;overflow:auto}
+textarea{min-height:120px}textarea.teach{min-height:56px}
+.more{border:0;background:var(--surface);border-radius:12px;height:36px;font:600 12px Inter;color:var(--ind)}
+.sm{font:500 12px Inter;color:var(--muted)}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="tile">CO36</div>
+  <div class="ttl"><b>Inbox</b><span>Why customers write · Ella drafts, nothing is sent</span></div>
+  <div style="flex:1"></div>
+  <nav class="pnav"><a href="/home.html">Home</a><a href="/returns.html">Returns</a><a href="/training.html">Training</a><span>Inbox</span><a href="/fulfillment.html">Fulfillment</a></nav>
+</header>
+<div class="wrap">
+  <div class="note"><b>How this works.</b> Every customer email lands in a column by <b>why they wrote</b>. For the ones still waiting, Ella writes a draft answer. <b>Nothing here is sent to customers.</b> Copy a draft into Richpanel if it's good, or write in the dashed box what she should do and press <b>Teach &amp; rewrite</b> (she follows it from then on). Returns and exchanges are counted here but handled on the Returns page.</div>
+  <div class="top"><div class="seg" id="period"></div><div class="seg" id="show"></div><input class="search" id="q" placeholder="Search name, email, order or conversation #" autocomplete="off" style="max-width:360px;margin:0"><span class="sm" id="loadnote"></span></div>
+  <div class="stats"><div class="colh" style="margin:0"><b>Why they wrote</b><em id="total"></em></div><div class="bar" id="bar"></div><div class="chips" id="chips"></div></div>
+  <div class="scroll"><div class="board" id="board"><div class="empty">Loading…</div></div></div>
+</div>
+<script src="/shim.js"></script>
+<script>
+(async () => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const toast = t => { document.querySelectorAll(".toast").forEach(x => x.remove()); const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); };
+const short = t => { if (!t) return ""; const d = Date.now() - t; return d < 36e5 ? Math.max(1, Math.round(d / 6e4)) + "m" : d < 864e5 ? Math.round(d / 36e5) + "h" : Math.round(d / 864e5) + "d"; };
+const db = await window.claude.use("db"), api = await window.claude.use("api");
+let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
+const T = [["product", "Product question", "#5B5BF6"], ["tracking", "Where's my order", "#F59E0B"], ["refund_status", "Where's my refund", "#EAB308"], ["damaged", "Damaged / defective", "#EF4444"],
+  ["shrinkage", "Shrinkage / washed", "#EC4899"], ["wrong_item", "Wrong or missing item", "#F97316"], ["cancel_change", "Cancel or change order", "#06B6D4"], ["discount", "Discount / promo code", "#8B5CF6"],
+  ["account", "Account, emails, unsubscribe", "#64748B"], ["other", "Other", "#A1A1AA"], ["return", "Return / refund request", "#16A34A"], ["exchange", "Exchange", "#22C55E"]];
+const TL = Object.fromEntries(T.map(t => [t[0], t])), RET = new Set(["return", "exchange"]);
+let cards = [], stats = [], period = 7, show = "waiting", term = "", edits = {}, notes = {}, busy = {}, limit = {};
+try { const s = JSON.parse(localStorage.getItem("inbox-view") || "{}"); if (s.period) period = s.period; if (s.show) show = s.show; } catch (_) {}
+const save = () => { try { localStorage.setItem("inbox-view", JSON.stringify({ period, show })); } catch (_) {} };
+const nyDay = ms => new Date(ms - 5 * 3600e3).toISOString().slice(0, 10);
+const keepFocus = fn => { const a = document.activeElement, k = a?.dataset?.key, c = a?.selectionStart; fn(); if (k) { const t = document.querySelector(`[data-key="${CSS.escape(k)}"]`); if (t) { t.focus(); try { t.setSelectionRange(c, c); } catch (_) {} } } };
+const match = c => !term || [c.customer, c.email, c.number, c.message, c.subject, c.factsText].some(v => String(v ?? "").toLowerCase().includes(term));
+function card(c) {
+  const st = c.lane === "returns" ? `<span class="pp">On the Returns page</span>` : c.doneAt ? `<span class="pp" style="background:var(--goodt);color:var(--good2)">Done${c.doneBy ? " · " + esc(c.doneBy.split("@")[0]) : ""}</span>` : c.waiting ? `<span class="pp red">Waiting on us</span>` : `<span class="pp">Answered</span>`;
+  const draftBox = c.lane === "returns" ? "" : c.status === "drafting" || c.status === "queued" || busy[c.docId] ? `<div class="pp">Ella is writing…</div>` : c.status === "error" ? `<div class="pp red">Couldn't draft: ${esc(c.error || "")}</div>`
+    : c.draft ? `<span class="lbl">Ella's draft (not sent)</span><textarea data-ta="${esc(c.docId)}" data-key="d-${esc(c.docId)}">${esc(edits[c.docId] ?? c.draft)}</textarea>${c.needs ? `<div class="sm">Check first: ${esc(c.needs)}</div>` : ""}` : "";
+  return `<div class="qc">
+    <div class="qh"><b>${esc(c.customer || c.email || "Customer")}</b><span>${short(c.lastAt || c.receivedAt)}${c.number ? " · #" + esc(c.number) : ""}</span></div>
+    <div class="qp">${st}${c.msgs > 1 ? `<span class="pp">${c.msgs} messages</span>` : ""}${c.mood === "upset" ? `<span class="pp red">Upset</span>` : ""}${c.confidence === "known" && c.draft ? `<span class="pp ind">Ella is sure</span>` : ""}</div>
+    ${c.summary ? `<div class="sm">${esc(c.summary)}</div>` : ""}
+    <span class="lbl">Customer wrote</span><div class="qm">${esc(c.message || "")}</div>
+    ${c.factsText && c.factsText !== "No order found." ? `<span class="lbl">What we know</span><div class="facts">${esc(c.factsText)}</div>` : ""}
+    ${c.teamReply && !c.waiting ? `<span class="lbl">Our reply</span><div class="said">${esc(c.teamReply)}</div>` : ""}
+    ${draftBox}
+    ${(c.teachings || []).length ? `<div class="taught">You taught: ${esc(c.teachings[c.teachings.length - 1].note)}</div>` : ""}
+    ${c.lane === "returns" || c.doneAt ? "" : `<span class="lbl">Teach Ella (optional)</span><textarea class="teach" data-note="${esc(c.docId)}" data-key="n-${esc(c.docId)}" placeholder="e.g. For late orders always share the tracking link first…">${esc(notes[c.docId] || "")}</textarea>`}
+    ${c.lane === "returns" ? "" : `<div class="qf">${c.doneAt ? "" : `<button data-done="${esc(c.docId)}">Mark done</button><button class="teachb" data-teach="${esc(c.docId)}"${busy[c.docId] ? " disabled" : ""}>Teach &amp; rewrite</button>`}${c.draft ? `<button class="pri" data-copy="${esc(c.docId)}">Copy</button>` : ""}</div>`}</div>`;
+}
+function render() { keepFocus(() => {
+  $("period").innerHTML = [[1, "Today"], [7, "7 days"], [30, "30 days"]].map(([k, l]) => `<button data-p="${k}" class="${period === k ? "on" : ""}">${l}</button>`).join("");
+  $("show").innerHTML = [["waiting", "Waiting on us"], ["all", "Everything"]].map(([k, l]) => `<button data-s="${k}" class="${show === k ? "on" : ""}">${l}</button>`).join("");
+  const from = nyDay(Date.now() - (period - 1) * 864e5), st = stats.filter(s => s.d >= from), n = st.length;
+  const cnt = {}; st.forEach(s => { cnt[s.t] = (cnt[s.t] || 0) + 1; });
+  const order = T.filter(t => cnt[t[0]]).sort((a, b) => cnt[b[0]] - cnt[a[0]]);
+  $("total").textContent = n ? `${n} conversations` : "";
+  $("bar").innerHTML = order.map(t => `<i title="${esc(t[1])}" style="width:${cnt[t[0]] / n * 100}%;background:${t[2]}"></i>`).join("");
+  $("chips").innerHTML = order.map(t => `<span class="chip"><i style="background:${t[2]}"></i>${esc(t[1])} <b>${Math.round(cnt[t[0]] / n * 100)}%</b><span>${cnt[t[0]]}</span></span>`).join("") || `<span class="sm">Loading the last 30 days… this fills in over the next few hours.</span>`;
+  const since = Date.now() - period * 864e5;
+  const vis = cards.filter(c => (c.receivedAt || c.lastAt || 0) >= since || c.waiting).filter(match).filter(c => show === "all" || (c.waiting && !c.doneAt && c.lane !== "returns"));
+  const cols = T.filter(t => !RET.has(t[0]) || show === "all").map(t => ({ t, list: vis.filter(c => c.topic === t[0]) }))
+    .filter(x => x.list.length || !RET.has(x.t[0])).sort((a, b) => (cnt[b.t[0]] || 0) - (cnt[a.t[0]] || 0));
+  $("board").innerHTML = cols.map(({ t, list }) => { const lim = limit[t[0]] || 15, sorted = list.sort((a, b) => (b.waiting - a.waiting) || ((b.lastAt || 0) - (a.lastAt || 0)));
+    return `<section class="col"><div class="colh"><i style="background:${t[2]}"></i><b>${esc(t[1])}</b><em>${list.length}</em></div><div class="sub">${n && cnt[t[0]] ? Math.round(cnt[t[0]] / n * 100) + "% of all emails" : "&nbsp;"}</div>
+      ${sorted.slice(0, lim).map(card).join("") || `<div class="empty" style="padding:20px 0">Nothing here.</div>`}${sorted.length > lim ? `<button class="more" data-more="${t[0]}">Show ${Math.min(15, sorted.length - lim)} more</button>` : ""}</section>`; }).join("");
+  wire();
+}); }
+function wire() {
+  document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { period = +b.dataset.p; save(); render(); });
+  document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { show = b.dataset.s; save(); render(); });
+  document.querySelectorAll("[data-more]").forEach(b => b.onclick = () => { limit[b.dataset.more] = (limit[b.dataset.more] || 15) + 15; render(); });
+  document.querySelectorAll("[data-ta]").forEach(t => t.oninput = () => { edits[t.dataset.ta] = t.value; });
+  document.querySelectorAll("[data-note]").forEach(t => t.oninput = () => { notes[t.dataset.note] = t.value; });
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => { const c = cards.find(x => x.docId === b.dataset.copy); try { await navigator.clipboard.writeText(edits[c.docId] ?? c.draft ?? ""); toast("Copied"); } catch (_) { toast("Couldn't copy, select the text instead"); } });
+  document.querySelectorAll("[data-done]").forEach(b => b.onclick = async () => { b.disabled = true; try { await db.doc(`svc_topics/${b.dataset.done}`).update({ doneAt: Date.now(), doneBy: me, ...(edits[b.dataset.done] != null ? { finalText: edits[b.dataset.done] } : {}) }); toast("Marked done"); } catch (e) { toast(e.text || e.message); b.disabled = false; } });
+  document.querySelectorAll("[data-teach]").forEach(b => b.onclick = async () => {
+    const id = b.dataset.teach, note = (notes[id] || "").trim(); if (!note) return toast("Write what Ella should do first");
+    busy[id] = true; render();
+    try { await api.post("service", { op: "teach", kind: "topic", id, note }); notes[id] = ""; delete edits[id]; toast("Taught · Ella rewrote it"); } catch (e) { toast(e.text || e.message); }
+    busy[id] = false; render();
+  });
+}
+$("q").oninput = e => { term = e.target.value.trim().toLowerCase().replace(/^#/, ""); render(); };
+let t1 = null; const later = () => { clearTimeout(t1); t1 = setTimeout(render, 250); };
+db.collection("svc_topics").onSnapshot(s => { cards = s.docs.map(d => ({ docId: d.id, ...d.data() })); later(); });
+db.collection("svc_tstat").onSnapshot(s => { stats = s.docs.map(d => d.data()).filter(x => x && x.d); later(); });
+})();
+</script>
+</body>
+</html>

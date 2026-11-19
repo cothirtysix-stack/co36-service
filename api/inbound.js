@@ -10,6 +10,7 @@ import { read } from "../lib/mood.js";
 import { draftQuestion } from "../lib/questions.js";
 import { draftAsk } from "../lib/asks.js";
 import { countSave } from "../lib/offertest.js";
+import { recordTicket } from "../lib/topics.js";
 
 const same = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const pick = (b, ...k) => { for (const x of k) if (b[x] != null && b[x] !== "") return b[x]; return null; };
@@ -80,6 +81,9 @@ async function inner(req, res) {
     if (/^(agent|operator|bot|ai)$/i.test(String(pick(b, "ticketMessageFrom", "message_from") || ""))) {
       const real = (looked?.ticket?.comments || []).filter(c => !isNoise(c)), lastReal = real[real.length - 1];
       if (lastReal && (lastReal.is_operator ?? lastReal.isOperator)) await ourReply(id, cur, lastReal); // a private note or auto-reply isn't an answer
+      // Inbox by reason: the card stops "waiting" once we answered.
+      if (lastReal && (lastReal.is_operator ?? lastReal.isOperator)) { const tp = await getDoc("svc_topics", id).catch(() => null);
+        if (tp?.waiting) await putDoc("svc_topics", id, { waiting: false, repliedAfter: true, teamReply: plainText(String(lastReal.plain_body || lastReal.body || "").replace(/<[^>]+>/g, " ")).slice(0, 800), ...(tp.status === "queued" ? { status: "answered" } : {}) }, true).catch(() => {}); }
       return res.json({ ok: true, kept: false });
     }
     const comments = (looked?.ticket?.comments || []).filter(c => !isNoise(c) && !isAutoEmail(c)), isOp = c => !!(c.is_operator ?? c.isOperator);
@@ -107,6 +111,8 @@ async function inner(req, res) {
     await putDoc("svc_seen", id, { read: mood ? `${mood.intent}/${mood.mood}` : "failed", msgLen: message.length }, true).catch(() => {});
     // Learning: how did they react to what we (Ella, Sarah or the team) said last?
     await recordReply({ id, comments, lastCust, mood, isOp, isNoise }).catch(() => {});
+    // Inbox by reason (David, Nov 19): every email lands on the Inbox page under why they wrote. Training only, nothing is sent.
+    if (number && looked?.ticket && mood) waitUntil(recordTicket(number, looked.ticket, mood).catch(() => {}));
     // Returns and exchanges: Ella starts drafting right away (after we answer Richpanel), so a reply is ready before Sarah's.
     const ret = await getDoc("svc_returns", id);
     // Did Ella's after-scan "one last ask" go out in this thread? Then switching to an exchange now counts as a save at the warehouse stage.

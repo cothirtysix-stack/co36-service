@@ -1,4 +1,5 @@
 // Service Hub actions. Every call is signed in (wrap). Writes to Shopify and Richpanel only happen when a person clicks.
+import { draftTopic } from "../lib/topics.js";
 import { wrap, putDoc, getDoc, db, init } from "../lib/server.js";
 import { shopify, need } from "../lib/shopify.js";
 import { bulkQuery, parseBulk, classify, eventsQuery, classifyMoving } from "../lib/fix.js";
@@ -237,11 +238,12 @@ export async function refundsCsv() {
 // Training page (David, Nov 15): David's note teaches Ella for every future reply; on a question it also rewrites that draft now.
 async function teach({ kind, id, note }, who) {
   note = String(note || "").trim().slice(0, 1500); if (!note || !id) fail("Write what Ella should do");
-  const coll = kind === "backfire" ? "svc_backfire" : "svc_questions", d = await getDoc(coll, String(id)); if (!d) fail("Not found");
+  const coll = kind === "backfire" ? "svc_backfire" : kind === "topic" ? "svc_topics" : "svc_questions", d = await getDoc(coll, String(id)); if (!d) fail("Not found");
   await putDoc("svc_teach", `t-${Date.now().toString(36)}`, { note, kind, ref: id, context: String(d.message || d.customer || "").slice(0, 300), by: who?.email || "", at: Date.now() });
   if (kind === "backfire") { await putDoc(coll, String(id), { reviewedAt: Date.now(), lesson: note }, true); return { ok: true }; }
   await putDoc(coll, String(id), { status: "drafting", teachings: [...(d.teachings || []), { note, at: Date.now() }].slice(-5) }, true);
-  await draftQuestion(String(id), { who: d.customer, mail: d.email, subject: d.subject, message: d.message || "", history: d.history || [], note });
+  if (kind === "topic") await draftTopic(String(id), note); // Inbox page: rewrite this card with the note (never sent)
+  else await draftQuestion(String(id), { who: d.customer, mail: d.email, subject: d.subject, message: d.message || "", history: d.history || [], note });
   return { ok: true, doc: await getDoc(coll, String(id)) };
 }
 
