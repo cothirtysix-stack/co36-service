@@ -92,7 +92,7 @@ async function load() {
   catch (e) { $("list").innerHTML = `<div class="empty">${esc(e.text || e.message)}</div>`; return; }
   if (!people.length) { $("list").innerHTML = `<div class="empty">Nobody yet. Only you can sign in.</div>`; return; }
   $("list").innerHTML = people.map(p => `<div class="person" data-email="${esc(p.email)}">
-    <div class="who"><b>${esc(p.name || p.email)}</b><span>${esc(p.email)}</span><div>${p.pages.map(x => `<span class="chip">${LABEL[x] || esc(x)}</span>`).join("")}</div></div>
+    <div class="who"><b>${esc(p.name || p.email)}</b><span>${esc(p.email)}</span><div class="pages" style="margin-top:6px">${Object.keys(LABEL).map(x => `<label><input type="checkbox" data-page="${x}"${p.pages.includes(x) ? " checked" : ""}> ${LABEL[x]}</label>`).join(" ")}</div></div>
     <button class="ghost" data-act="reset">New password</button><button class="red" data-act="remove">Remove</button></div>`).join("");
 }
 
@@ -105,6 +105,13 @@ $("add").onclick = async () => {
   $("add").disabled = false;
 };
 
+// Change which pages a teammate sees (David, Nov 19: give Michelle Training). Takes effect on their next page load.
+$("list").onchange = async e => {
+  const c = e.target.closest("input[data-page]"); if (!c) return;
+  const row = c.closest(".person"), email = row.dataset.email, pages = [...row.querySelectorAll("input[data-page]:checked")].map(i => i.dataset.page);
+  if (!pages.length) { c.checked = true; return say("Keep at least one page.", true); }
+  try { await api.post("team", { op: "pages", email, pages }); say(`Saved: ${email} now sees ${pages.map(x => LABEL[x]).join(", ")}.`); } catch (err) { c.checked = !c.checked; say(err.text || err.message, true); }
+};
 $("list").onclick = async e => {
   const b = e.target.closest("button[data-act]"); if (!b) return;
   const email = b.closest(".person").dataset.email;
