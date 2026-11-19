@@ -62,7 +62,7 @@ textarea.teach{min-height:70px;background:var(--soft);border-style:dashed}
 </header>
 <div class="wrap" style="max-width:1400px">
   <div class="note"><b>How this works.</b> <b>Left:</b> something new Ella isn't sure about. Her draft waits for you: copy it into Richpanel, or write in the dashed box what she should do and press <b>Teach &amp; rewrite</b> (she follows your note on every reply from then on). <b>Middle:</b> questions she already knows (easy, or you taught her): she sends them herself after a few minutes and they stay here as done. <b>Right:</b> anything she sent that backfired: the customer came back upset or felt misunderstood. Tell her what she did wrong.</div>
-  <div class="pin"><div class="colh"><i style="background:#F59E0B"></i><b>Needs Michelle · where's my order / refund</b><span class="prep" style="margin-left:8px">PREP · nothing is sent to customers yet</span><select id="afilter" style="margin-left:auto;height:32px;border:1px solid var(--line2);border-radius:10px;padding:0 10px;font:600 12px Inter;background:var(--surface);color:var(--ink)"></select><em id="an" style="margin-left:10px"></em></div><div class="pgrid" id="asks"><div class="empty">Loading…</div></div></div>
+  <div class="pin"><div class="colh"><i style="background:#F59E0B"></i><b>Needs Michelle · where's my order / refund</b><span class="prep" style="margin-left:8px">Michelle answers these in Richpanel · Ella only drafts</span><select id="afilter" style="margin-left:auto;height:32px;border:1px solid var(--line2);border-radius:10px;padding:0 10px;font:600 12px Inter;background:var(--surface);color:var(--ink)"></select><em id="an" style="margin-left:10px"></em></div><div class="pgrid" id="asks"><div class="empty">Loading…</div></div></div>
   <input class="search" id="q" placeholder="Search order number, email, name or conversation #" autocomplete="off">
   <div class="cols">
     <section><div class="colh"><i style="background:#F59E0B"></i><b>New · needs you</b><em id="qn"></em></div><div class="tabs" id="tabs"></div><div class="stack" id="qs"><div class="empty">Loading…</div></div></section>
@@ -91,9 +91,9 @@ function aCard(a) {
     <div class="qp"><span class="pp ind">${a.kind === "refund" ? "Where's my refund" : "Where's my order"}</span>${a.status === "follow_up_ready" ? `<span class="pp" style="background:var(--goodt);color:var(--good2)">Follow-up ready</span>` : `<span class="pp red">Waiting on Michelle</span>`}</div>
     <span class="lbl">Customer wrote</span><div class="qm">${esc(a.message || "")}</div>
     <span class="lbl">What we know</span><div class="facts">${o ? `<b>${esc(o.order)}</b> · placed ${esc(o.placed)} · ${esc(o.shipping)} · ${esc(o.paid)}${o.refunded ? ` · refunded $${esc(o.refunded)} of $${esc(o.total)}` : ""}<br>${esc((o.items || []).join(", "))}${track.length ? `<br>${track.map(t => `<a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.company || "Tracking")} ${esc(t.number || "")}</a>`).join(" · ")}` : ""}` : esc(a.factsText || "No order found")}</div>
-    ${a.status === "drafting" ? `<div class="pp">Ella is writing…</div>` : a.status === "error" ? `<div class="pp red">${esc(a.error || "")}</div>` : `<span class="lbl">Ella's first reply (not sent · prep)</span><div class="said">${esc(a.holding || "")}</div>`}
+    ${a.status === "drafting" ? `<div class="pp">Ella is writing…</div>` : a.status === "error" ? `<div class="pp red">${esc(a.error || "")}</div>` : `<span class="lbl">Ella's first reply (copy into Richpanel)</span><div class="said">${esc(a.holding || "")}</div><div class="qf"><button data-acopy="${esc(a.docId)}" data-which="holding">Copy first reply</button></div>`}
     ${a.michelleNote ? `<div class="taught">Michelle: ${esc(a.michelleNote)}</div>` : ""}
-    ${a.followUp ? `<span class="lbl">Ella's follow-up (not sent · prep)</span><textarea data-key="f-${esc(a.docId)}">${esc(a.followUp)}</textarea>` : ""}
+    ${a.followUp ? `<span class="lbl">Ella's follow-up (copy into Richpanel)</span><textarea data-fu="${esc(a.docId)}" data-key="f-${esc(a.docId)}">${esc(notes["f" + a.docId] ?? a.followUp)}</textarea><div class="qf"><button class="pri" data-acopy="${esc(a.docId)}" data-which="followUp">Copy follow-up</button></div>` : ""}
     ${a.doneAt ? "" : `<span class="lbl">Michelle → Ella (not the customer)</span><textarea class="teach" data-anote="${esc(a.docId)}" data-key="a-${esc(a.docId)}" placeholder="e.g. Small issue, it ships out today · or · Weird, not refunded yet, doing it now · or · Already shipped, tracking is in the order">${esc(notes["a" + a.docId] || "")}</textarea>
     <div class="qf"><button data-adone="${esc(a.docId)}">Mark done</button><button class="teachb" data-ago="${esc(a.docId)}"${busy["a" + a.docId] ? " disabled" : ""}>${busy["a" + a.docId] ? "Writing…" : "Send to Ella"}</button></div>`}</div>`;
 }
@@ -163,6 +163,9 @@ function wire() {
     try { await api.post("service", { op: "teach", kind: "question", id, note }); notes[id] = ""; delete edits[id]; toast("Taught · Ella rewrote it"); } catch (e) { toast(e.text || e.message); }
     busy[id] = false; render();
   });
+  document.querySelectorAll("[data-fu]").forEach(t => t.oninput = () => { notes["f" + t.dataset.fu] = t.value; });
+  document.querySelectorAll("[data-acopy]").forEach(b => b.onclick = async () => { const a = asks.find(x => x.docId === b.dataset.acopy); const txt = b.dataset.which === "followUp" ? (notes["f" + a.docId] ?? a.followUp) : a.holding;
+    try { await navigator.clipboard.writeText(txt || ""); toast("Copied"); } catch (_) { toast("Couldn't copy, select the text instead"); } });
   document.querySelectorAll("[data-anote]").forEach(t => t.oninput = () => { notes["a" + t.dataset.anote] = t.value; });
   document.querySelectorAll("[data-adone]").forEach(b => b.onclick = async () => { b.disabled = true; try { await db.doc(`svc_asks/${b.dataset.adone}`).update({ doneAt: Date.now(), doneBy: me }); toast("Marked done"); } catch (e) { toast(e.text || e.message); b.disabled = false; } });
   document.querySelectorAll("[data-ago]").forEach(b => b.onclick = async () => {
