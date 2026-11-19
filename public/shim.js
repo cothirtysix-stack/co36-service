@@ -215,6 +215,9 @@
     // Teammates only see the pages David gave them; anything else sends them to their first page.
     const page = (location.pathname.match(/\/(\w+)\.html$/) || [])[1] || "index";
     if (saved.role === "member") {
+      // Pages come from the live team list (Nov 19: Michelle got Training in Settings but still saw only Returns until she signed in again).
+      try { const r = await fetch("/api/me", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + saved.token }, body: "{}" });
+        if (r.ok) { const me = await r.json(); if (Array.isArray(me.pages) && me.pages.length) { saved.pages = me.pages; try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (_) {} } } } catch (_) {}
       const pages = saved.pages || [];
       if (!pages.includes(page)) { location.replace(`/${pages[0] || "returns"}.html`); return; }
       const hide = () => document.querySelectorAll("a[href]").forEach(a => { const m = a.getAttribute("href").match(/^\/(\w+)\.html/); if (m && !pages.includes(m[1])) a.style.display = "none"; });

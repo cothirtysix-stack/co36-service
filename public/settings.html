@@ -110,7 +110,7 @@ $("list").onchange = async e => {
   const c = e.target.closest("input[data-page]"); if (!c) return;
   const row = c.closest(".person"), email = row.dataset.email, pages = [...row.querySelectorAll("input[data-page]:checked")].map(i => i.dataset.page);
   if (!pages.length) { c.checked = true; return say("Keep at least one page.", true); }
-  try { await api.post("team", { op: "pages", email, pages }); say(`Saved: ${email} now sees ${pages.map(x => LABEL[x]).join(", ")}.`); } catch (err) { c.checked = !c.checked; say(err.text || err.message, true); }
+  try { await api.post("team", { op: "pages", email, pages }); say(`Saved: ${email} now sees ${pages.map(x => LABEL[x]).join(", ")}.`); load(); } catch (err) { c.checked = !c.checked; say(err.text || err.message, true); }
 };
 $("list").onclick = async e => {
   const b = e.target.closest("button[data-act]"); if (!b) return;
