@@ -13,6 +13,7 @@ async function ticket(n) {
 }
 
 export default async function handler(req, res) {
+  if (process.env.TOPICS_ON !== "1" && req.query?.force !== "1") return res.json({ ok: true, paused: true }); // paused Nov 19 while the hang is checked
   const t0 = Date.now(), left = () => 50000 - (Date.now() - t0), out = { loaded: 0, drafted: 0 };
   await init();
   // Even minutes write drafts (one round, up to ~45s), odd minutes load conversations: each run stays well under Vercel's 60s.
