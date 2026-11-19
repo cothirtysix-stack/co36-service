@@ -1,5 +1,5 @@
 // Connection check: says which services work. Never returns key values.
-import { db, SB_URL, SB_ANON, getDoc } from "../lib/server.js";
+import { db, init, SB_URL, SB_ANON, getDoc } from "../lib/server.js";
 import { shopify } from "../lib/shopify.js";
 import { AUTOPILOT } from "../lib/autopilot.js";
 import { findOrders } from "../lib/ella.js";
@@ -129,5 +129,11 @@ export default async function handler(req, res) {
   const happyList = await run(async () => (await db()`select count(*) filter (where data->>'mood' = 'happy')::int as happy, count(*) filter (where data->>'mood' = 'happy' and coalesce((data->>'moodCheck')::int, 0) < 2)::int as unchecked, count(*) filter (where data->>'mood' = 'upset')::int as upset, count(*) filter (where data->>'mood' = 'happy' and data->>'email' is not null and coalesce(data->>'subject','') || coalesce(data->>'summary','') || coalesce(data->>'quote','') ~* 'judge\.?me|left .*star review|left the following') ::int as happy_judgeme, count(*) filter (where data->>'mood' = 'happy' and data->>'email' is not null and coalesce(data->>'channel','') ~* 'instagram|facebook|social|comment|messenger')::int as happy_social, count(*) filter (where data->>'mood' = 'happy' and data->>'email' is not null)::int as happy_with_email, count(*) filter (where data->>'mood' = 'upset' and data->>'summary' is null)::int as upset_unread
     from hub.docs where coll = 'svc_inbox' and not deleted and data->>'handledAt' is null and data->>'closedAt' is null`)[0]);
   const watch = await getDoc("svc_meta", "watchdog").catch(() => null), happyRecheck = await getDoc("svc_meta", "happyRecheck").catch(() => null);
-  res.json({ refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // Inbox by reason (Nov 19): how far the 30-day load is, and the cards by status.
+  const topics = await (async () => { const bf = await getDoc("svc_meta", "topicsBackfill"); await init();
+    const st = await db()`select coalesce(data->>'lane', '?') lane, coalesce(data->>'status', '?') status, count(*)::int c from hub.docs where coll = 'svc_topics' and not deleted group by 1, 2`;
+    const tp = await db()`select data->>'t' t, count(*)::int c from hub.docs where coll = 'svc_tstat' and not deleted group by 1 order by 2 desc`;
+    const err = await db()`select data->>'error' e from hub.docs where coll = 'svc_topics' and not deleted and data->>'status' = 'error' limit 2`;
+    return { backfill: bf && { next: bf.next, done: bf.done, n: bf.n, at: bf.at, lastStop: bf.lastStop }, cards: st, topics: tp, errors: err.map(r => r.e) }; })().catch(e => ({ error: String(e.message || e).slice(0, 120) }));
+  res.json({ topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
