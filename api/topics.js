@@ -22,13 +22,13 @@ export default async function handler(req, res) {
   let m = await getDoc("svc_meta", "topicsBackfill");
   if (!m) { const nw = await getDoc("svc_meta", "newest"); m = { next: Number(nw?.number) || 0, done: !nw?.number, startedAt: Date.now(), n: 0, old: 0 }; }
   while (!draftMinute && !m.done && m.next > 0 && left() > 36000) {
-    const nums = [0, 1, 2, 3].map(i => m.next - i).filter(n => n > 0);
+    const nums = [0, 1, 2, 3, 4, 5, 6, 7].map(i => m.next - i).filter(n => n > 0);
     const got = await Promise.all(nums.map(n => ticket(n).catch(e => ({ stop: String(e.message || e).slice(0, 60) }))));
     const stop = got.find(g => g.stop); if (stop) { m.lastStop = { at: Date.now(), why: String(stop.stop) }; break; }
     const res2 = await Promise.all(got.map((g, i) => g.t ? recordTicket(nums[i], g.t).catch(e => "error " + String(e.message || e).slice(0, 60)) : "gone"));
     m.n += nums.length; out.loaded += nums.length;
     m.old = res2.every(r => r === "old") ? (m.old || 0) + 1 : 0;
-    if (m.old >= 3) m.done = true; // 12 in a row older than 31 days
+    if (m.old >= 2) m.done = true; // 16 in a row older than 31 days
     m.next -= nums.length; m.at = Date.now();
     await putDoc("svc_meta", "topicsBackfill", m); // save every round so a timeout loses nothing
   }
