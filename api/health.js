@@ -116,6 +116,14 @@ export default async function handler(req, res) {
     const r = await g("svc_returns"), seen = await g("svc_seen"), inb = await g("svc_inbox");
     return { returns: r && { status: r.status, intent: r.intent, flags: r.flags, error: r.error, sarahAt: !!r.sarahAt, answeredBy: r.answeredBy, sentBy: r.sentBy, receivedAt: r.receivedAt, notedAt: r.notedAt, autoSkipped: r.autoSkipped, autoError: r.autoError, handedAt: r.handedAt, handedOk: r.handedOk, lastAt: r.lastAt }, seen: !!seen, read: seen?.read || null, inbox: inb && { mood: inb.mood } };
   }) : undefined;
+  // ?pg=1 → read-only: what the database is busy with right now (query shapes only, no values).
+  const pg = req.query?.pg ? await run(async () => (await db()`select pid, state, wait_event_type, wait_event, extract(epoch from now() - query_start)::int secs, left(regexp_replace(query, '\s+', ' ', 'g'), 90) q
+    from pg_stat_activity where usename = current_user and pid <> pg_backend_pid() and state <> 'idle' order by query_start limit 15`)) : undefined;
+  // ?model=1 → one tiny call to the main drafting model, with how long it took.
+  const model = req.query?.model ? await run(async () => { const t = Date.now();
+    const r = await fetch("https://api.anthropic.com/v1/messages", { signal: AbortSignal.timeout(40000), method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY || "", "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-opus-5-5", max_tokens: 20, messages: [{ role: "user", content: "Say ok" }] }) });
+    const j = await r.json().catch(() => ({})); return { status: r.status, ms: Date.now() - t, error: j.error?.message?.slice(0, 200) || null }; }) : undefined;
   // ?reader=1 → one tiny call to the fast model the inbox reader uses, error text only.
   const reader = req.query?.reader ? await run(async () => {
     const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY || "", "anthropic-version": "2023-06-01" },
@@ -135,5 +143,5 @@ export default async function handler(req, res) {
     const tp = await db()`select data->>'t' t, count(*)::int c from hub.docs where coll = 'svc_tstat' and not deleted group by 1 order by 2 desc`;
     const err = await db()`select data->>'error' e from hub.docs where coll = 'svc_topics' and not deleted and data->>'status' = 'error' limit 2`;
     return { backfill: bf && { next: bf.next, done: bf.done, n: bf.n, at: bf.at, lastStop: bf.lastStop }, cards: st, topics: tp, errors: err.map(r => r.e) }; })().catch(e => ({ error: String(e.message || e).slice(0, 120) }));
-  res.json({ topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
