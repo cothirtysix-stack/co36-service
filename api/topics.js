@@ -4,6 +4,7 @@
 // Nothing here sends anything to a customer.
 import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { recordTicket, draftTopic } from "../lib/topics.js";
+import { findTrends } from "../lib/trends.js";
 
 async function ticket(n) {
   const r = await fetch(`https://api.richpanel.com/v1/tickets/number/${n}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" }, signal: AbortSignal.timeout(12000) });
@@ -20,7 +21,8 @@ export default async function handler(req, res) {
   const draftMinute = new Date().getUTCMinutes() % 2 === 0 || req.query?.do === "drafts";
   // 1) Backfill, 4 at a time.
   let m = await getDoc("svc_meta", "topicsBackfill");
-  if (!m) { const nw = await getDoc("svc_meta", "newest"); m = { next: Number(nw?.number) || 0, done: !nw?.number, startedAt: Date.now(), n: 0, old: 0 }; }
+  // ver 2 (Nov 20): "Other" split into more reasons, so the 30 days are read again from the newest.
+  if (!m || m.ver !== 2) { const nw = await getDoc("svc_meta", "newest"); m = { ver: 2, next: Number(nw?.number) || 0, done: !nw?.number, startedAt: Date.now(), n: 0, old: 0 }; }
   while (!draftMinute && !m.done && m.next > 0 && left() > 36000) {
     const nums = [0, 1, 2, 3, 4, 5, 6, 7].map(i => m.next - i).filter(n => n > 0);
     const got = await Promise.all(nums.map(n => ticket(n).catch(e => ({ stop: String(e.message || e).slice(0, 60) }))));
@@ -34,7 +36,10 @@ export default async function handler(req, res) {
   }
   await putDoc("svc_meta", "topicsBackfill", m);
   // 2) Drafts: newest waiting first, 3 at a time. A draft stuck "drafting" for 5+ min goes back in line; errors retry up to 3 times.
-  if (draftMinute) {
+  // Common problems: every ~30 minutes this takes the drafting slot.
+  const tr = draftMinute ? await getDoc("svc_meta", "trends") : null;
+  if (draftMinute && !(tr?.at > Date.now() - 30 * 60e3)) { out.trends = (await findTrends(t0 + 50000).catch(e => ({ error: String(e.message || e).slice(0, 120) }))).issues?.length ?? "error"; }
+  else if (draftMinute) {
     const rows = await db()`select id from hub.docs where coll = 'svc_topics' and not deleted and data->>'lane' = 'topics' and coalesce((data->>'tries')::int, 0) < 3
       and (data->>'status' = 'queued' or data->>'status' = 'error' or (data->>'status' = 'drafting' and coalesce((data->>'draftStartedAt')::bigint, 0) < ${Date.now() - 5 * 60e3}))
       order by coalesce((data->>'lastAt')::bigint, 0) desc limit 2`;

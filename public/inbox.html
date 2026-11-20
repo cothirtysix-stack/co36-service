@@ -81,6 +81,15 @@ textarea{min-height:120px}textarea.teach{min-height:56px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
 .kpi .k{font:600 12px Inter;color:var(--muted)}.kpi .v{font:800 28px Inter;letter-spacing:-.02em}.kpi .s{font:500 12px/1.4 Inter;color:var(--body)}
 @media (max-width:640px){.fn .k{width:120px}.fn .n{width:36px}.why{padding:16px}}
+.kpi{position:relative;cursor:pointer;transition:border-color .15s}.kpi.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.pick{position:absolute;top:12px;right:12px;width:18px;height:18px;border-radius:99px;border:1.5px solid var(--line2);background:var(--surface);display:flex;align-items:center;justify-content:center}
+.kpi.on .pick{background:var(--ink);border-color:var(--ink)}.kpi.on .pick::after{content:"";width:6px;height:6px;border-radius:99px;background:var(--surface)}
+.kpi .k{padding-right:24px}
+.common{background:var(--surface);border:1.5px solid var(--badb);border-radius:16px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.common h3{margin:0;font:800 15px Inter;display:flex;align-items:center;gap:8px}.common h3 i{width:10px;height:10px;border-radius:99px;background:var(--bad)}
+.iss{display:flex;gap:12px;align-items:center;border-top:1px solid var(--line3);padding-top:10px}.iss:first-of-type{border-top:0;padding-top:0}
+.iss .c{font:800 22px Inter;color:var(--bad2);width:44px;text-align:center;flex:none}.iss .t{flex:1;min-width:0}.iss .t b{font:700 14px Inter}.iss .t div{font:500 12px/1.45 Inter;color:var(--body)}
+.iss button,.clearsel{height:32px;padding:0 12px;border-radius:10px;font:600 12px Inter;border:1px solid var(--line2);background:var(--surface);color:var(--ink)}.iss button.on{background:var(--ink);color:var(--surface)}
 .more{border:0;background:var(--surface);border-radius:12px;height:36px;font:600 12px Inter;color:var(--ind)}
 .sm{font:500 12px Inter;color:var(--muted)}
 </style>
@@ -95,10 +104,12 @@ textarea{min-height:120px}textarea.teach{min-height:56px}
 <div class="wrap">
   <div class="note"><b>How this works.</b> Every customer email lands in a column by <b>why they wrote</b>. For the ones still waiting, Ella writes a draft answer. <b>Nothing here is sent to customers.</b> Copy a draft into Richpanel if it's good, or write in the dashed box what she should do and press <b>Teach &amp; rewrite</b> (she follows it from then on). Returns and exchanges are counted here but handled on the Returns page.</div>
   <div class="top"><div class="seg" id="period"></div><div class="seg" id="show"></div><input class="search" id="q" placeholder="Search name, email, order or conversation #" autocomplete="off" style="max-width:360px;margin:0"><span class="sm" id="loadnote"></span></div>
+  <section class="common" id="common" hidden></section>
   <div class="topgrid">
     <section class="tiles" id="tiles"></section>
     <section class="why"><div class="lh"><i style="background:#F59E0B"></i><b>Why customers write</b><small id="plabel"></small></div><div id="funnel" style="display:flex;flex-direction:column;gap:7px"></div><div class="fnote" id="fnote"></div></section>
   </div>
+  <div class="sm" id="selnote" style="margin:0 0 8px"></div>
   <div class="scroll"><div class="board" id="board"><div class="empty">Loading…</div></div></div>
 </div>
 <script src="/shim.js"></script>
@@ -112,10 +123,14 @@ const db = await window.claude.use("db"), api = await window.claude.use("api");
 let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
 const T = [["product", "Product question", "#5B5BF6"], ["tracking", "Where's my order", "#F59E0B"], ["refund_status", "Where's my refund", "#EAB308"], ["damaged", "Damaged item", "#EF4444"],
   ["shrinkage", "Shrinkage / washed", "#EC4899"], ["wrong_item", "Wrong item shipped", "#F97316"], ["missing_item", "Missing item", "#FB923C"], ["cancel_change", "Cancel or change order", "#06B6D4"], ["discount", "Discount / promo code", "#8B5CF6"],
-  ["account", "Account, emails, unsubscribe", "#64748B"], ["other", "Other", "#A1A1AA"], ["return", "Return / refund request", "#16A34A"], ["exchange", "Exchange", "#22C55E"]];
+  ["billing", "Unexpected charge", "#DC2626"], ["website", "Website or checkout problem", "#0EA5E9"], ["feedback", "Feedback / complaint", "#A855F7"],
+  ["suggestion", "Product suggestion", "#14B8A6"], ["praise", "Thanks / praise", "#84CC16"], ["account", "Account, emails, unsubscribe", "#64748B"], ["spam", "Spam, pitches, auto-replies", "#D4D4D8"], ["other", "Other", "#A1A1AA"], ["return", "Return / refund request", "#16A34A"], ["exchange", "Exchange", "#22C55E"]];
 // Our mistakes show even when Ella's returns lane has them (David, Nov 20: wrong item shipped needs its own section).
 const OURS = new Set(["wrong_item", "missing_item", "damaged", "shrinkage"]);
 const TL = Object.fromEntries(T.map(t => [t[0], t])), RET = new Set(["return", "exchange"]);
+let trends = null, issue = null, sel = new Set();
+try { sel = new Set(JSON.parse(localStorage.getItem("inbox-sel") || "[]")); } catch (_) {}
+const saveSel = () => { try { localStorage.setItem("inbox-sel", JSON.stringify([...sel])); } catch (_) {} };
 let cards = [], stats = [], period = 7, show = "waiting", term = "", edits = {}, notes = {}, busy = {}, limit = {};
 try { const s = JSON.parse(localStorage.getItem("inbox-view") || "{}"); if (s.period) period = s.period; if (s.show) show = s.show; } catch (_) {}
 const save = () => { try { localStorage.setItem("inbox-view", JSON.stringify({ period, show })); } catch (_) {} };
@@ -152,12 +167,19 @@ function render() { keepFocus(() => {
   $("fnote").textContent = n ? `${open.length} waiting on us · ${ready.length} Ella drafts ready (nothing is sent). ${n.toLocaleString()} customer emails${period === 1 ? " today" : ` in the last ${period} days`} (email only; reviews and automatic emails left out).${stats.length && Math.min(...stats.map(s => s.d)) > from ? " Older days are still loading." : ""}` : "";
   // One big box per reason (David, Nov 20): the % large, the number of emails small.
   const waitBy = {}; cards.filter(c => c.waiting && !c.doneAt).forEach(c => { waitBy[c.topic] = (waitBy[c.topic] || 0) + 1; });
-  $("tiles").innerHTML = order.map(t => `<div class="kpi"><span class="k"><i style="background:${t[2]}"></i>${esc(t[1])}</span><span class="v" style="color:${t[2]}">${pct(t[0])}%</span><span class="s">${cnt[t[0]].toLocaleString()} email${cnt[t[0]] === 1 ? "" : "s"}${waitBy[t[0]] ? ` · ${waitBy[t[0]]} waiting` : ""}</span></div>`).join("")
+  $("tiles").innerHTML = order.map(t => `<div class="kpi${sel.has(t[0]) ? " on" : ""}" data-pick="${t[0]}" title="Show only these"><span class="pick"></span><span class="k"><i style="background:${t[2]}"></i>${esc(t[1])}</span><span class="v" style="color:${t[2]}">${pct(t[0])}%</span><span class="s">${cnt[t[0]].toLocaleString()} email${cnt[t[0]] === 1 ? "" : "s"}${waitBy[t[0]] ? ` · ${waitBy[t[0]]} waiting` : ""}</span></div>`).join("")
     || `<div class="kpi"><span class="k">Loading</span><span class="v">…</span><span class="s">The last 30 days fill in over the next few hours.</span></div>`;
+  // Common problems (4+ customers, same issue, last 3 days)
+  const iss = trends?.issues || [];
+  $("common").hidden = !iss.length;
+  $("common").innerHTML = iss.length ? `<h3><i></i>Common problems · 4+ customers with the same issue (last 3 days)</h3>` + iss.map((x, k) => `<div class="iss"><span class="c">${x.count}</span><span class="t"><b>${esc(x.title)}</b><div>${esc(x.detail)}</div></span><button data-iss="${k}" class="${issue === k ? "on" : ""}">${issue === k ? "Showing" : "Show them"}</button></div>`).join("") : "";
   const since = Date.now() - period * 864e5;
-  const vis = cards.filter(c => (c.receivedAt || c.lastAt || 0) >= since || c.waiting).filter(match).filter(c => show === "all" || (c.waiting && !c.doneAt && (c.lane !== "returns" || OURS.has(c.topic))));
-  const cols = T.filter(t => !RET.has(t[0]) || show === "all").map(t => ({ t, list: vis.filter(c => c.topic === t[0]) }))
-    .filter(x => x.list.length || !RET.has(x.t[0])).sort((a, b) => (cnt[b.t[0]] || 0) - (cnt[a.t[0]] || 0));
+  const ids = issue != null && iss[issue] ? new Set(iss[issue].ids) : null;
+  const vis = cards.filter(c => ids ? ids.has(c.docId) : true).filter(c => ids || (c.receivedAt || c.lastAt || 0) >= since || c.waiting).filter(match).filter(c => ids || show === "all" || (c.waiting && !c.doneAt && (c.lane !== "returns" || OURS.has(c.topic))));
+  const cols = T.filter(t => sel.size ? sel.has(t[0]) : (!RET.has(t[0]) || show === "all") && t[0] !== "spam").map(t => ({ t, list: vis.filter(c => c.topic === t[0]) }))
+    .filter(x => ids ? x.list.length : sel.size ? true : x.list.length || !RET.has(x.t[0])).sort((a, b) => (cnt[b.t[0]] || 0) - (cnt[a.t[0]] || 0));
+  $("selnote").innerHTML = ids ? `Showing the ${iss[issue].count} customers with: <b>${esc(iss[issue].title)}</b> <button class="clearsel" data-clear="1">Show all</button>`
+    : sel.size ? `Showing only: ${[...sel].map(k => esc(TL[k]?.[1] || k)).join(", ")} <button class="clearsel" data-clear="1">Show all</button>` : "";
   $("board").innerHTML = cols.map(({ t, list }) => { const lim = limit[t[0]] || 15, sorted = list.sort((a, b) => (b.waiting - a.waiting) || ((b.lastAt || 0) - (a.lastAt || 0)));
     return `<section class="col"><div class="colh"><i style="background:${t[2]}"></i><b>${esc(t[1])}</b><em>${list.length}</em></div><div class="sub">${n && cnt[t[0]] ? Math.round(cnt[t[0]] / n * 100) + "% of all emails" : "&nbsp;"}</div>
       ${sorted.slice(0, lim).map(card).join("") || `<div class="empty" style="padding:20px 0">Nothing here.</div>`}${sorted.length > lim ? `<button class="more" data-more="${t[0]}">Show ${Math.min(15, sorted.length - lim)} more</button>` : ""}</section>`; }).join("");
@@ -166,6 +188,9 @@ function render() { keepFocus(() => {
 function wire() {
   document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { period = +b.dataset.p; save(); render(); });
   document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { show = b.dataset.s; save(); render(); });
+  document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const k = b.dataset.pick; sel.has(k) ? sel.delete(k) : sel.add(k); issue = null; saveSel(); render(); });
+  document.querySelectorAll("[data-iss]").forEach(b => b.onclick = () => { const k = +b.dataset.iss; issue = issue === k ? null : k; render(); });
+  document.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => { sel.clear(); issue = null; saveSel(); render(); });
   document.querySelectorAll("[data-more]").forEach(b => b.onclick = () => { limit[b.dataset.more] = (limit[b.dataset.more] || 15) + 15; render(); });
   document.querySelectorAll("[data-ta]").forEach(t => t.oninput = () => { edits[t.dataset.ta] = t.value; });
   document.querySelectorAll("[data-note]").forEach(t => t.oninput = () => { notes[t.dataset.note] = t.value; });
@@ -181,6 +206,7 @@ function wire() {
 $("q").oninput = e => { term = e.target.value.trim().toLowerCase().replace(/^#/, ""); render(); };
 let t1 = null; const later = () => { clearTimeout(t1); t1 = setTimeout(render, 250); };
 db.collection("svc_topics").onSnapshot(s => { cards = s.docs.map(d => ({ docId: d.id, ...d.data() })); later(); });
+db.doc("svc_meta/trends").onSnapshot?.(d => { trends = d.data?.() || null; later(); });
 db.collection("svc_tstat").onSnapshot(s => { stats = s.docs.map(d => d.data()).filter(x => x && x.d); later(); });
 })();
 </script>
