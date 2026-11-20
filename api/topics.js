@@ -38,7 +38,8 @@ export default async function handler(req, res) {
   // 2) Drafts: newest waiting first, 3 at a time. A draft stuck "drafting" for 5+ min goes back in line; errors retry up to 3 times.
   // Common problems: every ~30 minutes this takes the drafting slot.
   const tr = draftMinute ? await getDoc("svc_meta", "trends") : null;
-  if (draftMinute && !(tr?.at > Date.now() - 30 * 60e3)) { out.trends = (await findTrends(t0 + 50000).catch(e => ({ error: String(e.message || e).slice(0, 120) }))).issues?.length ?? "error"; }
+  if (draftMinute && !(tr?.at > Date.now() - 30 * 60e3)) { const tr2 = await findTrends(t0 + 50000).catch(e => ({ error: String(e.message || e).slice(0, 160) })); out.trends = tr2.issues ? tr2.issues.length : tr2.error;
+    if (tr2.error) await putDoc("svc_meta", "trendsError", { at: Date.now(), error: tr2.error }); }
   else if (draftMinute) {
     const rows = await db()`select id from hub.docs where coll = 'svc_topics' and not deleted and data->>'lane' = 'topics' and coalesce((data->>'tries')::int, 0) < 3
       and (data->>'status' = 'queued' or data->>'status' = 'error' or (data->>'status' = 'drafting' and coalesce((data->>'draftStartedAt')::bigint, 0) < ${Date.now() - 5 * 60e3}))
