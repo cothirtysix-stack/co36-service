@@ -7,7 +7,7 @@ import { recordTicket, draftTopic } from "../lib/topics.js";
 
 async function ticket(n) {
   const r = await fetch(`https://api.richpanel.com/v1/tickets/number/${n}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" }, signal: AbortSignal.timeout(12000) });
-  if (r.status === 404) return { gone: true };
+  if (r.status === 404 || r.status === 400) return { gone: true }; // Nov 20: one number answered 400 and stopped the load for hours
   if (!r.ok) return { stop: r.status };
   return { t: (await r.json()).ticket };
 }

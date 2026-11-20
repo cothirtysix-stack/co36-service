@@ -106,7 +106,7 @@ const toast = t => { document.querySelectorAll(".toast").forEach(x => x.remove()
 const short = t => { if (!t) return ""; const d = Date.now() - t; return d < 36e5 ? Math.max(1, Math.round(d / 6e4)) + "m" : d < 864e5 ? Math.round(d / 36e5) + "h" : Math.round(d / 864e5) + "d"; };
 const db = await window.claude.use("db"), api = await window.claude.use("api");
 let me = ""; try { me = await (await window.claude.use("user")).email(); } catch (_) {}
-const T = [["product", "Product question", "#5B5BF6"], ["tracking", "Where's my order", "#F59E0B"], ["refund_status", "Where's my refund", "#EAB308"], ["damaged", "Damaged / defective", "#EF4444"],
+const T = [["product", "Product question", "#5B5BF6"], ["tracking", "Where's my order", "#F59E0B"], ["refund_status", "Where's my refund", "#EAB308"], ["damaged", "Damaged item", "#EF4444"],
   ["shrinkage", "Shrinkage / washed", "#EC4899"], ["wrong_item", "Wrong item shipped", "#F97316"], ["missing_item", "Missing item", "#FB923C"], ["cancel_change", "Cancel or change order", "#06B6D4"], ["discount", "Discount / promo code", "#8B5CF6"],
   ["account", "Account, emails, unsubscribe", "#64748B"], ["other", "Other", "#A1A1AA"], ["return", "Return / refund request", "#16A34A"], ["exchange", "Exchange", "#22C55E"]];
 // Our mistakes show even when Ella's returns lane has them (David, Nov 20: wrong item shipped needs its own section).
