@@ -176,9 +176,15 @@
     box.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:60;max-width:380px;background:#FDECEC;border:1px solid #F5B5B5;color:#7F1D1D;border-radius:16px;padding:14px 16px;font:13px/1.45 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none";
     document.body.appendChild(box);
     const check = async () => {
-      const r = await api("alert", {}).catch(() => null), list = r?.problems || [], sig = list.join("|");
-      if (!list.length || sig === hidden) { box.style.display = "none"; return; }
-      box.innerHTML = `<div style="font-weight:700;font-size:14px;margin-bottom:6px">⚠️ Ella needs attention</div>${list.map(t => `<div style="margin:4px 0">• ${t.replace(/[<>&]/g, "")}</div>`).join("")}<div style="margin-top:8px;color:#6E6E7A">Answer return/exchange emails by hand until this clears.</div><button style="margin-top:10px;border:0;background:#7F1D1D;color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer">Got it</button>`;
+      const r = await api("alert", {}).catch(() => null), list = r?.problems || [], common = r?.common || [];
+      // Ella broken = red, with "answer by hand". Common store problems = their own calmer card (titles only re-open it, not new counts).
+      const sig = list.join("|") + "#" + common.map(c => c.title).join("|");
+      if ((!list.length && !common.length) || sig === hidden) { box.style.display = "none"; return; }
+      const esc2 = t => String(t).replace(/[<>&]/g, "");
+      box.style.background = list.length ? "#FDECEC" : "#FFFBEB"; box.style.borderColor = list.length ? "#F5B5B5" : "#FCD9A0"; box.style.color = list.length ? "#7F1D1D" : "#78350F";
+      box.innerHTML = (list.length ? `<div style="font-weight:700;font-size:14px;margin-bottom:6px">⚠️ Ella needs attention</div>${list.map(t => `<div style="margin:4px 0">• ${esc2(t)}</div>`).join("")}<div style="margin-top:8px;color:#6E6E7A">Answer return/exchange emails by hand until this clears.</div>` : "")
+        + (common.length ? `<div style="font-weight:700;font-size:14px;margin:${list.length ? "12px" : "0"} 0 6px">Common problems · last 3 days</div><div style="color:#6E6E7A;margin-bottom:4px">4+ customers with the same issue. Ella is fine.</div>${common.map(c => `<div style="margin:3px 0">• <b>${c.count}</b> ${esc2(c.title)}</div>`).join("")}<a href="/inbox.html" style="display:inline-block;margin-top:6px;font-weight:600;color:inherit">Open the Inbox →</a>` : "")
+        + `<div><button style="margin-top:10px;border:0;background:${list.length ? "#7F1D1D" : "#92400E"};color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer">Got it</button></div>`;
       box.querySelector("button").onclick = () => { hidden = sig; box.style.display = "none"; };
       box.style.display = "block";
     };
@@ -238,9 +244,15 @@
     box.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:60;max-width:380px;background:#FDECEC;border:1px solid #F5B5B5;color:#7F1D1D;border-radius:16px;padding:14px 16px;font:13px/1.45 Inter,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none";
     document.body.appendChild(box);
     const check = async () => {
-      const r = await api("alert", {}).catch(() => null), list = r?.problems || [], sig = list.join("|");
-      if (!list.length || sig === hidden) { box.style.display = "none"; return; }
-      box.innerHTML = `<div style="font-weight:700;font-size:14px;margin-bottom:6px">⚠️ Ella needs attention</div>${list.map(t => `<div style="margin:4px 0">• ${t.replace(/[<>&]/g, "")}</div>`).join("")}<div style="margin-top:8px;color:#6E6E7A">Answer return/exchange emails by hand until this clears.</div><button style="margin-top:10px;border:0;background:#7F1D1D;color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer">Got it</button>`;
+      const r = await api("alert", {}).catch(() => null), list = r?.problems || [], common = r?.common || [];
+      // Ella broken = red, with "answer by hand". Common store problems = their own calmer card (titles only re-open it, not new counts).
+      const sig = list.join("|") + "#" + common.map(c => c.title).join("|");
+      if ((!list.length && !common.length) || sig === hidden) { box.style.display = "none"; return; }
+      const esc2 = t => String(t).replace(/[<>&]/g, "");
+      box.style.background = list.length ? "#FDECEC" : "#FFFBEB"; box.style.borderColor = list.length ? "#F5B5B5" : "#FCD9A0"; box.style.color = list.length ? "#7F1D1D" : "#78350F";
+      box.innerHTML = (list.length ? `<div style="font-weight:700;font-size:14px;margin-bottom:6px">⚠️ Ella needs attention</div>${list.map(t => `<div style="margin:4px 0">• ${esc2(t)}</div>`).join("")}<div style="margin-top:8px;color:#6E6E7A">Answer return/exchange emails by hand until this clears.</div>` : "")
+        + (common.length ? `<div style="font-weight:700;font-size:14px;margin:${list.length ? "12px" : "0"} 0 6px">Common problems · last 3 days</div><div style="color:#6E6E7A;margin-bottom:4px">4+ customers with the same issue. Ella is fine.</div>${common.map(c => `<div style="margin:3px 0">• <b>${c.count}</b> ${esc2(c.title)}</div>`).join("")}<a href="/inbox.html" style="display:inline-block;margin-top:6px;font-weight:600;color:inherit">Open the Inbox →</a>` : "")
+        + `<div><button style="margin-top:10px;border:0;background:${list.length ? "#7F1D1D" : "#92400E"};color:#fff;border-radius:99px;padding:6px 12px;font-size:12px;cursor:pointer">Got it</button></div>`;
       box.querySelector("button").onclick = () => { hidden = sig; box.style.display = "none"; };
       box.style.display = "block";
     };
