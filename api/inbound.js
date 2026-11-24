@@ -119,7 +119,7 @@ async function inner(req, res) {
     let qcAsked = false;
     if (mood?.intent === "exchange") { await init(); qcAsked = (await db()`select 1 from hub.docs where coll = 'svc_returns' and not deleted and id like 'qc-%' and data->>'status' = 'sent' and data->>'ticketId' = ${String(ticketId)} limit 1`).length > 0; }
     // Save-offer test: they wanted a refund, got the offer, and now want an exchange → that version saved one.
-    if (ret?.offerVariant && ret?.offerCounted && !ret?.offerSaved && mood?.intent === "exchange") { await countSave(ret.offerVariant); await putDoc("svc_returns", id, { offerSaved: Date.now() }, true); }
+    // (Counted in lib/saves.js once the exchange order really exists, Nov 23.)
     if ((mood && ["return", "exchange"].includes(mood.intent)) || ret) {
       const who = pick(b, "ticketCustomerName", "customer_name", "name") || rpName, mail = pick(b, "ticketCustomerEmail", "customer_email", "email") || rpEmail;
       await putDoc("svc_returns", id, { ticketId, number, channel: String(pick(b, "ticketChannel", "channel") || looked?.ticket?.via?.channel || looked?.ticket?.channel || "email"), customer: who, email: mail, subject, message: message.slice(0, 2000), intent: mood?.intent || ret?.intent || "return",
@@ -129,7 +129,8 @@ async function inner(req, res) {
         ...(ret?.handedAt && ret?.status !== "sent" ? { handedAt: null, chasedAt: Date.now(), chases: (ret.chases || 0) + 1 } : {}),
         // Saved returns (David, Nov 13): they first wanted a return/refund, then switched to an exchange after Ella's offer.
         ...(mood?.intent === "return" && !ret?.wantedRefund ? { wantedRefund: true } : {}),
-        ...((ret?.wantedRefund || ret?.intent === "return" || qcAsked) && mood?.intent === "exchange" && !ret?.savedAt ? { savedAt: Date.now(), ...(qcAsked ? { savedAfterQc: true } : {}) } : {}) }, true);
+        // Nov 23: this is only a claim now; it becomes a save once Shopify has the exchange order (lib/saves.js).
+        ...((ret?.wantedRefund || ret?.intent === "return" || qcAsked) && mood?.intent === "exchange" && !ret?.savedAt && !ret?.saveClaimAt ? { saveClaimAt: Date.now(), ...(qcAsked ? { savedAfterQc: true } : {}) } : {}) }, true);
       waitUntil(draftFor(id, { who, mail, subject, message, comments, mood: mood?.mood || null, tries: 1 })); // one try here; the minute job retries errors
     }
     // Where's my order / refund (David, Nov 15, PREP MODE): holding draft + a "Needs Michelle" card. Nothing is sent.
