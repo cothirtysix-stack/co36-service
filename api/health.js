@@ -159,5 +159,12 @@ export default async function handler(req, res) {
     const days = await db()`select to_char(to_timestamp((data->>'savedAt')::bigint / 1000) at time zone 'America/New_York', 'Mon DD') d, count(*)::int n,
       count(*) filter (where data->>'sarahAt' is null)::int ella_only from hub.docs where coll = 'svc_returns' and not deleted and data->>'savedAt' ~ '^[0-9]+$' and (data->>'savedAt')::bigint > ${wk} group by 1 order by 1`;
     return { versions: exps, ...c, ellaSaves: ella.map(r => ({ id: r.id, offerSaved: iso(r.os), savedAt: iso(r.sa), afterQc: r.qc, team: !!r.team })), byDay: days }; }) : undefined;
-  res.json({ saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // ?safe=1 → what the Returns page "Send all safe drafts" button would send (counts only).
+  const safe = req.query?.safe ? await run(async () => { await init();
+    return await db()`select coalesce(data->>'intent','?') intent, coalesce(data->>'stage','') stage,
+      case when coalesce((data->>'receivedAt')::bigint,0) > ${Date.now() - 864e5} then '<1d' when coalesce((data->>'receivedAt')::bigint,0) > ${Date.now() - 7 * 864e5} then '1-7d' else '7d+' end age,
+      (data->>'handedAt' is not null) handed, count(*)::int n
+      from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and data->>'sarahAt' is null
+      and coalesce(jsonb_array_length(data->'flags'), 0) = 0 and coalesce(data->>'draft','') <> '' group by 1,2,3,4 order by n desc`; }) : undefined;
+  res.json({ safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
