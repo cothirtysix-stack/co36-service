@@ -144,5 +144,16 @@ export default async function handler(req, res) {
     const err = await db()`select data->>'error' e from hub.docs where coll = 'svc_topics' and not deleted and data->>'status' = 'error' limit 2`;
     const tr = await getDoc("svc_meta", "trends");
     return { trends: (tr?.issues || []).map(i => ({ title: i.title, count: i.count, topic: i.topic, detail: i.detail, convs: (i.ids || []).map(x => String(x).replace(/^n/, "")) })), backfill: bf && { next: bf.next, done: bf.done, n: bf.n, at: bf.at, lastStop: bf.lastStop }, cards: st, topics: tp, errors: err.map(r => r.e) }; })().catch(e => ({ error: String(e.message || e).slice(0, 120) }));
-  res.json({ pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // ?saves=1 → the save-offer test: per version sends/exchanges, plus saves in the last 7 days (counts only).
+  const saves = req.query?.saves ? await run(async () => { await init(); const wk = Date.now() - 7 * 864e5;
+    const exps = (await db()`select data->>'name' n, data->>'on' on_, coalesce((data->>'sent')::int,0) s, coalesce((data->>'exchanges')::int,0) x from hub.docs where coll = 'svc_experiments' and not deleted order by id`);
+    const [c] = await db()`select count(*) filter (where data->>'offerVariant' is not null)::int offered, count(*) filter (where (data->>'offerCounted')::boolean)::int offer_sent,
+      count(*) filter (where data->>'savedAt' is not null and (data->>'savedAt')::bigint > ${wk})::int saved_7d,
+      count(*) filter (where data->>'wantedRefund' is not null and coalesce((data->>'receivedAt')::bigint,0) > ${wk})::int wanted_refund_7d,
+      count(*) filter (where data->>'status' = 'sent' and coalesce((data->>'sentAt')::bigint,0) > ${wk} and data->>'intent' = 'return')::int ella_return_replies_7d,
+      count(*) filter (where data->>'status' = 'sent' and coalesce((data->>'sentAt')::bigint,0) > ${wk} and data->>'intent' = 'exchange')::int ella_exchange_replies_7d,
+      count(*) filter (where data->>'exchangeMade' is not null and coalesce((data->>'sentAt')::bigint,0) > ${wk})::int exchanges_made_7d
+      from hub.docs where coll = 'svc_returns' and not deleted`;
+    return { versions: exps, ...c }; }) : undefined;
+  res.json({ saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
