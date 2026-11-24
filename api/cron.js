@@ -175,6 +175,9 @@ export default async function handler(req, res) {
         if (!ex.ok) { held.push(id); continue; }
         ex = { returnId: ex.returnId, url: ex.statusPageUrl };
       }
+      // Tried before and it failed, but a redraft cleared the flags (Nov 24, #51810 sat 28h): put it back with Michelle.
+      if (!ex?.url && r.exchangeTriedAt && !(r.flags || []).includes("exchange_failed"))
+        await putDoc("svc_returns", id, { flags: [...new Set([...(r.flags || []), "exchange_failed"])], exchangeError: r.exchangeError || "the exchange didn't go through earlier" }, true);
       if (!ex?.url) { held.push(id); continue; }
       body = body.replace(/\{\{LABEL_LINK\}\}/g, ex.url);
     }
