@@ -154,6 +154,9 @@ export default async function handler(req, res) {
       count(*) filter (where data->>'status' = 'sent' and coalesce((data->>'sentAt')::bigint,0) > ${wk} and data->>'intent' = 'exchange')::int ella_exchange_replies_7d,
       count(*) filter (where data->>'exchangeMade' is not null and coalesce((data->>'sentAt')::bigint,0) > ${wk})::int exchanges_made_7d
       from hub.docs where coll = 'svc_returns' and not deleted`;
-    return { versions: exps, ...c }; }) : undefined;
+    const ella = await db()`select id, (data->>'offerSaved')::bigint os, (data->>'savedAt')::bigint sa, (data->>'savedAfterQc') qc, data->>'sarahAt' team from hub.docs where coll = 'svc_returns' and not deleted and data->>'offerSaved' is not null`;
+    const days = await db()`select to_char(to_timestamp((data->>'savedAt')::bigint / 1000) at time zone 'America/New_York', 'Mon DD') d, count(*)::int n,
+      count(*) filter (where data->>'sarahAt' is null)::int ella_only from hub.docs where coll = 'svc_returns' and not deleted and data->>'savedAt' is not null and (data->>'savedAt')::bigint > ${wk} group by 1 order by 1`;
+    return { versions: exps, ...c, ellaSaves: ella.map(r => ({ id: r.id, offerSaved: r.os && new Date(r.os).toISOString(), savedAt: r.sa && new Date(r.sa).toISOString(), afterQc: r.qc, team: !!r.team })), byDay: days }; }) : undefined;
   res.json({ saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
