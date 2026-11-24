@@ -342,7 +342,9 @@ const justAsked = () => rets.filter(r => r.stage !== "after_qc" && !r.sarahAt).f
 const offerOut = () => rets.filter(r => r.stage !== "after_qc" && (r.status === "sent" ? inPeriod(r.sentAt) : r.sarahAt && r.status !== "skipped" && inPeriod(r.sarahAt))).sort((a, b) => (a.sentAt || a.sarahAt || 0) - (b.sentAt || b.sarahAt || 0));
 const svcNeeds = r => (r.flags || []).includes("needs_human");
 const svcLate = r => (r.status === "draft" || r.status === "drafting" || r.status === "error") && Date.now() - (r.receivedAt || Date.now()) >= 5 * 6e4;
-const safeDrafts = () => justAsked().filter(r => r.status === "draft" && !(r.flags || []).length && !r.sarahAt && (r.draft || "").trim());
+// Nov 24: only recent return/exchange drafts (the button had 112 week-old product-question drafts in it; Ella only answers returns now).
+const safeDrafts = () => justAsked().filter(r => r.status === "draft" && !(r.flags || []).length && !r.sarahAt && (r.draft || "").trim()
+  && ["return", "exchange"].includes(r.intent) && Date.now() - (r.lastAt || r.receivedAt || 0) < 3 * 864e5);
 
 // ---------- mapped Richpanel returns ----------
 const OPEN = s => s !== "PROCESSED" && s !== "CANCELLED";
