@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   // Even minutes write drafts (one round, up to ~45s), odd minutes load conversations: each run stays well under Vercel's 60s.
   const draftMinute = new Date().getUTCMinutes() % 2 === 0 || req.query?.do === "drafts";
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
-  if (!(await getDoc("svc_meta", "resetSaves1123"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123", { at: Date.now() }); }
+  if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
   // 1) Backfill, 4 at a time.
   let m = await getDoc("svc_meta", "topicsBackfill");
