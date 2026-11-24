@@ -145,6 +145,7 @@ export default async function handler(req, res) {
     const tr = await getDoc("svc_meta", "trends");
     return { trends: (tr?.issues || []).map(i => ({ title: i.title, count: i.count, topic: i.topic, detail: i.detail, convs: (i.ids || []).map(x => String(x).replace(/^n/, "")) })), backfill: bf && { next: bf.next, done: bf.done, n: bf.n, at: bf.at, lastStop: bf.lastStop }, cards: st, topics: tp, errors: err.map(r => r.e) }; })().catch(e => ({ error: String(e.message || e).slice(0, 120) }));
   // ?saves=1 → the save-offer test: per version sends/exchanges, plus saves in the last 7 days (counts only).
+  const iso = v => { const n = Number(v); return Number.isFinite(n) && n > 0 ? new Date(n).toISOString() : (v ?? null); };
   const saves = req.query?.saves ? await run(async () => { await init(); const wk = Date.now() - 7 * 864e5;
     const exps = (await db()`select data->>'name' n, data->>'on' on_, coalesce((data->>'sent')::int,0) s, coalesce((data->>'exchanges')::int,0) x from hub.docs where coll = 'svc_experiments' and not deleted order by id`);
     const [c] = await db()`select count(*) filter (where data->>'offerVariant' is not null)::int offered, count(*) filter (where (data->>'offerCounted')::boolean)::int offer_sent,
@@ -154,9 +155,9 @@ export default async function handler(req, res) {
       count(*) filter (where data->>'status' = 'sent' and coalesce((data->>'sentAt')::bigint,0) > ${wk} and data->>'intent' = 'exchange')::int ella_exchange_replies_7d,
       count(*) filter (where data->>'exchangeMade' is not null and coalesce((data->>'sentAt')::bigint,0) > ${wk})::int exchanges_made_7d
       from hub.docs where coll = 'svc_returns' and not deleted`;
-    const ella = await db()`select id, (data->>'offerSaved')::bigint os, (data->>'savedAt')::bigint sa, (data->>'savedAfterQc') qc, data->>'sarahAt' team from hub.docs where coll = 'svc_returns' and not deleted and data->>'offerSaved' is not null`;
+    const ella = await db()`select id, data->>'offerSaved' os, data->>'savedAt' sa, (data->>'savedAfterQc') qc, data->>'sarahAt' team from hub.docs where coll = 'svc_returns' and not deleted and data->>'offerSaved' is not null`;
     const days = await db()`select to_char(to_timestamp((data->>'savedAt')::bigint / 1000) at time zone 'America/New_York', 'Mon DD') d, count(*)::int n,
-      count(*) filter (where data->>'sarahAt' is null)::int ella_only from hub.docs where coll = 'svc_returns' and not deleted and data->>'savedAt' is not null and (data->>'savedAt')::bigint > ${wk} group by 1 order by 1`;
-    return { versions: exps, ...c, ellaSaves: ella.map(r => ({ id: r.id, offerSaved: r.os && new Date(r.os).toISOString(), savedAt: r.sa && new Date(r.sa).toISOString(), afterQc: r.qc, team: !!r.team })), byDay: days }; }) : undefined;
+      count(*) filter (where data->>'sarahAt' is null)::int ella_only from hub.docs where coll = 'svc_returns' and not deleted and data->>'savedAt' ~ '^[0-9]+$' and (data->>'savedAt')::bigint > ${wk} group by 1 order by 1`;
+    return { versions: exps, ...c, ellaSaves: ella.map(r => ({ id: r.id, offerSaved: iso(r.os), savedAt: iso(r.sa), afterQc: r.qc, team: !!r.team })), byDay: days }; }) : undefined;
   res.json({ saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
