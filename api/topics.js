@@ -20,6 +20,17 @@ export default async function handler(req, res) {
   await init();
   // Even minutes write drafts (one round, up to ~45s), odd minutes load conversations: each run stays well under Vercel's 60s.
   const draftMinute = new Date().getUTCMinutes() % 2 === 0 || req.query?.do === "drafts";
+  // Save-offer test round 2 (David, Nov 23: "a/b test the way you ask them ... 1 way will be the winner"): A and C off (0 saves),
+  // B and D stay, three new ones without the "sending it back is fine too" exit line.
+  if (!(await getDoc("svc_meta", "offerRound2"))) {
+    await putDoc("svc_experiments", "seed11190", { on: false, offAt: Date.now(), offWhy: "round 2: 0 saves" }, true);
+    await putDoc("svc_experiments", "seed11192", { on: false, offAt: Date.now(), offWhy: "round 2: 0 saves" }, true);
+    const V = [["E · Set aside (no exit)", "I've set aside the XL in Black, Gray and White for you. Reply yes and your prepaid label is on its way, and the new ones ship the day yours are scanned."],
+      ["F · Faster + other color (no exit)", "A swap is quicker than a refund. Want the XL instead, or a different color? Moss and Navy are in stock in your size. Reply yes and your label goes out today."],
+      ["G · Faster than a refund (no exit)", "Want to try the M instead? A swap is quicker than a refund: reply yes and the new one ships the day yours is scanned."]];
+    for (const [i, [name, text]] of V.entries()) await putDoc("svc_experiments", `r2-${i}`, { name, text, on: true, noExit: true, context: "save", createdAt: Date.now() + i, by: "Ella (round 2)", sent: 0, exchanges: 0, credits: 0 });
+    await putDoc("svc_meta", "offerRound2", { at: Date.now() });
+  }
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
