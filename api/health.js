@@ -166,5 +166,14 @@ export default async function handler(req, res) {
       (data->>'handedAt' is not null) handed, count(*)::int n
       from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and data->>'sarahAt' is null
       and coalesce(jsonb_array_length(data->'flags'), 0) = 0 and coalesce(data->>'draft','') <> '' group by 1,2,3,4 order by n desc`; }) : undefined;
-  res.json({ safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // ?waiting=1 → customers waiting on us right now (counts by lane and age, no names).
+  const waiting = req.query?.waiting ? await run(async () => { await init(); const now = Date.now();
+    const age = f => `case when ${f} > ${now - 864e5} then '<1d' when ${f} > ${now - 3 * 864e5} then '1-3d' when ${f} > ${now - 7 * 864e5} then '3-7d' else '7d+' end`;
+    const held = await db().unsafe(`select ${age("coalesce((data->>'lastAt')::bigint,(data->>'receivedAt')::bigint,0)")} a, coalesce((data->'flags'->>0),'none') f, count(*)::int n
+      from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'draft' and data->>'sarahAt' is null and data->>'handedAt' is not null
+      and coalesce((data->>'lastAt')::bigint,(data->>'receivedAt')::bigint,0) > ${now - 30 * 864e5} group by 1,2 order by 3 desc`);
+    const other = await db().unsafe(`select ${age("coalesce((data->>'lastAt')::bigint,0)")} a, data->>'topic' t, count(*)::int n from hub.docs where coll = 'svc_topics' and not deleted
+      and (data->>'waiting')::boolean is true and data->>'doneAt' is null and coalesce(data->>'lane','') <> 'returns' and coalesce((data->>'lastAt')::bigint,0) > ${now - 30 * 864e5} group by 1,2 order by 3 desc`);
+    return { held, other }; }) : undefined;
+  res.json({ waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
