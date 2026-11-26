@@ -48,6 +48,17 @@ export default async function handler(req, res) {
     await putDoc("svc_meta", "requeueHeld1126", { at: Date.now(), n: n.length });
     out.requeued = n.length;
   }
+  // Nov 26: Ella now sees the whole store's stock. Refresh the stock list now (it had hidden colors), then send the tickets held only
+  // for "not sure of stock" back to her, last 14 days.
+  if (!(await getDoc("svc_meta", "requeueStock1126"))) {
+    await putDoc("svc_meta", "catalog", { at: 0 }, true);
+    const n = await db()`update hub.docs set data = data || jsonb_build_object('status', 'error', 'error', 'requeued Nov 26 stock', 'retry2At', null, 'handedAt', null, 'flags', '[]'::jsonb), seq = nextval('hub.docs_seq')
+      where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'status' = 'draft' and data->>'sarahAt' is null and data->>'sentAt' is null
+      and coalesce(data->'flags', '[]'::jsonb) <@ '["stock_unknown", "no_order"]'::jsonb and data->'flags' ? 'stock_unknown'
+      and coalesce(data->>'problem', 'none') = 'none' and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 14 * 864e5} returning id`;
+    await putDoc("svc_meta", "requeueStock1126", { at: Date.now(), n: n.length });
+    out.requeuedStock = n.length;
+  }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
   if (!draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) {
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
