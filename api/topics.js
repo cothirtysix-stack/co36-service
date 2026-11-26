@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     out.requeuedEx = n.length;
   }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
-  if (!draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) {
+  if (false && !draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) { // stopped Nov 26: suspected of hanging the job
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
     if (!rows.length) await putDoc("svc_meta", "outage1126done2", { at: Date.now() });
     // 5 at a time in parallel (one by one took ~25s each).
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
   }
   // Ella's errored/requeued drafts get rewritten here too, 4 at a time, every minute (Nov 26).
   // Only on loading minutes (the other minutes write Inbox drafts / common problems), so one run never does both.
-  if (!draftMinute && left() > 40000) out.redraft = await redraftErrors({ limit: 2, deadline: t0 + 52000 }).catch(e => String(e.message || e).slice(0, 100));
+  // (Rewrites moved to their own job, api/redraft.js, Nov 26.)
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
