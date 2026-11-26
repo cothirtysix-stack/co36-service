@@ -3,6 +3,7 @@
 import { redraftErrors } from "../lib/redraft.js";
 import { putDoc } from "../lib/server.js";
 export default async function handler(req, res) {
+  if (process.env.REDRAFT_ON !== "1" && req.query?.force !== "1") return res.json({ ok: true, paused: true }); // paused Nov 26 while stuck DB connections clear
   const t0 = Date.now();
   const r = await redraftErrors({ limit: 2, deadline: t0 + 52000 }).catch(e => ({ error: String(e.message || e).slice(0, 160) }));
   await putDoc("svc_meta", "redraftLast", { at: Date.now(), ms: Date.now() - t0, ...r }).catch(() => {});
