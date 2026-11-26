@@ -31,6 +31,19 @@ export default async function handler(req, res) {
     for (const [i, [name, text]] of V.entries()) await putDoc("svc_experiments", `r2-${i}`, { name, text, on: true, noExit: true, context: "save", createdAt: Date.now() + i, by: "Ella (round 2)", sent: 0, exchanges: 0, credits: 0 });
     await putDoc("svc_meta", "offerRound2", { at: Date.now() });
   }
+  // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
+  if (!draftMinute && !(await getDoc("svc_meta", "outage1126done"))) {
+    const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
+    if (!rows.length) await putDoc("svc_meta", "outage1126done", { at: Date.now() });
+    for (const { id } of rows) {
+      const number = id.replace(/^n/, ""); if (!/^\d+$/.test(number)) { await putDoc("svc_seen", id, { rerunAt: Date.now() }, true); continue; }
+      await putDoc("svc_seen", id, { last: null, rerunAt: Date.now() }, true);
+      const r = await fetch(`https://${req.headers.host}/api/inbound`, { method: "POST", headers: { "content-type": "application/json", "x-co36-key": process.env.SERVICE_INBOUND_KEY || "" },
+        body: JSON.stringify({ ticketConversationNumber: number }), signal: AbortSignal.timeout(25000) }).catch(() => null);
+      out.rerun = (out.rerun || 0) + 1; if (r && !r.ok) out.rerunErr = r.status;
+      if (left() < 20000) break;
+    }
+  }
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
