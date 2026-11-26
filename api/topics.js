@@ -6,6 +6,7 @@ import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { recordTicket, draftTopic } from "../lib/topics.js";
 import { findTrends } from "../lib/trends.js";
 import { verifySaves, resetSaves1123 } from "../lib/saves.js";
+import { redraftErrors } from "../lib/redraft.js";
 
 async function ticket(n) {
   const r = await fetch(`https://api.richpanel.com/v1/tickets/number/${n}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" }, signal: AbortSignal.timeout(12000) });
@@ -87,6 +88,8 @@ export default async function handler(req, res) {
       on: true, noExit: true, firstReply: true, context: "save", createdAt: Date.now(), by: "Ella (round 3)", sent: 0, exchanges: 0, credits: 0 });
     await putDoc("svc_meta", "offerRound3", { at: Date.now() });
   }
+  // Ella's errored/requeued drafts get rewritten here too, 4 at a time, every minute (Nov 26).
+  if (left() > 40000) out.redraft = await redraftErrors({ limit: 4, deadline: t0 + 50000 }).catch(e => String(e.message || e).slice(0, 100));
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));

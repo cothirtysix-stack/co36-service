@@ -263,6 +263,7 @@ export default async function handler(req, res) {
     and data->>'retry2At' is null and coalesce((data->>'retryNotBefore')::bigint, 0) < ${Date.now()}
     and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) >= ${Math.max(since, Date.now() - 15 * 864e5)} limit 6`;
   for (const { id, data: r } of errs) {
+    if (left() < 30000) break; // Nov 26: a rewrite takes 10-30s; never start one the job can't finish (the Inbox job also rewrites these)
     await putDoc("svc_returns", id, { retryAt: Date.now(), retry2At: Date.now() }, true);
     const t = r.number ? await loadTicket(r.number) : null;
     // Nov 19: when Richpanel didn't answer this one lookup the ticket was marked tried and never redrafted (7 sat ~20h).
