@@ -31,6 +31,12 @@ export default async function handler(req, res) {
     for (const [i, [name, text]] of V.entries()) await putDoc("svc_experiments", `r2-${i}`, { name, text, on: true, noExit: true, context: "save", createdAt: Date.now() + i, by: "Ella (round 2)", sent: 0, exchanges: 0, credits: 0 });
     await putDoc("svc_meta", "offerRound2", { at: Date.now() });
   }
+  // Drafts that failed on the spend limit go back in line (they were marked "already retried" during the outage).
+  if (!(await getDoc("svc_meta", "creditRequeue1126"))) {
+    await db()`update hub.docs set data = data || '{"retry2At": null}'::jsonb, seq = nextval('hub.docs_seq') where coll = 'svc_returns' and not deleted
+      and data->>'status' = 'error' and data->>'error' ~* 'usage limit|credit balance' and data->>'sentAt' is null`;
+    await putDoc("svc_meta", "creditRequeue1126", { at: Date.now() });
+  }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
   if (!draftMinute && !(await getDoc("svc_meta", "outage1126done"))) {
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
