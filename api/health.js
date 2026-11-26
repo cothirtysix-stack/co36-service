@@ -117,6 +117,7 @@ export default async function handler(req, res) {
     return { returns: r && { status: r.status, intent: r.intent, flags: r.flags, error: r.error, sarahAt: !!r.sarahAt, answeredBy: r.answeredBy, sentBy: r.sentBy, receivedAt: r.receivedAt, notedAt: r.notedAt, autoSkipped: r.autoSkipped, autoError: r.autoError, handedAt: r.handedAt, handedOk: r.handedOk, lastAt: r.lastAt }, seen: !!seen, read: seen?.read || null, inbox: inb && { mood: inb.mood } };
   }) : undefined;
   // ?pg=1 → read-only: what the database is busy with right now (query shapes only, no values).
+  const pgset = req.query?.pg ? await run(async () => (await db()`select current_setting('lock_timeout') lt, current_setting('statement_timeout') st`)[0]) : undefined;
   const pg = req.query?.pg ? await run(async () => (await db()`select pid, state, wait_event_type, wait_event, extract(epoch from now() - query_start)::int secs, left(regexp_replace(query, '\s+', ' ', 'g'), 90) q
     from pg_stat_activity where usename = current_user and pid <> pg_backend_pid() and state <> 'idle' order by query_start limit 15`)) : undefined;
   // ?model=1 → one tiny call to the main drafting model, with how long it took.
@@ -191,5 +192,5 @@ export default async function handler(req, res) {
     return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
       and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
   const meta = req.query?.meta && ["redraftStage", "redraftLast"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
-  res.json({ meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
