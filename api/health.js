@@ -175,5 +175,11 @@ export default async function handler(req, res) {
     const other = await db().unsafe(`select ${age("coalesce((data->>'lastAt')::bigint,0)")} a, data->>'topic' t, count(*)::int n from hub.docs where coll = 'svc_topics' and not deleted
       and (data->>'waiting')::boolean is true and data->>'doneAt' is null and coalesce(data->>'lane','') <> 'returns' and coalesce((data->>'lastAt')::bigint,0) > ${now - 30 * 864e5} group by 1,2 order by 3 desc`);
     return { held, other }; }) : undefined;
-  res.json({ waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // ?outage=1 → what failed while the AI limit was hit (counts only).
+  const outage = req.query?.outage ? await run(async () => { await init(); const since = Date.now() - 3 * 864e5;
+    const [a] = await db()`select count(*) filter (where data->>'read' = 'failed')::int failed_reads, count(*)::int seen from hub.docs where coll = 'svc_seen' and not deleted and coalesce((data->>'at')::bigint,0) > ${since}`;
+    const r = await db()`select data->>'status' st, count(*)::int n from hub.docs where coll = 'svc_returns' and not deleted and coalesce((data->>'lastAt')::bigint,(data->>'receivedAt')::bigint,0) > ${since} group by 1 order by 2 desc`;
+    const e = await db()`select left(data->>'error', 80) e, count(*)::int n from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'error' and coalesce((data->>'lastAt')::bigint,0) > ${since} group by 1 order by 2 desc limit 5`;
+    return { ...a, returns: r, errors: e }; }) : undefined;
+  res.json({ outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
