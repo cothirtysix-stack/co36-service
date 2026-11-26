@@ -72,6 +72,12 @@ export default async function handler(req, res) {
       out.rerun = (out.rerun || 0) + 1; if (r && !r.ok) out.rerunErr = r.status;
     }));
   }
+  // Nov 26 (David: "work on getting people to exchange rather than refund"): test making the offer in the very first reply.
+  if (!(await getDoc("svc_meta", "offerRound3"))) {
+    await putDoc("svc_experiments", "r3-0", { name: "H · Offer in first reply (no exit)", text: "No worries, I can help. Did they run big or small? I can send you the next size up or down right away, it's quicker than a refund. Just reply with the size and your label is on its way.",
+      on: true, noExit: true, firstReply: true, context: "save", createdAt: Date.now(), by: "Ella (round 3)", sent: 0, exchanges: 0, credits: 0 });
+    await putDoc("svc_meta", "offerRound3", { at: Date.now() });
+  }
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
