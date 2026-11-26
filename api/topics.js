@@ -6,7 +6,7 @@ import { db, init, getDoc, putDoc } from "../lib/server.js";
 import { recordTicket, draftTopic } from "../lib/topics.js";
 import { findTrends } from "../lib/trends.js";
 import { verifySaves, resetSaves1123 } from "../lib/saves.js";
-import { redraftErrors } from "../lib/redraft.js";
+import { catalog } from "../lib/questions.js";
 
 async function ticket(n) {
   const r = await fetch(`https://api.richpanel.com/v1/tickets/number/${n}`, { headers: { "x-richpanel-key": process.env.RICHPANEL_API_KEY || "" }, signal: AbortSignal.timeout(12000) });
@@ -90,7 +90,8 @@ export default async function handler(req, res) {
   }
   // Ella's errored/requeued drafts get rewritten here too, 4 at a time, every minute (Nov 26).
   // Only on loading minutes (the other minutes write Inbox drafts / common problems), so one run never does both.
-  // (Rewrites moved to their own job, api/redraft.js, Nov 26.)
+  // (Rewrites moved to their own job, api/redraft.js, Nov 26.) Keep Ella's store-stock list fresh here (hourly), off her drafting path.
+  if (!draftMinute) { const c = await getDoc("svc_meta", "catalog"); if (!(c?.at > Date.now() - 3600e3)) out.catalog = await catalog().then(t => t.length).catch(e => String(e.message || e).slice(0, 80)); }
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
