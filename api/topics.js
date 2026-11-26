@@ -38,9 +38,9 @@ export default async function handler(req, res) {
     await putDoc("svc_meta", "creditRequeue1126", { at: Date.now() });
   }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
-  if (!draftMinute && !(await getDoc("svc_meta", "outage1126done"))) {
+  if (!draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) {
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
-    if (!rows.length) await putDoc("svc_meta", "outage1126done", { at: Date.now() });
+    if (!rows.length) await putDoc("svc_meta", "outage1126done2", { at: Date.now() });
     // 5 at a time in parallel (one by one took ~25s each).
     for (let i = 0; i < rows.length && left() > 30000; i += 5) await Promise.all(rows.slice(i, i + 5).map(async ({ id }) => {
       const number = id.replace(/^n/, ""); if (!/^\d+$/.test(number)) { await putDoc("svc_seen", id, { rerunAt: Date.now() }, true); return; }
