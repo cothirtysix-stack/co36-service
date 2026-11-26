@@ -89,7 +89,8 @@ export default async function handler(req, res) {
     await putDoc("svc_meta", "offerRound3", { at: Date.now() });
   }
   // Ella's errored/requeued drafts get rewritten here too, 4 at a time, every minute (Nov 26).
-  if (left() > 40000) out.redraft = await redraftErrors({ limit: 4, deadline: t0 + 50000 }).catch(e => String(e.message || e).slice(0, 100));
+  // Only on loading minutes (the other minutes write Inbox drafts / common problems), so one run never does both.
+  if (!draftMinute && left() > 40000) out.redraft = await redraftErrors({ limit: 2, deadline: t0 + 52000 }).catch(e => String(e.message || e).slice(0, 100));
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
   if (!draftMinute) out.saves = await verifySaves(10).catch(e => String(e.message || e).slice(0, 100));
