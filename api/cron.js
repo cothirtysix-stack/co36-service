@@ -270,7 +270,7 @@ export default async function handler(req, res) {
     // Try again in 20 minutes, at most 3 more times. Only real, existing ticket numbers are looked up.
     if (!t) { const f = (+r.loadFails || 0) + 1; if (r.number && f <= 3) await putDoc("svc_returns", id, { retry2At: null, loadFails: f, retryNotBefore: Date.now() + 20 * 60e3 }, true); continue; }
     const comments = (t.comments || []).filter(c => !isNoise(c)), cust = comments.filter(c => !isOp(c)).pop();
-    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments });
+    await draftFor(id, { who: r.customer, mail: r.email, subject: r.subject, message: String(cust?.plain_body || cust?.body || r.message || ""), comments, tries: 1 });
     // Out of Claude credit (Nov 5: monthly spend limit hit): keep it in line so it's written as soon as the limit is raised.
     const now = await getDoc("svc_returns", id); if (now?.status === "error" && /usage limit|credit balance/i.test(String(now.error || ""))) await putDoc("svc_returns", id, { retry2At: null }, true);
   }
