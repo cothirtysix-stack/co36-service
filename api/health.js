@@ -180,6 +180,7 @@ export default async function handler(req, res) {
     const [a] = await db()`select count(*) filter (where data->>'read' = 'failed')::int failed_reads, count(*)::int seen from hub.docs where coll = 'svc_seen' and not deleted and coalesce((data->>'at')::bigint,0) > ${since}`;
     const r = await db()`select data->>'status' st, count(*)::int n from hub.docs where coll = 'svc_returns' and not deleted and coalesce((data->>'lastAt')::bigint,(data->>'receivedAt')::bigint,0) > ${since} group by 1 order by 2 desc`;
     const e = await db()`select left(data->>'error', 80) e, count(*)::int n from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'error' and coalesce((data->>'lastAt')::bigint,0) > ${since} group by 1 order by 2 desc limit 5`;
-    return { ...a, returns: r, errors: e }; }) : undefined;
+    const st = await db()`select id, data->>'retry2At' r2, data->>'retryNotBefore' nb, data->>'loadFails' lf, data->>'handedAt' h, data->>'sarahAt' sa, data->>'lastAt' la from hub.docs where coll = 'svc_returns' and not deleted and data->>'status' = 'error' and coalesce((data->>'lastAt')::bigint,0) > ${since} limit 20`;
+    return { ...a, returns: r, errors: e, stuck: st }; }) : undefined;
   res.json({ outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
