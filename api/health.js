@@ -186,5 +186,9 @@ export default async function handler(req, res) {
   const stockq = req.query?.stockq ? await run(async () => { await init();
     return await db()`select id, left(data->>'plan', 140) plan, data->'orders' orders from hub.docs where coll = 'svc_returns' and not deleted and data->'flags' ? 'stock_unknown'
       and data->>'sentAt' is null and coalesce((data->>'lastAt')::bigint,0) > ${Date.now() - 7 * 864e5} order by (data->>'lastAt')::bigint desc limit 15`; }) : undefined;
-  res.json({ stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  // ?exfail=1 → why Ella's exchanges failed in the portal (last 14 days).
+  const exfail = req.query?.exfail ? await run(async () => { await init();
+    return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
+      and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
+  res.json({ exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
