@@ -59,6 +59,15 @@ export default async function handler(req, res) {
     await putDoc("svc_meta", "requeueStock1126", { at: Date.now(), n: n.length });
     out.requeuedStock = n.length;
   }
+  // Nov 26: exchanges that failed on the Black Friday price math (fixed Nov 19) get one more try: fresh reply, fresh exchange.
+  if (!(await getDoc("svc_meta", "requeueExFail1126"))) {
+    const n = await db()`update hub.docs set data = (data || jsonb_build_object('status', 'error', 'error', 'requeued Nov 26 exchange', 'retry2At', null, 'handedAt', null,
+        'exchangeTriedAt', null, 'exchangeError', null, 'flags', '[]'::jsonb)), seq = nextval('hub.docs_seq')
+      where coll = 'svc_returns' and not deleted and id like 'n%' and data->>'sentAt' is null and data->>'sarahAt' is null and data->>'exchangeMade' is null
+      and data->>'exchangeError' ~* 'prices have changed|price difference' and coalesce((data->>'lastAt')::bigint, (data->>'receivedAt')::bigint, 0) > ${Date.now() - 14 * 864e5} returning id`;
+    await putDoc("svc_meta", "requeueExFail1126", { at: Date.now(), n: n.length });
+    out.requeuedEx = n.length;
+  }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
   if (!draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) {
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
