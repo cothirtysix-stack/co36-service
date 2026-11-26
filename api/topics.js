@@ -35,14 +35,14 @@ export default async function handler(req, res) {
   if (!draftMinute && !(await getDoc("svc_meta", "outage1126done"))) {
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
     if (!rows.length) await putDoc("svc_meta", "outage1126done", { at: Date.now() });
-    for (const { id } of rows) {
-      const number = id.replace(/^n/, ""); if (!/^\d+$/.test(number)) { await putDoc("svc_seen", id, { rerunAt: Date.now() }, true); continue; }
+    // 5 at a time in parallel (one by one took ~25s each).
+    for (let i = 0; i < rows.length && left() > 30000; i += 5) await Promise.all(rows.slice(i, i + 5).map(async ({ id }) => {
+      const number = id.replace(/^n/, ""); if (!/^\d+$/.test(number)) { await putDoc("svc_seen", id, { rerunAt: Date.now() }, true); return; }
       await putDoc("svc_seen", id, { last: null, rerunAt: Date.now() }, true);
       const r = await fetch(`https://${req.headers.host}/api/inbound`, { method: "POST", headers: { "content-type": "application/json", "x-co36-key": process.env.SERVICE_INBOUND_KEY || "" },
         body: JSON.stringify({ ticketConversationNumber: number }), signal: AbortSignal.timeout(25000) }).catch(() => null);
       out.rerun = (out.rerun || 0) + 1; if (r && !r.ok) out.rerunErr = r.status;
-      if (left() < 20000) break;
-    }
+    }));
   }
   // Saves: only real exchanges count (Nov 23). One-time reset of the old word-based saves, then a check every loading minute.
   if (!(await getDoc("svc_meta", "resetSaves1123b"))) { await resetSaves1123(); await putDoc("svc_meta", "resetSaves1123b", { at: Date.now() }); }
