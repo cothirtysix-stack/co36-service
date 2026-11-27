@@ -117,6 +117,10 @@ export default async function handler(req, res) {
     return { returns: r && { status: r.status, intent: r.intent, flags: r.flags, error: r.error, sarahAt: !!r.sarahAt, answeredBy: r.answeredBy, sentBy: r.sentBy, receivedAt: r.receivedAt, notedAt: r.notedAt, autoSkipped: r.autoSkipped, autoError: r.autoError, handedAt: r.handedAt, handedOk: r.handedOk, lastAt: r.lastAt }, seen: !!seen, read: seen?.read || null, inbox: inb && { mood: inb.mood } };
   }) : undefined;
   // ?pg=1 → read-only: what the database is busy with right now (query shapes only, no values).
+  // ?pq=1 → product questions last 7 days: counts only (how many Ella is sure about, by topic and flag).
+  const pq = req.query?.pq ? await run(async () => { await init();
+    return await db()`select coalesce(data->>'topic','?') topic, coalesce(data->>'confidence','?') conf, coalesce(data->'flags'->>0,'') flag, coalesce(data->>'status','?') st, count(*)::int n
+      from hub.docs where coll = 'svc_questions' and not deleted and coalesce((data->>'lastAt')::bigint,0) > ${Date.now() - 7 * 864e5} group by 1,2,3,4 order by 5 desc limit 30`; }) : undefined;
   // ?month=2026-11 → customer emails by reason in a month (counts only, from the Inbox stats).
   const month = req.query?.month && /^\d{4}-\d{2}$/.test(req.query.month) ? await run(async () => { await init();
     return await db()`select data->>'t' t, count(*)::int n, min(data->>'d') first, max(data->>'d') last from hub.docs where coll = 'svc_tstat' and not deleted
@@ -201,5 +205,5 @@ export default async function handler(req, res) {
     return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
       and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
   const meta = req.query?.meta && ["redraftStage", "redraftLast"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
-  res.json({ month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
