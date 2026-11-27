@@ -69,6 +69,13 @@ export default async function handler(req, res) {
     await putDoc("svc_meta", "requeueExFail1126", { at: Date.now(), n: n.length });
     out.requeuedEx = n.length;
   }
+  // David, Nov 26: "can you give Michelle access to it" (the Shopping page). Adds the page to Michelle's account once.
+  if (!(await getDoc("svc_meta", "michelleShopping1126"))) {
+    const rows = await db()`select id, data from hub.docs where coll = 'svc_users' and not deleted and (id ilike 'michelle%' or data->>'name' ilike 'michelle%')`;
+    for (const { id, data: u } of rows) if (!(u.pages || []).includes("shopping")) await putDoc("svc_users", id, { pages: [...(u.pages || []), "shopping"] }, true);
+    await putDoc("svc_meta", "michelleShopping1126", { at: Date.now(), users: rows.length });
+    out.michelle = rows.length;
+  }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
   if (false && !draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) { // stopped Nov 26: suspected of hanging the job
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;
