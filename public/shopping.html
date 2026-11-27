@@ -145,7 +145,7 @@ function card(q) {
       : `<span class="lbl">Ella's answer (not sent)</span><textarea data-ta="${esc(q.docId)}" data-key="d-${esc(q.docId)}">${esc(edits[q.docId] ?? q.draft ?? "")}</textarea>`}
     ${(q.teachings || []).length ? `<div class="taught">You taught: ${esc(q.teachings[q.teachings.length - 1].note)}</div>` : ""}
     ${waiting(q) ? `<span class="lbl">Teach Ella (optional)</span><textarea class="teach" data-note="${esc(q.docId)}" data-key="n-${esc(q.docId)}" placeholder="e.g. Our Mock Neck has a 2-inch collar; for broad shoulders suggest one size up…">${esc(notes[q.docId] || "")}</textarea>
-    <div class="qf"><button data-done="${esc(q.docId)}">Mark done</button><button data-copy="${esc(q.docId)}"${q.draft ? "" : " disabled"}>Copy</button><button class="teachb" data-teach="${esc(q.docId)}"${busy[q.docId] ? " disabled" : ""}>Teach &amp; rewrite</button>${q.draft && q.ticketId ? `<button class="pri" data-send="${esc(q.docId)}"${busy["s" + q.docId] ? " disabled" : ""}>${busy["s" + q.docId] ? "Sending…" : "Send"}</button>` : ""}</div>` : ""}</div>`;
+    <div class="qf"><button data-done="${esc(q.docId)}">Mark done</button><button data-copy="${esc(q.docId)}"${q.draft ? "" : " disabled"}>Copy</button><button class="teachb" data-teach="${esc(q.docId)}"${busy[q.docId] ? " disabled" : ""}>Teach &amp; rewrite</button>${q.draft && (q.ticketId || q.number) ? `<button class="pri" data-send="${esc(q.docId)}"${busy["s" + q.docId] ? " disabled" : ""}>${busy["s" + q.docId] ? "Sending…" : "Send"}</button>` : ""}</div>` : ""}</div>`;
 }
 function render() { keepFocus(() => {
   $("period").innerHTML = [[1, "Today"], [7, "7 days"], [30, "30 days"]].map(([k, l]) => `<button data-p="${k}" class="${period === k ? "on" : ""}">${l}</button>`).join("");
@@ -184,7 +184,7 @@ function wire() {
     const q = qs.find(x => x.docId === b.dataset.send), body = (edits[q.docId] ?? q.draft ?? "").trim(); if (!body) return toast("The answer is empty");
     if (!confirm(`Send this answer to ${q.customer || q.email || "the customer"}?`)) return;
     busy["s" + q.docId] = true; render();
-    try { await api.post("service", { op: "reply", ticketId: q.ticketId, body, close: true });
+    try { await api.post("service", { op: "reply", ticketId: q.ticketId, number: q.number, body, close: true });
       await db.doc(`svc_questions/${q.docId}`).update({ status: "sent", sentAt: Date.now(), sentText: body, sentBy: me, doneAt: Date.now(), doneBy: me, edited: body !== (q.draft || "").trim() });
       delete edits[q.docId]; toast("Sent"); } catch (e) { toast(e.text || e.message); }
     busy["s" + q.docId] = false; render();

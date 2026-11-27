@@ -47,7 +47,9 @@ async function scanCheck() {
 }
 
 // Reply in the customer's Richpanel thread (an email reply to them).
-async function reply({ ticketId, body, close }) {
+async function reply({ ticketId, number, body, close }) {
+  // Nov 26: some cards only have the conversation number; look the conversation up by it.
+  if (!ticketId && number) ticketId = (await loadTicket(String(number).replace(/\D/g, "")).catch(() => null))?.id;
   if (!ticketId || !String(body || "").trim()) fail("Missing conversation or message");
   if (/\{\{LABEL_LINK\}\}/.test(body)) fail("This reply needs the exchange to be set up first. Let Ella send it, or replace {{LABEL_LINK}}.");
   const r = await fetch(`https://api.richpanel.com/v1/tickets/${encodeURIComponent(ticketId)}`, { method: "PUT",
