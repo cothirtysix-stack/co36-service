@@ -131,6 +131,12 @@ export default async function handler(req, res) {
     const j = await r.json().catch(() => ({})); const t = (j.content || []).map(b => b.text || "").join("");
     return { total: rows.length, themes: t.split("\n").map(l => l.replace(/^\s*\|?\s*/, "").replace(/\*\*/g, "")).filter(l => /^\d+\s*\|/.test(l)).map(l => { const p = l.split("|").map(x => x.trim()); return { n: +p[0], q: p[1], topic: p[2] }; }), raw: t.slice(0, 300), apiError: j.error?.message || (r.ok ? null : r.status), stop: j.stop_reason, kinds: (j.content || []).map(b => b.type) };
   })().catch(e => ({ error: String(e.message || e).slice(0, 120) })) : undefined;
+  // ?teamfirst=1 → when teammates answered return/exchange tickets before Ella (last 3 days, by NY day; counts only).
+  const teamfirst = req.query?.teamfirst ? await run(async () => { await init();
+    return await db()`select to_char(to_timestamp((data->>'sarahAt')::bigint / 1000) at time zone 'America/New_York', 'Mon DD') d, count(*)::int n,
+      count(*) filter (where data->>'handedAt' is null)::int before_ella
+      from hub.docs where coll = 'svc_returns' and not deleted and data->>'answeredBy' = 'team' and data->>'sarahAt' ~ '^[0-9]+$'
+      and (data->>'sarahAt')::bigint > ${Date.now() - 3 * 864e5} group by 1 order by 1`; }) : undefined;
   // ?month=2026-11 → customer emails by reason in a month (counts only, from the Inbox stats).
   const month = req.query?.month && /^\d{4}-\d{2}$/.test(req.query.month) ? await run(async () => { await init();
     return await db()`select data->>'t' t, count(*)::int n, min(data->>'d') first, max(data->>'d') last from hub.docs where coll = 'svc_tstat' and not deleted
@@ -215,5 +221,5 @@ export default async function handler(req, res) {
     return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
       and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
   const meta = req.query?.meta && ["redraftStage", "redraftLast", "michelleShopping1126", "colorVotes"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
-  res.json({ pqthemes, pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ teamfirst, pqthemes, pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
