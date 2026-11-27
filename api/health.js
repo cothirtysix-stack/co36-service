@@ -204,6 +204,6 @@ export default async function handler(req, res) {
   const exfail = req.query?.exfail ? await run(async () => { await init();
     return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
       and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
-  const meta = req.query?.meta && ["redraftStage", "redraftLast"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
+  const meta = req.query?.meta && ["redraftStage", "redraftLast", "michelleShopping1126"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
   res.json({ pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
