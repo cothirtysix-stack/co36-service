@@ -137,6 +137,22 @@ export default async function handler(req, res) {
       count(*) filter (where data->>'handedAt' is null)::int before_ella
       from hub.docs where coll = 'svc_returns' and not deleted and data->>'answeredBy' = 'team' and data->>'sarahAt' ~ '^[0-9]+$'
       and (data->>'sarahAt')::bigint > ${Date.now() - 3 * 864e5} group by 1 order by 1`; }) : undefined;
+  // ?teamwho=1 → who on the team answered return/exchange tickets before Ella today (NY), counted by teammate (staff names only).
+  const teamwho = req.query?.teamwho ? await (async () => { await init(); const { loadTicket, isNoise } = await import("../lib/ella.js");
+    const NAMES = { "60ba3a8a": "Julia", "4c5c99e7": "Lucy", "d50e81de": "Michelle", "e7adc3d0": "Ashley", "931970e5": "Emma", "f0035478": "Anne", "7ba38484": "Sarah (Richpanel AI)", "d9173f60": "Ella" };
+    const startNY = Date.parse(new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10) + "T05:00:00Z");
+    const rows = await db()`select id, data->>'number' n from hub.docs where coll = 'svc_returns' and not deleted and data->>'answeredBy' = 'team' and data->>'handedAt' is null
+      and data->>'sarahAt' ~ '^[0-9]+$' and (data->>'sarahAt')::bigint > ${startNY} order by (data->>'sarahAt')::bigint desc limit 80`;
+    const who = {}, t0 = Date.now();
+    for (let i = 0; i < rows.length && Date.now() - t0 < 40000; i += 10) await Promise.all(rows.slice(i, i + 10).map(async r => {
+      const t = r.n ? await loadTicket(r.n).catch(() => null) : null; if (!t) { who["?"] = (who["?"] || 0) + 1; return; }
+      const ops = (t.comments || []).filter(c => (c.is_operator ?? c.isOperator) && !isNoise(c)), c = ops[ops.length - 1];
+      const id = String(c?.author_id || c?.authorId || "").slice(0, 8);
+      const sig = String(c?.plain_body || c?.body || "").replace(/<[^>]+>/g, " ").trim().split(/\n/).map(x => x.trim()).filter(Boolean).pop() || "";
+      const name = NAMES[id] || (sig.length < 25 ? sig : "") || "unknown";
+      who[name] = (who[name] || 0) + 1; }));
+    return { tickets: rows.length, who };
+  })().catch(e => ({ error: String(e.message || e).slice(0, 120) })) : undefined;
   // ?month=2026-11 → customer emails by reason in a month (counts only, from the Inbox stats).
   const month = req.query?.month && /^\d{4}-\d{2}$/.test(req.query.month) ? await run(async () => { await init();
     return await db()`select data->>'t' t, count(*)::int n, min(data->>'d') first, max(data->>'d') last from hub.docs where coll = 'svc_tstat' and not deleted
@@ -221,5 +237,5 @@ export default async function handler(req, res) {
     return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
       and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
   const meta = req.query?.meta && ["redraftStage", "redraftLast", "michelleShopping1126", "colorVotes"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
-  res.json({ teamfirst, pqthemes, pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ teamwho, teamfirst, pqthemes, pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
