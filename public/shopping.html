@@ -102,7 +102,7 @@ textarea{min-height:120px}textarea.teach{min-height:56px}
   <nav class="pnav"><a href="/home.html">Home</a><a href="/returns.html">Returns</a><a href="/training.html">Training</a><a href="/inbox.html">Inbox</a><span>Shopping</span><a href="/fulfillment.html">Fulfillment</a></nav>
 </header>
 <div class="wrap">
-  <div class="note"><b>How this works.</b> Every customer who emails a question about our products (fit, sizing, material, stock, price, policies) lands here. Ella writes the answer from the real facts: the size finder on our product pages, the size charts, material and care, and live stock. <b>Ella is sure</b> = everything in her answer comes straight from those facts. Copy it into Richpanel, or write what she should do in the dashed box and press <b>Teach &amp; rewrite</b>.</div>
+  <div class="note"><b>How this works.</b> Every customer who emails a question about our products (fit, sizing, material, stock, price, policies) lands here. Ella writes the answer from the real facts: the size finder on our product pages, the size charts, material and care, and live stock. <b>Ella is sure</b> = everything in her answer comes straight from those facts. <b>Good answer?</b> Press <b>Send</b> (you can edit the text in the box first). <b>Needs a change?</b> Write what she should do in the dashed box, press <b>Teach &amp; rewrite</b>, check her new answer, then press <b>Send</b>. She remembers your note for next time.</div>
   <div class="top"><div class="seg" id="period"></div><div class="seg" id="show"></div><input class="search" id="q" placeholder="Search name, email or conversation #" autocomplete="off" style="max-width:360px;margin:0"></div>
   <section class="tiles" id="tiles" style="margin-bottom:14px"></section>
   <section class="stats" id="colors" hidden style="margin-bottom:14px"></section>
@@ -145,7 +145,7 @@ function card(q) {
       : `<span class="lbl">Ella's answer (not sent)</span><textarea data-ta="${esc(q.docId)}" data-key="d-${esc(q.docId)}">${esc(edits[q.docId] ?? q.draft ?? "")}</textarea>`}
     ${(q.teachings || []).length ? `<div class="taught">You taught: ${esc(q.teachings[q.teachings.length - 1].note)}</div>` : ""}
     ${waiting(q) ? `<span class="lbl">Teach Ella (optional)</span><textarea class="teach" data-note="${esc(q.docId)}" data-key="n-${esc(q.docId)}" placeholder="e.g. Our Mock Neck has a 2-inch collar; for broad shoulders suggest one size up…">${esc(notes[q.docId] || "")}</textarea>
-    <div class="qf"><button data-done="${esc(q.docId)}">Mark done</button><button class="teachb" data-teach="${esc(q.docId)}"${busy[q.docId] ? " disabled" : ""}>Teach &amp; rewrite</button>${q.draft ? `<button class="pri" data-copy="${esc(q.docId)}">Copy</button>` : ""}</div>` : ""}</div>`;
+    <div class="qf"><button data-done="${esc(q.docId)}">Mark done</button><button data-copy="${esc(q.docId)}"${q.draft ? "" : " disabled"}>Copy</button><button class="teachb" data-teach="${esc(q.docId)}"${busy[q.docId] ? " disabled" : ""}>Teach &amp; rewrite</button>${q.draft && q.ticketId ? `<button class="pri" data-send="${esc(q.docId)}"${busy["s" + q.docId] ? " disabled" : ""}>${busy["s" + q.docId] ? "Sending…" : "Send"}</button>` : ""}</div>` : ""}</div>`;
 }
 function render() { keepFocus(() => {
   $("period").innerHTML = [[1, "Today"], [7, "7 days"], [30, "30 days"]].map(([k, l]) => `<button data-p="${k}" class="${period === k ? "on" : ""}">${l}</button>`).join("");
@@ -179,6 +179,16 @@ function wire() {
   document.querySelectorAll("[data-note]").forEach(t => t.oninput = () => { notes[t.dataset.note] = t.value; });
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => { const q = qs.find(x => x.docId === b.dataset.copy); try { await navigator.clipboard.writeText(edits[q.docId] ?? q.draft ?? ""); toast("Copied"); } catch (_) { toast("Couldn't copy, select the text instead"); } });
   document.querySelectorAll("[data-done]").forEach(b => b.onclick = async () => { b.disabled = true; try { await db.doc(`svc_questions/${b.dataset.done}`).update({ doneAt: Date.now(), doneBy: me, ...(edits[b.dataset.done] != null ? { finalText: edits[b.dataset.done] } : {}) }); toast("Marked done"); } catch (e) { toast(e.text || e.message); b.disabled = false; } });
+  // Send: emails the answer as it is in the box (your edits included) through Richpanel, and closes the conversation.
+  document.querySelectorAll("[data-send]").forEach(b => b.onclick = async () => {
+    const q = qs.find(x => x.docId === b.dataset.send), body = (edits[q.docId] ?? q.draft ?? "").trim(); if (!body) return toast("The answer is empty");
+    if (!confirm(`Send this answer to ${q.customer || q.email || "the customer"}?`)) return;
+    busy["s" + q.docId] = true; render();
+    try { await api.post("service", { op: "reply", ticketId: q.ticketId, body, close: true });
+      await db.doc(`svc_questions/${q.docId}`).update({ status: "sent", sentAt: Date.now(), sentText: body, sentBy: me, doneAt: Date.now(), doneBy: me, edited: body !== (q.draft || "").trim() });
+      delete edits[q.docId]; toast("Sent"); } catch (e) { toast(e.text || e.message); }
+    busy["s" + q.docId] = false; render();
+  });
   document.querySelectorAll("[data-teach]").forEach(b => b.onclick = async () => {
     const id = b.dataset.teach, note = (notes[id] || "").trim(); if (!note) return toast("Write what Ella should do first");
     busy[id] = true; render();
