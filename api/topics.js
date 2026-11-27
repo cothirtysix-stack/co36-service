@@ -79,15 +79,16 @@ export default async function handler(req, res) {
   }
   // Nov 26: Ella learned fabric, care, size charts, tall, new colors and packs. Waiting product questions from the last 7 days get a fresh
   // draft (3 per run, loading minutes). Drafts only, nothing is sent.
-  if (!draftMinute && left() > 45000 && !(await getDoc("svc_meta", "pqRedo1126b"))) {
+  if (!draftMinute && left() > 45000 && !(await getDoc("svc_meta", "pqRedo1126c"))) {
     const { draftQuestion } = await import("../lib/questions.js");
     const rows = await db()`select id, data from hub.docs where coll = 'svc_questions' and not deleted and data->>'status' = 'draft' and data->>'doneAt' is null and data->>'sentAt' is null
-      and coalesce((data->>'lastAt')::bigint,0) > ${Date.now() - 7 * 864e5} and coalesce((data->>'draftedAt')::bigint,0) < ${Date.parse("2026-11-26T20:00:00Z")} and data->>'pqRedo' is null order by seq desc limit 2`;
-    if (!rows.length) await putDoc("svc_meta", "pqRedo1126b", { at: Date.now() });
+      and coalesce((data->>'lastAt')::bigint,0) > ${Date.now() - 7 * 864e5} and coalesce((data->>'draftedAt')::bigint,0) < ${Date.parse("2026-11-27T03:45:00Z")} and coalesce((data->>'pqRedo')::bigint,0) < ${Date.parse("2026-11-27T03:45:00Z")} order by seq desc limit 2`;
+    if (!rows.length) await putDoc("svc_meta", "pqRedo1126c", { at: Date.now() });
     await Promise.all(rows.map(async ({ id, data: q }) => { await putDoc("svc_questions", id, { pqRedo: Date.now() }, true);
       await draftQuestion(id, { who: q.customer, mail: q.email, subject: q.subject, message: q.message || "", history: q.history || [] }).catch(() => {}); }));
     out.pqRedo = rows.length;
   }
+  if (!(await getDoc("svc_meta", "catalogLinks1127"))) { await putDoc("svc_meta", "catalog", { at: 0 }, true); await putDoc("svc_meta", "catalogLinks1127", { at: Date.now() }); }
   // Catch-up after the Nov 26 AI-limit outage: emails whose read failed get sent through the webhook again (10 per run).
   if (false && !draftMinute && !(await getDoc("svc_meta", "outage1126done2"))) { // stopped Nov 26: suspected of hanging the job
     const rows = await db()`select id from hub.docs where coll = 'svc_seen' and not deleted and data->>'read' = 'failed' and coalesce((data->>'at')::bigint,0) > ${Date.now() - 4 * 864e5} and data->>'rerunAt' is null order by id desc limit 10`;

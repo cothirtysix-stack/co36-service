@@ -103,7 +103,7 @@ textarea{min-height:120px}textarea.teach{min-height:56px}
 </header>
 <div class="wrap">
   <div class="note"><b>How this works.</b> Every customer who emails a question about our products (fit, sizing, material, stock, price, policies) lands here. Ella writes the answer from the real facts: the size finder on our product pages, the size charts, material and care, and live stock. <b>Ella is sure</b> = everything in her answer comes straight from those facts. <b>Good answer?</b> Press <b>Send</b> (you can edit the text in the box first). <b>Needs a change?</b> Write what she should do in the dashed box, press <b>Teach &amp; rewrite</b>, check her new answer, then press <b>Send</b>. She remembers your note for next time.</div>
-  <div class="top"><div class="seg" id="period"></div><div class="seg" id="show"></div><input class="search" id="q" placeholder="Search name, email or conversation #" autocomplete="off" style="max-width:360px;margin:0"></div>
+  <div class="top"><div class="seg" id="period"></div><div class="seg" id="show"></div><span id="bulk"></span><input class="search" id="q" placeholder="Search name, email or conversation #" autocomplete="off" style="max-width:360px;margin:0"></div>
   <section class="tiles" id="tiles" style="margin-bottom:14px"></section>
   <section class="stats" id="colors" hidden style="margin-bottom:14px"></section>
   <div class="sm" id="selnote" style="margin:0 0 8px"></div>
@@ -122,7 +122,7 @@ let me = ""; try { me = await (await window.claude.use("user")).email(); } catch
 const T = [["fit", "Sizing & fit", "#5B5BF6", ["sizing", "fit"]], ["material", "Material & care", "#14B8A6", ["fabric", "care"]], ["stock", "Stock & colors", "#F59E0B", ["stock"]],
   ["price", "Price & discounts", "#8B5CF6", ["price"]], ["policy", "Policies (shipping, returns)", "#0EA5E9", ["policy"]], ["other", "Other", "#A1A1AA", ["other"]]];
 const colOf = q => (T.find(t => t[3].includes(q.topic)) || T[T.length - 1])[0];
-let colors = null;
+let colors = null, bulkBusy = "";
 let qs = [], period = 7, show = "waiting", term = "", edits = {}, notes = {}, busy = {}, limit = {}, sel = new Set();
 try { const v = JSON.parse(localStorage.getItem("shop-view") || "{}"); if (v.period) period = v.period; if (v.show) show = v.show; sel = new Set(v.sel || []); } catch (_) {}
 const save = () => { try { localStorage.setItem("shop-view", JSON.stringify({ period, show, sel: [...sel] })); } catch (_) {} };
@@ -162,6 +162,9 @@ function render() { keepFocus(() => {
   const cv = colors?.votes || [];
   $("colors").hidden = !cv.length;
   $("colors").innerHTML = cv.length ? `<div class="colh" style="margin:0 0 8px"><b>Colors customers are asking for</b><em>last 30 days</em></div><div class="chips">${cv.map(v => `<span class="chip"><b>${v.n}</b> ${esc(v.color)}<span>${esc(/back/i.test(v.kind) ? "bring back" : "new")}${v.products && !/^any$/i.test(v.products) ? " · " + esc(v.products) : ""}</span></span>`).join("")}</div>` : "";
+  // One click (David, Nov 26): send every waiting answer Ella is sure about.
+  const ready = qs.filter(q => waiting(q) && sure(q) && q.status === "draft" && q.draft && (q.ticketId || q.number));
+  $("bulk").innerHTML = ready.length ? `<button class="pri" id="sendall" style="height:34px;padding:0 14px;border-radius:10px;font:700 12px Inter;border:0;background:#0B0B0F;color:#fff"${bulkBusy ? " disabled" : ""}>${bulkBusy ? "Sending… " + bulkBusy : `Send all good answers (${ready.length})`}</button>` : "";
   const vis = inP.filter(match).filter(q => show === "all" || waiting(q));
   $("selnote").innerHTML = sel.size ? `Showing only: ${[...sel].map(k => esc(T.find(t => t[0] === k)?.[1] || k)).join(", ")} <button class="clearsel" data-clear="1">Show all</button>` : "";
   $("board").innerHTML = T.filter(t => !sel.size || sel.has(t[0])).map(t => { const list = vis.filter(q => colOf(q) === t[0]).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)), lim = limit[t[0]] || 15;
@@ -180,6 +183,19 @@ function wire() {
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => { const q = qs.find(x => x.docId === b.dataset.copy); try { await navigator.clipboard.writeText(edits[q.docId] ?? q.draft ?? ""); toast("Copied"); } catch (_) { toast("Couldn't copy, select the text instead"); } });
   document.querySelectorAll("[data-done]").forEach(b => b.onclick = async () => { b.disabled = true; try { await db.doc(`svc_questions/${b.dataset.done}`).update({ doneAt: Date.now(), doneBy: me, ...(edits[b.dataset.done] != null ? { finalText: edits[b.dataset.done] } : {}) }); toast("Marked done"); } catch (e) { toast(e.text || e.message); b.disabled = false; } });
   // Send: emails the answer as it is in the box (your edits included) through Richpanel, and closes the conversation.
+  const sa = $("sendall"); if (sa) sa.onclick = async () => {
+    const ready = qs.filter(q => waiting(q) && sure(q) && q.status === "draft" && q.draft && (q.ticketId || q.number));
+    if (!ready.length || !confirm(`Send ${ready.length} answers Ella is sure about? Each goes to that customer as written.`)) return;
+    let ok = 0, bad = 0;
+    for (const [i, q] of ready.entries()) {
+      bulkBusy = `${i + 1}/${ready.length}`; render();
+      const body = (edits[q.docId] ?? q.draft ?? "").trim();
+      try { await api.post("service", { op: "reply", ticketId: q.ticketId, number: q.number, body, close: true });
+        await db.doc(`svc_questions/${q.docId}`).update({ status: "sent", sentAt: Date.now(), sentText: body, sentBy: me, doneAt: Date.now(), doneBy: me + " (send all)" }); ok++; }
+      catch (e) { bad++; }
+    }
+    bulkBusy = ""; render(); toast(`Sent ${ok}${bad ? ` · ${bad} couldn't send` : ""}`);
+  };
   document.querySelectorAll("[data-send]").forEach(b => b.onclick = async () => {
     const q = qs.find(x => x.docId === b.dataset.send), body = (edits[q.docId] ?? q.draft ?? "").trim(); if (!body) return toast("The answer is empty");
     if (!confirm(`Send this answer to ${q.customer || q.email || "the customer"}?`)) return;
