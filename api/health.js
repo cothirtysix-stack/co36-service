@@ -121,6 +121,16 @@ export default async function handler(req, res) {
   const pq = req.query?.pq ? await run(async () => { await init();
     return await db()`select coalesce(data->>'topic','?') topic, coalesce(data->>'confidence','?') conf, coalesce(data->'flags'->>0,'') flag, coalesce(data->>'status','?') st, count(*)::int n
       from hub.docs where coll = 'svc_questions' and not deleted and coalesce((data->>'lastAt')::bigint,0) > ${Date.now() - 7 * 864e5} group by 1,2,3,4 order by 5 desc limit 30`; }) : undefined;
+  // ?pqthemes=1 → the most common product questions (last 30 days), grouped by Ella into generic themes with counts. No names or messages leave.
+  const pqthemes = req.query?.pqthemes ? await (async () => { await init();
+    const rows = await db()`select coalesce(data->>'topic','other') t, left(regexp_replace(data->>'message', '\s+', ' ', 'g'), 260) m from hub.docs where coll = 'svc_questions' and not deleted
+      and coalesce((data->>'lastAt')::bigint,0) > ${Date.now() - 30 * 864e5} and not (coalesce(data->'flags','[]'::jsonb) ? 'not_a_question') order by seq desc limit 350`;
+    const list = rows.map((r, i) => `${i + 1}. [${r.t}] ${r.m}`).join("\n");
+    const r = await fetch("https://api.anthropic.com/v1/messages", { signal: AbortSignal.timeout(45000), method: "POST", headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY || "", "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 2500, messages: [{ role: "user", content: `These are product questions customers emailed a men's clothing brand (CO36) in the last 30 days, one per line with [topic]. Group them into the 15 most common questions. For each, write the question in plain generic words (no names, emails, order numbers or personal details) and count how many lines ask it. One line per question, most common first, exactly: COUNT | QUESTION | TOPIC\n\n${list}` }] }) });
+    const j = await r.json().catch(() => ({})); const t = (j.content || []).map(b => b.text || "").join("");
+    return { total: rows.length, themes: t.split("\n").filter(l => /^\s*\d+\s*\|/.test(l)).map(l => { const p = l.split("|").map(x => x.trim()); return { n: +p[0], q: p[1], topic: p[2] }; }) };
+  })().catch(e => ({ error: String(e.message || e).slice(0, 120) })) : undefined;
   // ?month=2026-11 → customer emails by reason in a month (counts only, from the Inbox stats).
   const month = req.query?.month && /^\d{4}-\d{2}$/.test(req.query.month) ? await run(async () => { await init();
     return await db()`select data->>'t' t, count(*)::int n, min(data->>'d') first, max(data->>'d') last from hub.docs where coll = 'svc_tstat' and not deleted
@@ -205,5 +215,5 @@ export default async function handler(req, res) {
     return await db()`select left(data->>'exchangeError', 110) why, count(*)::int n, max(id) eg from hub.docs where coll = 'svc_returns' and not deleted and data->>'exchangeError' is not null
       and coalesce((data->>'exchangeTriedAt')::bigint,0) > ${Date.now() - 14 * 864e5} group by 1 order by 2 desc limit 12`; }) : undefined;
   const meta = req.query?.meta && ["redraftStage", "redraftLast", "michelleShopping1126"].includes(req.query.meta) ? await getDoc("svc_meta", req.query.meta).catch(() => null) : undefined;
-  res.json({ pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
+  res.json({ pqthemes, pq, month, lessons, bigModel, pgset, meta, exfail, stockq, outage, waiting, safe, saves, pg, model, topics, refunds, happyList, happyRecheck, watchdog: watch ? { at: watch.at, problems: (watch.problems || []).map(p => p.key), lastEmail: watch.lastEmail } : null, reader, conv, returnsProbe, returnsSchema, ellaLookup: lookup, autopilot: ap, afterqc, returns_lane, scan, inbox, supabase, shopify: shop, richpanel, returns, claude: { ok: !!process.env.ANTHROPIC_API_KEY }, inboundKey: { ok: !!process.env.SERVICE_INBOUND_KEY } });
 }
